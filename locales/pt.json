@@ -1,0 +1,461 @@
+{
+  "locale": {
+    "code": "pt",
+    "name": "Portuguese",
+    "native_name": "Português (Brasil)"
+  },
+  "achievement": {
+    "agent_swarm": {
+      "name": "Enxame de Agentes",
+      "description": "Invocar um subagente com delegate_task"
+    },
+    "army_commander": {
+      "name": "Comandante do Exército",
+      "description": "Invocar 25 subagentes com delegate_task"
+    },
+    "century": {
+      "name": "Centenário",
+      "description": "Acumular 100+ mensagens em todas as sessões"
+    },
+    "chain_reaction": {
+      "name": "Reação em Cadeia",
+      "description": "Encadear 2 tarefas cron com context_from"
+    },
+    "changelog_checker": {
+      "name": "Olho no Changelog",
+      "description": "Ler o changelog do Hermes"
+    },
+    "chatty": {
+      "name": "Tagarela",
+      "description": "Enviar 25 mensagens para o Hermes"
+    },
+    "cli_champion": {
+      "name": "Campeão do Terminal",
+      "description": "Executar 500 comandos no terminal"
+    },
+    "code_architect": {
+      "name": "Arquiteto de Código",
+      "description": "Executar 100 blocos de código"
+    },
+    "code_slinger": {
+      "name": "Atirador de Código",
+      "description": "Executar 50 blocos de código"
+    },
+    "code_wizard": {
+      "name": "Mago do Código",
+      "description": "Executar 10 blocos de código com execute_code"
+    },
+    "complete_community": {
+      "name": "Comunidade Completa",
+      "description": "Desbloquear todas as conquistas da Comunidade"
+    },
+    "complete_epic": {
+      "name": "Colecionador Épico",
+      "description": "Desbloquear todas as conquistas Épicas"
+    },
+    "complete_getting_started": {
+      "name": "Primeiros Passos Completos",
+      "description": "Desbloquear todas as conquistas de Primeiros Passos"
+    },
+    "complete_power_user": {
+      "name": "Usuário Avançado Completo",
+      "description": "Desbloquear todas as conquistas de Usuário Avançado"
+    },
+    "complete_rare": {
+      "name": "Colecionador Raro",
+      "description": "Desbloquear todas as conquistas Raras"
+    },
+    "complete_tools": {
+      "name": "Ferramentas Completas",
+      "description": "Desbloquear todas as conquistas de Ferramentas e Habilidades"
+    },
+    "complete_toolset": {
+      "name": "Kit de Ferramentas Completo",
+      "description": "Usar cada tipo de ferramenta do Hermes pelo menos uma vez"
+    },
+    "completionist": {
+      "name": "Completista",
+      "description": "Desbloquear todas as outras conquistas"
+    },
+    "config_guru": {
+      "name": "Guru da Configuração",
+      "description": "Modificar 15 configurações diferentes"
+    },
+    "config_tinkerer": {
+      "name": "Curioso da Configuração",
+      "description": "Alterar uma configuração do Hermes"
+    },
+    "cron_commander": {
+      "name": "Comandante Cron",
+      "description": "Agendar sua primeira tarefa cron"
+    },
+    "cron_master": {
+      "name": "Mestre Cron",
+      "description": "Ter 5 tarefas cron ativas"
+    },
+    "cron_overlord": {
+      "name": "Supremo Cron",
+      "description": "Ter 15 tarefas cron ativas"
+    },
+    "cross_platform": {
+      "name": "Operante Multiplataforma",
+      "description": "Conversar com o Hermes de 2+ plataformas diferentes"
+    },
+    "cross_platform_veteran": {
+      "name": "Veterano Multiplataforma",
+      "description": "Conversar com o Hermes de 5+ plataformas diferentes"
+    },
+    "deep_diver": {
+      "name": "Mergulhador Profundo",
+      "description": "Realizar 25 pesquisas na web"
+    },
+    "doc_diver": {
+      "name": "Mergulhador na Documentação",
+      "description": "Ler a documentação do Hermes"
+    },
+    "doctor_visit": {
+      "name": "Atestado de Saúde",
+      "description": "Executar `hermes doctor` para verificar a saúde do sistema"
+    },
+    "early_bird": {
+      "name": "Madrugador",
+      "description": "Usar o Hermes antes das 6h"
+    },
+    "env_tuner": {
+      "name": "Afinador de Ambiente",
+      "description": "Configurar variáveis de ambiente personalizadas para uma tarefa cron"
+    },
+    "feedback_friend": {
+      "name": "Amigo do Feedback",
+      "description": "Enviar feedback ou sugestão de funcionalidade"
+    },
+    "file_artisan": {
+      "name": "Artesão de Arquivos",
+      "description": "Ler ou escrever 100 arquivos"
+    },
+    "file_whisperer": {
+      "name": "Sussurrador de Arquivos",
+      "description": "Ler ou escrever 25 arquivos"
+    },
+    "first_config": {
+      "name": "Primeira Configuração",
+      "description": "Visualizar a configuração do Hermes"
+    },
+    "first_steps": {
+      "name": "Primeiros Passos",
+      "description": "Enviar sua primeira mensagem para o Hermes"
+    },
+    "gateway_guru": {
+      "name": "Guru do Gateway",
+      "description": "Conectar o Hermes a um gateway de plataforma de mensagens"
+    },
+    "gateway_networker": {
+      "name": "Networker de Gateways",
+      "description": "Conectar-se a 3 plataformas de mensagens diferentes"
+    },
+    "ghost_in_shell": {
+      "name": "Fantasma na Máquina",
+      "description": "Executar seu primeiro comando no terminal através do Hermes"
+    },
+    "help_seeker": {
+      "name": "Buscador de Ajuda",
+      "description": "Usar --help em qualquer comando"
+    },
+    "helpful_soul": {
+      "name": "Alma Solidária",
+      "description": "Usar o comando /help"
+    },
+    "hook_master": {
+      "name": "Mestre dos Hooks",
+      "description": "Criar um plugin usando 3+ tipos diferentes de hook"
+    },
+    "legendary_chatter": {
+      "name": "Conversador Lendário",
+      "description": "Enviar 1.000 mensagens no total"
+    },
+    "marathon_session": {
+      "name": "Sessão Maratona",
+      "description": "Atingir 200 chamadas de ferramenta em uma única sessão"
+    },
+    "mcp_master": {
+      "name": "Mestre MCP",
+      "description": "Adicionar uma conexão de servidor MCP"
+    },
+    "mcp_networker": {
+      "name": "Networker MCP",
+      "description": "Conectar 3 servidores MCP"
+    },
+    "mcp_wizard": {
+      "name": "Mago MCP",
+      "description": "Escrever uma configuração personalizada de servidor MCP"
+    },
+    "memory_archivist": {
+      "name": "Arquivista da Memória",
+      "description": "Salvar 25 fatos na memória"
+    },
+    "memory_holder": {
+      "name": "Guardião da Memória",
+      "description": "Salvar um fato na memória persistente"
+    },
+    "memory_librarian": {
+      "name": "Bibliotecário da Memória",
+      "description": "Salvar 100 fatos na memória"
+    },
+    "model_collector": {
+      "name": "Colecionador de Modelos",
+      "description": "Usar 10 modelos de IA diferentes"
+    },
+    "model_hopper": {
+      "name": "Saltador de Modelos",
+      "description": "Trocar para um modelo de IA diferente"
+    },
+    "monthly_master": {
+      "name": "Mestre Mensal",
+      "description": "Usar o Hermes por 30 dias consecutivos"
+    },
+    "multi_lingual": {
+      "name": "Multilíngue",
+      "description": "Comunicar-se com o Hermes em um idioma diferente do inglês"
+    },
+    "multi_model": {
+      "name": "Multimodelo",
+      "description": "Usar 5 modelos de IA diferentes"
+    },
+    "name_that_session": {
+      "name": "Dê um Nome a Essa Sessão",
+      "description": "Nomear uma sessão com /title"
+    },
+    "night_owl": {
+      "name": "Coruja Noturna",
+      "description": "Usar o Hermes depois da meia-noite (horário local)"
+    },
+    "parallel_master": {
+      "name": "Mestre do Paralelismo",
+      "description": "Executar 3 subagentes em paralelo com um único delegate_task"
+    },
+    "persistent": {
+      "name": "Persistente",
+      "description": "Enviar mensagens em 3 sessões diferentes"
+    },
+    "plugin_browser": {
+      "name": "Navegador de Plugins",
+      "description": "Navegar pelos plugins disponíveis do Hermes"
+    },
+    "plugin_developer": {
+      "name": "Desenvolvedor de Plugins",
+      "description": "Criar seu próprio plugin do Hermes"
+    },
+    "plugin_pack": {
+      "name": "Pacotão de Plugins",
+      "description": "Ter 5 plugins habilitados"
+    },
+    "plugin_power": {
+      "name": "Poder dos Plugins",
+      "description": "Instalar e habilitar um plugin do Hermes"
+    },
+    "power_session": {
+      "name": "Sessão Poderosa",
+      "description": "Fazer 50 chamadas de ferramenta em uma única sessão"
+    },
+    "precision_scheduler": {
+      "name": "Agendador de Precisão",
+      "description": "Agendar uma tarefa cron única para um horário específico"
+    },
+    "profile_collector": {
+      "name": "Colecionador de Perfis",
+      "description": "Criar 5 perfis do Hermes"
+    },
+    "profile_juggler": {
+      "name": "Malabarista de Perfis",
+      "description": "Criar um perfil nomeado do Hermes"
+    },
+    "quick_draw": {
+      "name": "Tiro Rápido",
+      "description": "Completar 5 tarefas com resposta rápida"
+    },
+    "release_reader": {
+      "name": "Leitor de Releases",
+      "description": "Ler as últimas notas de versão do Hermes"
+    },
+    "session_detective": {
+      "name": "Detetive de Sessões",
+      "description": "Pesquisar sessões passadas 10 vezes"
+    },
+    "session_sage": {
+      "name": "Sábio das Sessões",
+      "description": "Retomar uma sessão passada com --continue ou /resume"
+    },
+    "session_surfer": {
+      "name": "Surfista de Sessões",
+      "description": "Retomar 10 sessões diferentes"
+    },
+    "shell_master": {
+      "name": "Mestre do Shell",
+      "description": "Executar 100 comandos no terminal"
+    },
+    "skill_apprentice": {
+      "name": "Aprendiz de Habilidades",
+      "description": "Instalar 5 habilidades"
+    },
+    "skill_artisan": {
+      "name": "Artesão de Habilidades",
+      "description": "Criar 5 habilidades"
+    },
+    "skill_author": {
+      "name": "Autor de Habilidades",
+      "description": "Criar sua própria habilidade personalizada do Hermes"
+    },
+    "skill_browser": {
+      "name": "Navegador de Habilidades",
+      "description": "Navegar pelas habilidades disponíveis no hub"
+    },
+    "skill_finder": {
+      "name": "Colecionador de Habilidades",
+      "description": "Instalar uma habilidade do hub"
+    },
+    "skill_master": {
+      "name": "Mestre das Habilidades",
+      "description": "Instalar 15 habilidades"
+    },
+    "skill_virtuoso": {
+      "name": "Virtuose das Habilidades",
+      "description": "Criar 15 habilidades"
+    },
+    "slash_commander": {
+      "name": "Comandante de Slash",
+      "description": "Usar 3 comandos de barra diferentes"
+    },
+    "star_gazer": {
+      "name": "Observador de Estrelas",
+      "description": "Visualizar o repositório do Hermes no GitHub"
+    },
+    "talkative": {
+      "name": "Falante",
+      "description": "Enviar 500 mensagens no total"
+    },
+    "terminal_jockey": {
+      "name": "Jóquei do Terminal",
+      "description": "Executar 25 comandos no terminal"
+    },
+    "the_90_turn_club": {
+      "name": "Clube das 90 Jogadas",
+      "description": "Atingir 90 chamadas de ferramenta em uma única sessão (max_turns padrão)"
+    },
+    "theme_setter": {
+      "name": "Personalizador de Temas",
+      "description": "Customizar a aparência ou saída do Hermes"
+    },
+    "tool_addict": {
+      "name": "Viciado em Ferramentas",
+      "description": "Acumular 500 chamadas de ferramenta no total"
+    },
+    "tool_collector": {
+      "name": "Faz-Tudo",
+      "description": "Usar 5 tipos diferentes de ferramenta do Hermes em uma única sessão"
+    },
+    "tool_diversity": {
+      "name": "Diversidade de Ferramentas",
+      "description": "Usar todas as categorias de ferramenta disponíveis do Hermes"
+    },
+    "tool_fan": {
+      "name": "Fã de Ferramentas",
+      "description": "Acumular 100 chamadas de ferramenta no total"
+    },
+    "tool_hoarder": {
+      "name": "Acumulador de Ferramentas",
+      "description": "Usar 10 tipos diferentes de ferramenta do Hermes cumulativamente"
+    },
+    "tool_obsessed": {
+      "name": "Obcecado por Ferramentas",
+      "description": "Acumular 1.000 chamadas de ferramenta no total"
+    },
+    "ultra_marathon": {
+      "name": "Ultramaratona",
+      "description": "Atingir 150 chamadas de ferramenta em uma única sessão"
+    },
+    "updater": {
+      "name": "Atualizador",
+      "description": "Atualizar o Hermes para uma nova versão"
+    },
+    "version_spotter": {
+      "name": "Detetive de Versão",
+      "description": "Verificar a versão do Hermes"
+    },
+    "visionary": {
+      "name": "Visionário",
+      "description": "Analisar uma imagem com o Hermes"
+    },
+    "web_walker": {
+      "name": "Andarilho da Web",
+      "description": "Pesquisar na web usando o Hermes"
+    },
+    "week_warrior": {
+      "name": "Guerreiro Semanal",
+      "description": "Usar o Hermes por 7 dias consecutivos"
+    },
+    "workflow_builder": {
+      "name": "Construtor de Workflows",
+      "description": "Usar 8 tipos diferentes de ferramenta em uma única sessão"
+    },
+    "yolo_champion": {
+      "name": "Campeão YOLO",
+      "description": "Completar 25 tarefas sem prompts de aprovação"
+    },
+    "yolo_mode": {
+      "name": "Modo YOLO",
+      "description": "Executar com a flag --yolo ou desativar prompts de aprovação"
+    }
+  },
+  "group": {
+    "community": "Comunidade",
+    "expert": "Especialista",
+    "getting_started": "Primeiros Passos",
+    "milestones": "Marcos",
+    "power_user": "Usuário Avançado",
+    "tools_skills": "Ferramentas e Habilidades"
+  },
+  "rarity": {
+    "common": "Comum",
+    "epic": "Épico",
+    "legendary": "Lendário",
+    "rare": "Raro",
+    "uncommon": "Incomum"
+  },
+  "ui": {
+    "recent_title": "🔥 **Conquistas Desbloqueadas Recentemente**",
+    "no_achievements": "Nenhuma conquista ainda. Comece a usar o Hermes!",
+    "stats_title": "📊 **Estatísticas de Conquistas**",
+    "stats_unlocked": "Desbloqueadas: {unlocked} / {total}  ({percent}%)",
+    "stats_total_turns": "Total de turnos:          {count}",
+    "stats_unique_tools": "Ferramentas únicas:        {count}",
+    "stats_total_calls": "Total de chamadas:        {count}",
+    "stats_platforms": "Plataformas:               {platforms}",
+    "stats_models": "Modelos:                   {models}{more}",
+    "completionist_unlocked": "\n🎉 **COMPLETISTA DESBLOQUEADO!**",
+    "all_title": "**🎮 Conquistas do Hermes**",
+    "all_subtitle": "*As conquistas são desbloqueadas automaticamente conforme você usa o Hermes*",
+    "recent_unlocked_section": "**🔥 Desbloqueadas Recentemente:**",
+    "group_header": "{emoji} **{group}** ({unlocked}/{total})",
+    "help_footer": "---\n`/achievements` — {all}\n`/achievements <grupo>` — {filter}\n`/achievements stats` — {overview}\n`/achievements recent` — {latest}\n`/achievement <id>` — {detail}",
+    "help_all": "ver todas",
+    "help_filter": "filtrar por grupo",
+    "help_overview": "resumo",
+    "help_latest": "últimos desbloqueios",
+    "help_detail": "ver detalhes",
+    "detail_status_locked": "**Status:** 🔒 Bloqueada",
+    "detail_progress": "**Progresso:** {bar} {current}/{target} ({percent}%)",
+    "detail_unlocked_at": "**Desbloqueada em:** {time}",
+    "notification_format": "{emoji} {icon} **{name}** — {description}\n*{rarity} · {group}*",
+    "usage_lang": "Uso: `/achievements lang <código>` — definir idioma (en/es/fr/pt)",
+    "lang_set": "Idioma definido para {lang} ({native})",
+    "lang_invalid": "Idioma `{code}` não suportado. Suportados: en, es, fr, pt",
+    "group_filter_header": "{emoji} **Conquistas de {group}**",
+    "model_more": " +{count} mais",
+    "newly_prefix": "  ✅ ",
+    "badge_format": "{icon} **{name}** — {description}{progress}",
+    "stats_header": "```",
+    "stats_footer": "```",
+    "stats_sessions": "Sessions:                 {count}",
+    "stats_streak": "Streak:                   {count} days"
+  }
+}

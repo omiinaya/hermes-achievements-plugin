@@ -49,6 +49,40 @@ When an achievement unlocks, a notification is posted to:
 - Your Hermes **home channel** (configured via `DISCORD_HOME_CHANNEL`)
 - The **channel where you're chatting** (if different from home)
 
+### Multi-Language Support (i18n) 🌐
+
+The plugin supports 4 languages:
+
+| Code | Language | Native Name |
+|------|----------|-------------|
+| `en` | English | English (default) |
+| `es` | Spanish | Español |
+| `fr` | French | Français |
+| `pt` | Portuguese | Português |
+
+Switch languages at any time:
+
+```
+/achievements lang es     → Switch to Spanish
+/achievements lang fr     → Switch to French
+/achievements lang pt     → Switch to Portuguese
+/achievements lang        → Show current language
+```
+
+Achievement names, descriptions, group labels, rarity names, and all UI text (stats, badges, detail views, help text, Discord notifications) are translated. The language is persisted in `state.json` and stays across sessions.
+
+Example — Spanish output:
+```
+/achievements lang es
+
+✅ Cambiado a Español
+
+/achievements recent
+
+🔥 Logros Desbloqueados Recientemente
+⬜ Fantasma en la Máquina — Ejecuta tu primer comando de terminal
+```
+
 ## Achievement Groups
 
 ### 🚀 Getting Started (11)

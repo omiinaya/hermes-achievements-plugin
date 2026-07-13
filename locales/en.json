@@ -1,0 +1,461 @@
+{
+  "locale": {
+    "code": "en",
+    "name": "English",
+    "native_name": "English"
+  },
+  "achievement": {
+    "agent_swarm": {
+      "name": "Agent Swarm",
+      "description": "Spawn a subagent with delegate_task"
+    },
+    "army_commander": {
+      "name": "Army Commander",
+      "description": "Spawn 25 subagents with delegate_task"
+    },
+    "century": {
+      "name": "Century Mark",
+      "description": "Accumulate 100+ messages across all sessions"
+    },
+    "chain_reaction": {
+      "name": "Chain Reaction",
+      "description": "Chain 2 cron jobs together with context_from"
+    },
+    "changelog_checker": {
+      "name": "Changelog Checker",
+      "description": "Read the Hermes changelog"
+    },
+    "chatty": {
+      "name": "Chatty",
+      "description": "Send 25 messages to Hermes"
+    },
+    "cli_champion": {
+      "name": "CLI Champion",
+      "description": "Execute 500 terminal commands"
+    },
+    "code_architect": {
+      "name": "Code Architect",
+      "description": "Execute 100 code blocks"
+    },
+    "code_slinger": {
+      "name": "Code Slinger",
+      "description": "Execute 50 code blocks"
+    },
+    "code_wizard": {
+      "name": "Code Wizard",
+      "description": "Execute 10 code blocks with execute_code"
+    },
+    "complete_community": {
+      "name": "Community Complete",
+      "description": "Unlock every Community achievement"
+    },
+    "complete_epic": {
+      "name": "Epic Collector",
+      "description": "Unlock every Epic achievement"
+    },
+    "complete_getting_started": {
+      "name": "Getting Started Complete",
+      "description": "Unlock every Getting Started achievement"
+    },
+    "complete_power_user": {
+      "name": "Power User Complete",
+      "description": "Unlock every Power User achievement"
+    },
+    "complete_rare": {
+      "name": "Rare Collector",
+      "description": "Unlock every Rare achievement"
+    },
+    "complete_tools": {
+      "name": "Tools Complete",
+      "description": "Unlock every Tools & Skills achievement"
+    },
+    "complete_toolset": {
+      "name": "Complete Toolset",
+      "description": "Use every available Hermes tool type at least once"
+    },
+    "completionist": {
+      "name": "Completionist",
+      "description": "Unlock every other achievement"
+    },
+    "config_guru": {
+      "name": "Config Guru",
+      "description": "Modify 15 different configuration settings"
+    },
+    "config_tinkerer": {
+      "name": "Config Tinkerer",
+      "description": "Change a Hermes configuration setting"
+    },
+    "cron_commander": {
+      "name": "Cron Commander",
+      "description": "Schedule your first cron job"
+    },
+    "cron_master": {
+      "name": "Cron Master",
+      "description": "Have 5 active cron jobs"
+    },
+    "cron_overlord": {
+      "name": "Cron Overlord",
+      "description": "Have 15 active cron jobs"
+    },
+    "cross_platform": {
+      "name": "Cross-Platform Operative",
+      "description": "Chat with Hermes from 2+ different platforms"
+    },
+    "cross_platform_veteran": {
+      "name": "Cross-Platform Veteran",
+      "description": "Chat with Hermes from 5+ different platforms"
+    },
+    "deep_diver": {
+      "name": "Deep Diver",
+      "description": "Perform 25 web searches"
+    },
+    "doc_diver": {
+      "name": "Doc Diver",
+      "description": "Read the Hermes documentation"
+    },
+    "doctor_visit": {
+      "name": "Clean Bill of Health",
+      "description": "Run `hermes doctor` to check system health"
+    },
+    "early_bird": {
+      "name": "Early Bird",
+      "description": "Use Hermes before 6 AM"
+    },
+    "env_tuner": {
+      "name": "Environment Tuner",
+      "description": "Configure custom environment variables for a cron job"
+    },
+    "feedback_friend": {
+      "name": "Feedback Friend",
+      "description": "Submit feedback or a feature request"
+    },
+    "file_artisan": {
+      "name": "File Artisan",
+      "description": "Read or write 100 files"
+    },
+    "file_whisperer": {
+      "name": "File Whisperer",
+      "description": "Read or write 25 files"
+    },
+    "first_config": {
+      "name": "First Config",
+      "description": "View the Hermes configuration"
+    },
+    "first_steps": {
+      "name": "First Steps",
+      "description": "Send your first message to Hermes"
+    },
+    "gateway_guru": {
+      "name": "Gateway Guru",
+      "description": "Connect Hermes to a messaging platform gateway"
+    },
+    "gateway_networker": {
+      "name": "Gateway Networker",
+      "description": "Connect to 3 different messaging platforms"
+    },
+    "ghost_in_shell": {
+      "name": "Ghost in the Shell",
+      "description": "Run your first terminal command through Hermes"
+    },
+    "help_seeker": {
+      "name": "Help Seeker",
+      "description": "Use --help on any command"
+    },
+    "helpful_soul": {
+      "name": "Helpful Soul",
+      "description": "Use the /help command"
+    },
+    "hook_master": {
+      "name": "Hook Master",
+      "description": "Create a plugin using 3+ different hook types"
+    },
+    "legendary_chatter": {
+      "name": "Legendary Chatter",
+      "description": "Send 1,000 messages total"
+    },
+    "marathon_session": {
+      "name": "Marathon Session",
+      "description": "Reach 200 tool calls in a single session"
+    },
+    "mcp_master": {
+      "name": "MCP Master",
+      "description": "Add an MCP server connection"
+    },
+    "mcp_networker": {
+      "name": "MCP Networker",
+      "description": "Connect 3 MCP servers"
+    },
+    "mcp_wizard": {
+      "name": "MCP Wizard",
+      "description": "Write a custom MCP server configuration"
+    },
+    "memory_archivist": {
+      "name": "Memory Archivist",
+      "description": "Save 25 facts to memory"
+    },
+    "memory_holder": {
+      "name": "Memory Keeper",
+      "description": "Save a fact to persistent memory"
+    },
+    "memory_librarian": {
+      "name": "Memory Librarian",
+      "description": "Save 100 facts to memory"
+    },
+    "model_collector": {
+      "name": "Model Collector",
+      "description": "Use 10 different AI models"
+    },
+    "model_hopper": {
+      "name": "Model Hopper",
+      "description": "Switch to a different AI model"
+    },
+    "monthly_master": {
+      "name": "Monthly Master",
+      "description": "Use Hermes 30 days in a row"
+    },
+    "multi_lingual": {
+      "name": "Multi-Lingual",
+      "description": "Communicate with Hermes in a language other than English"
+    },
+    "multi_model": {
+      "name": "Multi-Model",
+      "description": "Use 5 different AI models"
+    },
+    "name_that_session": {
+      "name": "Name That Session",
+      "description": "Name a session with /title"
+    },
+    "night_owl": {
+      "name": "Night Owl",
+      "description": "Use Hermes after midnight (local time)"
+    },
+    "parallel_master": {
+      "name": "Parallel Master",
+      "description": "Run 3 subagents in parallel with a single delegate_task"
+    },
+    "persistent": {
+      "name": "Persistent",
+      "description": "Send messages across 3 different sessions"
+    },
+    "plugin_browser": {
+      "name": "Plugin Browser",
+      "description": "Browse available Hermes plugins"
+    },
+    "plugin_developer": {
+      "name": "Plugin Developer",
+      "description": "Create your own Hermes plugin"
+    },
+    "plugin_pack": {
+      "name": "Plugin Pack",
+      "description": "Have 5 plugins enabled"
+    },
+    "plugin_power": {
+      "name": "Plugin Power",
+      "description": "Install and enable a Hermes plugin"
+    },
+    "power_session": {
+      "name": "Power Session",
+      "description": "Make 50 tool calls in a single session"
+    },
+    "precision_scheduler": {
+      "name": "Precision Scheduler",
+      "description": "Schedule a one-shot cron job for a specific time"
+    },
+    "profile_collector": {
+      "name": "Profile Collector",
+      "description": "Create 5 Hermes profiles"
+    },
+    "profile_juggler": {
+      "name": "Profile Juggler",
+      "description": "Create a named Hermes profile"
+    },
+    "quick_draw": {
+      "name": "Quick Draw",
+      "description": "Complete 5 tasks with rapid turnaround"
+    },
+    "release_reader": {
+      "name": "Release Reader",
+      "description": "Read the latest Hermes release notes"
+    },
+    "session_detective": {
+      "name": "Session Detective",
+      "description": "Search past sessions 10 times"
+    },
+    "session_sage": {
+      "name": "Session Sage",
+      "description": "Resume a past session with --continue or /resume"
+    },
+    "session_surfer": {
+      "name": "Session Surfer",
+      "description": "Resume 10 different sessions"
+    },
+    "shell_master": {
+      "name": "Shell Master",
+      "description": "Run 100 terminal commands"
+    },
+    "skill_apprentice": {
+      "name": "Skill Apprentice",
+      "description": "Install 5 skills"
+    },
+    "skill_artisan": {
+      "name": "Skill Artisan",
+      "description": "Create 5 skills"
+    },
+    "skill_author": {
+      "name": "Skill Author",
+      "description": "Create your own custom Hermes skill"
+    },
+    "skill_browser": {
+      "name": "Skill Browser",
+      "description": "Browse available skills in the hub"
+    },
+    "skill_finder": {
+      "name": "Skill Collector",
+      "description": "Install a skill from the hub"
+    },
+    "skill_master": {
+      "name": "Skill Master",
+      "description": "Install 15 skills"
+    },
+    "skill_virtuoso": {
+      "name": "Skill Virtuoso",
+      "description": "Create 15 skills"
+    },
+    "slash_commander": {
+      "name": "Slash Commander",
+      "description": "Use 3 different slash commands"
+    },
+    "star_gazer": {
+      "name": "Star Gazer",
+      "description": "View the Hermes GitHub repository"
+    },
+    "talkative": {
+      "name": "Talkative",
+      "description": "Send 500 messages total"
+    },
+    "terminal_jockey": {
+      "name": "Terminal Jockey",
+      "description": "Run 25 terminal commands"
+    },
+    "the_90_turn_club": {
+      "name": "The 90-Turn Club",
+      "description": "Reach 90 tool calls in a single session (default max_turns)"
+    },
+    "theme_setter": {
+      "name": "Theme Setter",
+      "description": "Customize the Hermes appearance or output"
+    },
+    "tool_addict": {
+      "name": "Tool Addict",
+      "description": "Accumulate 500 total tool calls"
+    },
+    "tool_collector": {
+      "name": "Jack of All Trades",
+      "description": "Use 5 different Hermes tool types in a single session"
+    },
+    "tool_diversity": {
+      "name": "Tool Diversity",
+      "description": "Use every available Hermes tool category"
+    },
+    "tool_fan": {
+      "name": "Tool Fan",
+      "description": "Accumulate 100 total tool calls"
+    },
+    "tool_hoarder": {
+      "name": "Tool Hoarder",
+      "description": "Use 10 different Hermes tool types cumulatively"
+    },
+    "tool_obsessed": {
+      "name": "Tool Obsessed",
+      "description": "Accumulate 1,000 total tool calls"
+    },
+    "ultra_marathon": {
+      "name": "Ultra Marathon",
+      "description": "Reach 150 tool calls in a single session"
+    },
+    "updater": {
+      "name": "Updater",
+      "description": "Update Hermes to a new version"
+    },
+    "version_spotter": {
+      "name": "Version Spotter",
+      "description": "Check the Hermes version"
+    },
+    "visionary": {
+      "name": "Visionary",
+      "description": "Analyze an image with Hermes"
+    },
+    "web_walker": {
+      "name": "Web Walker",
+      "description": "Search the web using Hermes"
+    },
+    "week_warrior": {
+      "name": "Week Warrior",
+      "description": "Use Hermes 7 days in a row"
+    },
+    "workflow_builder": {
+      "name": "Workflow Builder",
+      "description": "Use 8 different tool types in a single session"
+    },
+    "yolo_champion": {
+      "name": "YOLO Champion",
+      "description": "Complete 25 tasks without approval prompts"
+    },
+    "yolo_mode": {
+      "name": "YOLO Mode",
+      "description": "Run with --yolo flag or disable approval prompts"
+    }
+  },
+  "group": {
+    "community": "Community",
+    "expert": "Expert",
+    "getting_started": "Getting Started",
+    "milestones": "Milestones",
+    "power_user": "Power User",
+    "tools_skills": "Tools & Skills"
+  },
+  "rarity": {
+    "common": "Common",
+    "epic": "Epic",
+    "legendary": "Legendary",
+    "rare": "Rare",
+    "uncommon": "Uncommon"
+  },
+  "ui": {
+    "recent_title": "🔥 **Recently Unlocked Achievements**",
+    "no_achievements": "No achievements yet. Start using Hermes!",
+    "stats_title": "📊 **Achievement Stats**",
+    "stats_unlocked": "Unlocked: {unlocked} / {total}  ({percent}%)",
+    "stats_total_turns": "Total turns:              {count}",
+    "stats_unique_tools": "Unique tools:             {count}",
+    "stats_total_calls": "Total tool calls:         {count}",
+    "stats_platforms": "Platforms:                {platforms}",
+    "stats_models": "Models:                   {models}{more}",
+    "completionist_unlocked": "\n🎉 **COMPLETIONIST UNLOCKED!**",
+    "all_title": "**🎮 Hermes Achievements**",
+    "all_subtitle": "*Achievements unlock automatically as you use Hermes*",
+    "recent_unlocked_section": "**🔥 Recently Unlocked:**",
+    "group_header": "{emoji} **{group}** ({unlocked}/{total})",
+    "help_footer": "---\n`/achievements` — {all}\n`/achievements <group>` — {filter}\n`/achievements stats` — {overview}\n`/achievements recent` — {latest}\n`/achievement <id>` — {detail}",
+    "help_all": "view all",
+    "help_filter": "filter by group",
+    "help_overview": "overview",
+    "help_latest": "latest unlocks",
+    "help_detail": "detail view",
+    "detail_status_locked": "**Status:** 🔒 Locked",
+    "detail_progress": "**Progress:** {bar} {current}/{target} ({percent}%)",
+    "detail_unlocked_at": "**Unlocked:** {time}",
+    "notification_format": "{emoji} {icon} **{name}** — {description}\n*{rarity} · {group}*",
+    "usage_lang": "Usage: `/achievements lang <code>` — set language (en/es/fr/pt)",
+    "lang_set": "Language set to {lang} ({native})",
+    "lang_invalid": "Unsupported language `{code}`. Supported: en, es, fr, pt",
+    "group_filter_header": "{emoji} **{group} Achievements**",
+    "model_more": " +{count} more",
+    "newly_prefix": "  ✅ ",
+    "badge_format": "{icon} **{name}** — {description}{progress}",
+    "stats_header": "```",
+    "stats_footer": "```",
+    "stats_sessions": "Sessions:                 {count}",
+    "stats_streak": "Streak:                   {count} days"
+  }
+}

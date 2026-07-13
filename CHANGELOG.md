@@ -1,5 +1,21 @@
 # Changelog
 
+## [2.1.0] — 2026-07-13
+
+### Added
+
+- **i18n support** for 4 languages: 🇪🇸 Spanish, 🇫🇷 French, 🇧🇷 Portuguese
+- **`/achievements lang <code>`** — switch language at runtime (en/es/fr/pt)
+- `_t()` translation function with locale auto-detection from state
+- Locale files in `locales/` directory with all 100 achievements, groups, rarities, and UI strings
+- All display strings are now locale-aware (commands, stats, detail view, notifications)
+
+### Changed
+
+- `plugin.yaml` → v2.1.0
+- Discord notifications now respect the active locale
+- Badge formatting, group headers, stats view all use translated strings
+
 ## [2.0.0] — 2026-07-12
 
 ### Added

@@ -62,10 +62,17 @@ def _send_discord_notification(ach_def):
     # Origin channel where the achievement was unlocked (set by gateway)
     origin_channel = os.environ.get("HERMES_SESSION_CHAT_ID", "")
 
+    state = _load_state()
+    locale = state.get("locale", "en") if state else "en"
     emoji = RARITY_EMOJIS.get(ach_def.get("rarity", "common"), "⬜")
+    ach_name = _t(f"achievement.{ach_def['id']}.name", locale)
+    ach_desc = _t(f"achievement.{ach_def['id']}.description", locale)
+    rarity_label = _t(f"rarity.{ach_def['rarity']}", locale)
+    group_key = ach_def["group"].lower().replace(" & ", "_").replace(" ", "_")
+    group_label = _t(f"group.{group_key}", locale)
     content = (
-        f"{emoji} {ach_def['emoji']} **{ach_def['name']}** — {ach_def['description']}\n"
-        f"*{ach_def['rarity'].title()} · {ach_def['group']}*"
+        f"{emoji} {ach_def['emoji']} **{ach_name}** — {ach_desc}\n"
+        f"*{rarity_label} · {group_label}*"
     )
     payload = json.dumps({"content": content}).encode()
 
@@ -150,6 +157,7 @@ def _new_state():
             "parallel_spawns": 0,
         },
         "newly_unlocked": [],
+        "locale": "en",
         "last_updated": None,
     }
 
@@ -191,6 +199,69 @@ def _save_state():
         except Exception as exc:
             import logging
             logging.getLogger(__name__).warning("Failed to save state: %s", exc)
+
+
+# ── i18n / Locale ────────────────────────────────────────────────────────
+
+_LOCALES_DIR = os.path.join(_HERMES_HOME, "plugins", "achievements", "locales")
+_locales_cache = {}
+
+
+def _load_locales():
+    """Load all locale files into cache."""
+    global _locales_cache
+    if _locales_cache:
+        return _locales_cache
+    _locales_cache = {}
+    try:
+        for fname in sorted(os.listdir(_LOCALES_DIR)):
+            if fname.endswith(".json"):
+                lang = fname[:-5]
+                with open(os.path.join(_LOCALES_DIR, fname), encoding="utf-8") as f:
+                    _locales_cache[lang] = json.load(f)
+    except (OSError, IOError):
+        pass
+    if "en" not in _locales_cache:
+        _locales_cache["en"] = {}
+    return _locales_cache
+
+
+def _t(key, locale=None, **kwargs):
+    """Translate a dot-separated key using the active locale.
+
+    Keys look like:  achievement.first_steps.name  |  ui.stats_title  |  group.getting_started
+    Falls back to English, then to the raw key.
+    If kwargs are given, formats the string with .format(**kwargs).
+    """
+    if locale is None:
+        state = _load_state()
+        locale = state.get("locale", "en")
+    if not isinstance(locale, str) or locale not in ("en", "es", "fr", "pt"):
+        locale = "en"
+
+    locales = _load_locales()
+    parts = key.split(".")
+    val = None
+    for lang in (locale, "en"):
+        data = locales.get(lang, {})
+        v = data
+        for part in parts:
+            if isinstance(v, dict):
+                v = v.get(part)
+            else:
+                v = None
+                break
+        if isinstance(v, str):
+            val = v
+            break
+    if val is None:
+        return key
+    if kwargs:
+        try:
+            val = val.format(**kwargs)
+        except (KeyError, ValueError):
+            pass
+    return val
 
 
 # ── Per-turn tool tracking ──────────────────────────────────────────────
@@ -1258,22 +1329,26 @@ def _format_badge(a_id, a_def, state):
     unlocked = a_state.get("unlocked", False)
     progress = a_state.get("progress")
     secret = a_def.get("secret", False) or a_def.get("hidden", False)
+    locale = state.get("locale", "en")
 
     if unlocked:
-        icon = "✅"; name_str = a_def["name"]
+        icon = "✅"
     elif secret:
-        icon = "❓"; name_str = "???"
+        icon = "❓"
     else:
-        icon = "⬜"; name_str = a_def["name"]
+        icon = "⬜"
+
+    name_str = _t(f"achievement.{a_id}.name", locale)
+    desc_str = _t(f"achievement.{a_id}.description", locale) if not secret or unlocked else "???"
 
     prog_str = ""
     if progress and not unlocked:
         cur = progress.get("current", 0)
         tgt = progress.get("target", 1)
         bar = _progress_bar(cur, tgt)
-        prog_str = f"  ({bar} {cur}/{tgt})"
+        prog_str = _t("ui.detail_progress", locale, bar=bar, current=cur, target=tgt, percent=int(cur/tgt*100))
 
-    return f"{icon} **{name_str}** — {a_def['description']}{prog_str}"
+    return _t("ui.badge_format", locale, icon=icon, name=name_str, description=desc_str, progress=prog_str)
 
 
 def _handle_achievements(raw_args: str) -> str:
@@ -1283,69 +1358,78 @@ def _handle_achievements(raw_args: str) -> str:
     unlocked_ids = {a_id for a_id, s in ach_state.items() if s.get("unlocked")}
     newly = state.get("newly_unlocked", [])
     stats = state.get("stats", {})
+    locale = state.get("locale", "en")
+
+    if args == "lang" or args.startswith("lang "):
+        return _handle_lang(args[5:] if args.startswith("lang ") else "")
 
     if args == "recent":
         if not newly and not unlocked_ids:
-            return "No achievements yet. Start using Hermes!"
-        lines = ["**🎮 Recently Unlocked Achievements**\n"]
+            return _t("ui.no_achievements", locale)
+        lines = [_t("ui.recent_title", locale) + "\n"]
         for a_id in (newly if newly else list(unlocked_ids)[-3:]):
             a_def = ACHIEVEMENT_DEFS.get(a_id)
             if a_def:
-                lines.append(
-                    f"{RARITY_EMOJIS.get(a_def.get('rarity', 'common'), '⬜')} "
-                    f"**{a_def['name']}** — {a_def['description']}"
-                )
+                rarity_e = RARITY_EMOJIS.get(a_def.get("rarity", "common"), "⬜")
+                ach_name = _t(f"achievement.{a_id}.name", locale)
+                ach_desc = _t(f"achievement.{a_id}.description", locale)
+                lines.append(f"{rarity_e} **{ach_name}** — {ach_desc}")
         return "\n".join(lines)
 
     if args == "stats":
         total = len(ACHIEVEMENT_DEFS)
         uc = len(unlocked_ids)
         pct = round(uc / total * 100) if total else 0
-        lines = ["**📊 Achievement Stats**\n```"]
-        lines.append(f"Unlocked:  {uc} / {total}  ({pct}%)")
+        lines = [_t("ui.stats_title", locale) + "\n" + _t("ui.stats_header", locale)]
+        lines.append(_t("ui.stats_unlocked", locale, unlocked=uc, total=total, percent=pct))
         if stats:
-            lines.append(f"Total turns:              {stats.get('total_turns', 0)}")
+            lines.append(_t("ui.stats_total_turns", locale, count=stats.get("total_turns", 0)))
             tools = stats.get("tools_used", {})
-            lines.append(f"Unique tools:             {len(tools)}")
-            lines.append(f"Total tool calls:         {sum(tools.values())}")
-            lines.append(f"Sessions:                 {stats.get('total_sessions', 0)}")
-            lines.append(f"Streak:                   {stats.get('current_streak', 0)} days")
-            lines.append(f"Longest streak:           {stats.get('longest_streak', 0)} days")
+            lines.append(_t("ui.stats_unique_tools", locale, count=len(tools)))
+            lines.append(_t("ui.stats_total_calls", locale, count=sum(tools.values())))
+            lines.append(_t("ui.stats_sessions", locale, count=stats.get("total_sessions", 0)))
+            lines.append(_t("ui.stats_streak", locale, count=stats.get("current_streak", 0)))
             platforms = stats.get("platforms", [])
             if isinstance(platforms, set):
                 platforms = sorted(platforms)
             if platforms:
-                lines.append(f"Platforms:                {', '.join(platforms)}")
+                lines.append(_t("ui.stats_platforms", locale, platforms=", ".join(platforms)))
             models = stats.get("models_used", [])
             if isinstance(models, set):
                 models = sorted(models)
             if models:
-                lines.append(f"Models:                   {', '.join(models[:3])}")
-                if len(models) > 3:
-                    lines[-1] += f" +{len(models)-3} more"
-        lines.append("```")
+                more = _t("ui.model_more", locale, count=len(models)-3) if len(models) > 3 else ""
+                lines.append(_t("ui.stats_models", locale, models=", ".join(models[:3]), more=more))
+        lines.append(_t("ui.stats_footer", locale))
         if pct >= 100:
-            lines.append("\n🎉 **COMPLETIONIST UNLOCKED!**")
+            lines.append(_t("ui.completionist_unlocked", locale))
         return "\n".join(lines)
 
     # Group filter
     for g in GROUPS:
         slug = g.lower().replace(" & ", " ").replace(" ", "_")
         if args == slug or args == g.lower().replace(" & ", "_"):
-            lines = [f"**{GROUP_EMOJIS.get(g, '🎮')} {g} Achievements**\n"]
+            group_key = g.lower().replace(" & ", "_").replace(" ", "_")
+            group_name = _t(f"group.{group_key}", locale)
+            lines = [_t("ui.group_filter_header", locale, emoji=GROUP_EMOJIS.get(g, "🎮"), group=group_name) + "\n"]
             for a_id, a_def in ACHIEVEMENT_DEFS.items():
                 if a_def.get("group") == g:
                     lines.append(_format_badge(a_id, a_def, state))
             return "\n".join(lines)
 
     # Default: all grouped
-    lines = ["**🎮 Hermes Achievements**", "*Achievements unlock automatically as you use Hermes*\n"]
+    lines = [
+        _t("ui.all_title", locale),
+        _t("ui.all_subtitle", locale) + "\n",
+    ]
     if newly:
-        lines.append("**🔥 Recently Unlocked:**")
+        lines.append(_t("ui.recent_unlocked_section", locale))
         for a_id in newly[-3:]:
             a_def = ACHIEVEMENT_DEFS.get(a_id)
             if a_def:
-                lines.append(f"  ✅ **{a_def['name']}** — {a_def['description']}")
+                ach_name = _t(f"achievement.{a_id}.name", locale)
+                ach_desc = _t(f"achievement.{a_id}.description", locale)
+                lines.append(_t("ui.newly_prefix", locale) + f"**{ach_name}** — {ach_desc}")
         lines.append("")
     for group in GROUPS:
         ga = [(a_id, a_def) for a_id, a_def in ACHIEVEMENT_DEFS.items()
@@ -1353,14 +1437,23 @@ def _handle_achievements(raw_args: str) -> str:
         if not ga:
             continue
         ug = sum(1 for a_id, _ in ga if a_id in unlocked_ids)
-        lines.append(f"**{GROUP_EMOJIS.get(group, '')} {group}** ({ug}/{len(ga)})")
+        group_key = group.lower().replace(" & ", "_").replace(" ", "_")
+        group_name = _t(f"group.{group_key}", locale)
+        lines.append(
+            _t("ui.group_header", locale,
+               emoji=GROUP_EMOJIS.get(group, ""), group=group_name, unlocked=ug, total=len(ga))
+        )
         for a_id, a_def in ga:
             lines.append(_format_badge(a_id, a_def, state))
         lines.append("")
-    lines.append("---\n`/achievements` — view all\n`/achievements <group>` — filter\n`/achievements stats` — overview\n`/achievements recent` — latest\n`/achievement <id>` — detail")
+    help_all = _t("ui.help_all", locale)
+    help_filter = _t("ui.help_filter", locale)
+    help_overview = _t("ui.help_overview", locale)
+    help_latest = _t("ui.help_latest", locale)
+    help_detail = _t("ui.help_detail", locale)
+    lines.append(_t("ui.help_footer", locale, all=help_all, filter=help_filter,
+                     overview=help_overview, latest=help_latest, detail=help_detail))
     return "\n".join(lines)
-
-
 def _handle_achievement_detail(raw_args: str) -> str:
     a_id = raw_args.strip()
     if not a_id:
@@ -1378,37 +1471,73 @@ def _handle_achievement_detail(raw_args: str) -> str:
             return f"Unknown `{a_id}`. Use `/achievements`."
 
     state = _load_state()
+    locale = state.get("locale", "en")
     a_state = state.get("achievements", {}).get(a_id, {})
     unlocked = a_state.get("unlocked", False)
     unlocked_at = a_state.get("unlocked_at")
     progress = a_state.get("progress")
     secret = a_def.get("secret", False) or a_def.get("hidden", False)
-    name_display = a_def["name"] if not secret or unlocked else "???"
+    name_display = _t(f"achievement.{a_id}.name", locale) if not secret or unlocked else "???"
+    desc_str = _t(f"achievement.{a_id}.description", locale)
+    rarity_str = _t(f"rarity.{a_def['rarity']}", locale)
+    group_key = a_def["group"].lower().replace(" & ", "_").replace(" ", "_")
+    group_str = _t(f"group.{group_key}", locale)
+    rarity_emoji = RARITY_EMOJIS.get(a_def['rarity'], '⬜')
 
-    lines = [
-        f"{'✅' if unlocked else '⬜'} **{a_def['emoji']} {name_display}**",
-        f"*{a_def['description']}*",
-        f"",
-        f"**Rarity:** {RARITY_EMOJIS.get(a_def['rarity'], '⬜')} {a_def['rarity'].title()}",
-        f"**Group:** {a_def['group']}",
-    ]
+    status_icon = "✅" if unlocked else "⬜"
+    header = f"{status_icon} **{a_def['emoji']} {name_display}**"
+    rarity_line = _t("ui.detail_rarity", locale, emoji=rarity_emoji, rarity=rarity_str)
+    group_line = _t("ui.detail_group", locale, group=group_str)
+
     if unlocked:
-        lines.append(f"**Unlocked:** {unlocked_at}")
+        status_line = _t("ui.detail_unlocked_at", locale, time=unlocked_at or "?")
     elif progress:
         cur, tgt = progress["current"], progress["target"]
-        lines.append(f"**Progress:** {_progress_bar(cur, tgt)} {cur}/{tgt} ({int(cur/tgt*100)}%)")
+        pct = int(cur / tgt * 100) if tgt else 0
+        bar = _progress_bar(cur, tgt)
+        status_line = _t("ui.detail_progress", locale, bar=bar, current=cur, target=tgt, percent=pct)
     else:
-        lines.append("**Status:** 🔒 Locked")
-    return "\n".join(lines)
+        status_line = _t("ui.detail_status_locked", locale)
+
+    return f"{header}\n*{desc_str}*\n\n{rarity_line}\n{group_line}\n{status_line}"
+# ── Language Command Handler ──────────────────────────────────────────
+
+LANGS = {"en": "English", "es": "Español", "fr": "Français", "pt": "Português"}
+NATIVE_NAMES = {"en": "English", "es": "Español", "fr": "Français", "pt": "Português"}
+LANG_ALIASES = {
+    "en": ("en", "english"), "es": ("es", "spanish", "español", "espanol"),
+    "fr": ("fr", "french", "français", "francais"),
+    "pt": ("pt", "portuguese", "português", "portugues", "portugais"),
+}
 
 
-# ── Plugin Registration ─────────────────────────────────────────────────
+def _handle_lang(raw_args: str) -> str:
+    """Set or show language. Usage: /achievements lang <code>"""
+    state = _load_state()
+    args = raw_args.strip().lower()
+    if not args:
+        cur = state.get("locale", "en")
+        return _t("ui.lang_set", cur, lang=LANGS.get(cur, cur), native=NATIVE_NAMES.get(cur, cur))
+
+    target = None
+    for code, aliases in LANG_ALIASES.items():
+        if args == code or args in aliases:
+            target = code
+            break
+    if not target:
+        cur = state.get("locale", "en")
+        return _t("ui.lang_invalid", cur, code=args)
+
+    state["locale"] = target
+    _save_state()
+    return _t("ui.lang_set", target, lang=LANGS.get(target, target), native=NATIVE_NAMES.get(target, target))
+
 
 def register(ctx) -> None:
     """Plugin entry point — registers slash commands and hooks."""
     ctx.register_command("achievements", handler=_handle_achievements,
         description="View Hermes achievement progress and stats.",
-        args_hint="[recent|stats|<group>]")
+        args_hint="[recent|stats|<group>|lang <code>]")
     ctx.register_command("achievement", handler=_handle_achievement_detail,
         description="Show details for a specific achievement.",
         args_hint="<achievement-id>")
