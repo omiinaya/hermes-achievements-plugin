@@ -456,6 +456,8 @@
     "stats_header": "```",
     "stats_footer": "```",
     "stats_sessions": "Sessions:                 {count}",
-    "stats_streak": "Streak:                   {count} days"
+    "stats_streak": "Streak:                   {count} days",
+    "detail_rarity": "**Raridade:** {emoji} {rarity}",
+    "detail_group": "**Grupo:** {group}"
   }
 }
