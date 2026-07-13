@@ -1,0 +1,7 @@
+name: achievements
+version: 2.0.0
+description: "100 Steam-style achievement badges for Hermes Agent. Tracks tool usage, milestones, and exploration — unlocks via post_llm_call hook. No external dependencies."
+pip_dependencies: []
+hooks:
+  - post_llm_call
+  - on_session_end
