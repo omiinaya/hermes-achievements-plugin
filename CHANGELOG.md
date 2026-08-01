@@ -1,5 +1,18 @@
 # Changelog
 
+## [2.3.1] — 2026-07-31
+
+### Added
+
+- **Secret achievements** — 6 achievements (Fresh Start, Cautious, Quick Draw, Orchestrator, Trust Fall, Resilient) are now marked `secret: true`. Locked secrets show `❓ ???` in group views, `???` in detail, and never appear in `/achievements next` (no progress leak). They reveal normally once unlocked. The support code existed since v2.0 — now it's actually used.
+
+### Fixed
+
+- **Locked secret names/descriptions leaked** — `_format_badge` showed the real name, and `_handle_achievement_detail` showed the real description, for locked secrets. Both now mask to `???`.
+- **`/achievements next` leaked secret progress** — locked secrets are excluded from the closest-to-unlock list.
+- **Dead notification branch removed** — `if not targets and origin_channel` was unreachable (targets is non-empty whenever origin_channel is set).
+- **State hygiene** — stale achievement entries (removed/renamed across versions) are pruned from `state.json` on load.
+
 ## [2.3.0] — 2026-07-31
 
 ### Added

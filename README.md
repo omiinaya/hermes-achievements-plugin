@@ -115,6 +115,14 @@ Example — Spanish output:
 ⬜ Fantasma en la Máquina — Ejecuta tu primer comando de terminal
 ```
 
+### Secret Achievements 🕵️
+
+Some achievements are **secret** — while locked they show `❓ ???` in group
+views, `???` in their detail view, and are excluded from `/achievements next`
+(no progress leak). They reveal their name and description only when you
+unlock them, Steam-style. Currently secret: `Fresh Start`, `Cautious`,
+`Quick Draw`, `Orchestrator`, `Trust Fall`, `Resilient`.
+
 ## Achievement Groups
 
 ### 🚀 Getting Started (13)

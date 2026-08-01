@@ -1023,6 +1023,61 @@ class TestCommandHandlers(HookTestBase):
         self.assertEqual(out, "First Steps")
 
 
+class TestSecretAchievements(HookTestBase):
+    """Locked secret achievements hide name/description/progress."""
+
+    def setUp(self):
+        super().setUp()
+        # sanity: the defs really do declare secrets
+        secrets = [aid for aid, adef in self.mod.ACHIEVEMENT_DEFS.items()
+                   if adef.get("secret") or adef.get("hidden")]
+        self.secrets = secrets
+        self.assertGreaterEqual(len(secrets), 3)
+
+    def test_locked_secret_badge_is_masked(self):
+        out = self.mod._handle_achievements("power_user")
+        self.assertIn("???", out)
+        for aid in self.secrets:
+            adef = self.mod.ACHIEVEMENT_DEFS[aid]
+            if adef["group"] == "Power User":
+                self.assertNotIn(adef["name"], out)
+                self.assertNotIn(adef["description"], out)
+
+    def test_unlocked_secret_badge_is_revealed(self):
+        # pick a Power User secret for the power_user view
+        pu_secret = next(aid for aid in self.secrets
+                         if self.mod.ACHIEVEMENT_DEFS[aid]["group"] == "Power User")
+        self.mod._unlock(pu_secret)
+        self.mod._state["newly_unlocked"] = []
+        adef = self.mod.ACHIEVEMENT_DEFS[pu_secret]
+        out = self.mod._handle_achievements("power_user")
+        self.assertIn(adef["name"], out)
+        self.assertIn(adef["description"], out)
+
+    def test_locked_secret_detail_is_masked(self):
+        for aid in self.secrets:
+            out = self.mod._handle_achievement_detail(aid)
+            self.assertIn("???", out)
+            self.assertNotIn(self.mod.ACHIEVEMENT_DEFS[aid]["description"], out)
+
+    def test_unlocked_secret_detail_is_revealed(self):
+        aid = self.secrets[0]
+        self.mod._unlock(aid)
+        out = self.mod._handle_achievement_detail(aid)
+        self.assertIn(self.mod.ACHIEVEMENT_DEFS[aid]["name"], out)
+        self.assertIn(self.mod.ACHIEVEMENT_DEFS[aid]["description"], out)
+
+    def test_locked_secret_never_in_next_up(self):
+        # give every non-secret a tiny bit of progress, then check secrets absent
+        for aid, adef in self.mod.ACHIEVEMENT_DEFS.items():
+            if adef.get("secret") or adef.get("hidden"):
+                continue
+            self.mod._set_progress(aid, 1, 10)
+        out = self.mod._handle_achievements("next")
+        for aid in self.secrets:
+            self.assertNotIn(self.mod.ACHIEVEMENT_DEFS[aid]["name"], out)
+
+
 class TestReadmeSync(unittest.TestCase):
     """README achievement tables match ACHIEVEMENT_DEFS (no drift)."""
 

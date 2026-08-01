@@ -409,11 +409,13 @@ ACHIEVEMENT_DEFS = {
         "id": "fresh_start", "name": "Fresh Start", "emoji": "🌱",
         "description": "Start a fresh session with /new or /reset",
         "rarity": "common", "group": "Getting Started",
+        "secret": True,
     },
     "cautious": {
         "id": "cautious", "name": "Cautious", "emoji": "🛡️",
         "description": "Deny an approval request",
         "rarity": "uncommon", "group": "Getting Started",
+        "secret": True,
     },
 
     # ═══════════════════════════════════════════════════════════════════════
@@ -652,6 +654,7 @@ ACHIEVEMENT_DEFS = {
         "id": "quick_draw", "name": "Quick Draw", "emoji": "⚡",
         "description": "Complete 5 tasks with rapid turnaround",
         "rarity": "rare", "group": "Power User",
+        "secret": True,
     },
     "tool_diversity": {
         "id": "tool_diversity", "name": "Tool Diversity", "emoji": "🎯",
@@ -667,11 +670,13 @@ ACHIEVEMENT_DEFS = {
         "id": "orchestrator", "name": "Orchestrator", "emoji": "🎼",
         "description": "Use an orchestrator-role subagent",
         "rarity": "rare", "group": "Power User",
+        "secret": True,
     },
     "trust_fall": {
         "id": "trust_fall", "name": "Trust Fall", "emoji": "🪂",
         "description": "Approve a command permanently with 'always'",
         "rarity": "rare", "group": "Power User",
+        "secret": True,
     },
 
     # ═══════════════════════════════════════════════════════════════════════
@@ -756,6 +761,7 @@ ACHIEVEMENT_DEFS = {
         "id": "resilient", "name": "Resilient", "emoji": "🧗",
         "description": "Complete a task after a subagent failed",
         "rarity": "epic", "group": "Expert",
+        "secret": True,
     },
 
     # ═══════════════════════════════════════════════════════════════════════
@@ -1695,8 +1701,13 @@ def _format_badge(a_id, a_def, state):
     else:
         icon = "⬜"
 
-    name_str = _t(f"achievement.{a_id}.name", locale)
-    desc_str = _t(f"achievement.{a_id}.description", locale) if not secret or unlocked else "???"
+    # Locked secrets hide both name and description (Steam-style "???")
+    if secret and not unlocked:
+        name_str = "???"
+        desc_str = "???"
+    else:
+        name_str = _t(f"achievement.{a_id}.name", locale)
+        desc_str = _t(f"achievement.{a_id}.description", locale)
 
     prog_str = ""
     if progress and not unlocked:
@@ -1713,9 +1724,12 @@ def _handle_next_up(state) -> str:
     locale = state.get("locale", "en")
     ach_state = state.get("achievements", {})
     candidates = []
-    for aid in ACHIEVEMENT_DEFS:
+    for aid, a_def in ACHIEVEMENT_DEFS.items():
         s = ach_state.get(aid, {})
         if s.get("unlocked"):
+            continue
+        # Locked secrets never leak progress in the "next up" view
+        if a_def.get("secret", False) or a_def.get("hidden", False):
             continue
         prog = s.get("progress")
         if not prog or not prog.get("target"):
@@ -1907,8 +1921,13 @@ def _handle_achievement_detail(raw_args: str) -> str:
     unlocked_at = a_state.get("unlocked_at")
     progress = a_state.get("progress")
     secret = a_def.get("secret", False) or a_def.get("hidden", False)
-    name_display = _t(f"achievement.{a_id}.name", locale) if not secret or unlocked else "???"
-    desc_str = _t(f"achievement.{a_id}.description", locale)
+    if secret and not unlocked:
+        name_display = "???"
+        desc_str = "???"
+        progress = None  # don't leak progress toward a locked secret
+    else:
+        name_display = _t(f"achievement.{a_id}.name", locale)
+        desc_str = _t(f"achievement.{a_id}.description", locale)
     rarity_str = _t(f"rarity.{a_def['rarity']}", locale)
     group_key = a_def["group"].lower().replace(" & ", "_").replace(" ", "_")
     group_str = _t(f"group.{group_key}", locale)
