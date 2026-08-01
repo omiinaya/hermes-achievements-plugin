@@ -30,3 +30,10 @@ Issues = "https://github.com/omiinaya/hermes-achievements-plugin/issues"
 
 [tool.setuptools.packages.find]
 include = ["achievements*"]
+
+# The plugin directory name (hermes-achievements-plugin) contains hyphens,
+# so ruff's N999 flags it as an invalid module name. This is a false
+# positive — the directory is a *plugin* (loaded via plugin.yaml), not an
+# importable Python module.
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["N999"]
