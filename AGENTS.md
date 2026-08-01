@@ -16,8 +16,11 @@ using Hermes. Pure Python stdlib, no external dependencies.
   synthetic gateway kwargs
 - `scripts/render_readme.py` — regenerates README achievement tables from
   `ACHIEVEMENT_DEFS`
-- `scripts/update_locales.py` — adds/removes achievement keys across all 4
-  locales (used when swapping achievements)
+- `scripts/update_locales.py` — auto-syncs achievement keys across all 4
+  locales from `ACHIEVEMENT_DEFS` (source of truth): prunes dead keys,
+  backfills missing translations (WARN + English fallback)
+- `scripts/bump_version.py` — updates the version in all 4 places that
+  carry it (pyproject.toml, plugin.yaml, setup.sh ×2) in one shot
 
 ## Detection architecture (10 hooks)
 
