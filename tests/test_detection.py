@@ -372,6 +372,35 @@ class TestSessionCounting(HookTestBase):
         self.assertTrue(self.unlocked("persistent"))
         self.assertEqual(self.stats()["total_sessions"], 3)
 
+    def test_redelivery_of_same_session_counts_once(self):
+        # A gateway crash-recovery retry re-fires on_session_start with
+        # the SAME session_id — the counter must not inflate.
+        for _ in range(3):
+            self.mod._on_session_start(session_id="s1")
+        self.assertEqual(self.stats()["total_sessions"], 1)
+        # A genuinely new session still counts afterwards
+        self.mod._on_session_start(session_id="s2")
+        self.assertEqual(self.stats()["total_sessions"], 2)
+
+    def test_interleaved_ids_count_each_distinct_session(self):
+        # Duplicate of an EARLIER (non-consecutive) id is impossible in
+        # real gateways, but the guard must not undercount legitimately
+        # distinct sessions appearing back-to-back.
+        for sid in ("s1", "s1", "s2", "s2", "s3", "s3"):
+            self.mod._on_session_start(session_id=sid)
+        self.assertEqual(self.stats()["total_sessions"], 3)
+
+    def test_missing_session_id_falls_back_to_counting_every_firing(self):
+        # Gateways without session ids (and synthetic callers) keep the
+        # legacy behavior: every firing counts.
+        for _ in range(3):
+            self.mod._on_session_start()
+        self.assertEqual(self.stats()["total_sessions"], 3)
+        # Falsy ids behave the same as missing ids
+        self.mod._on_session_start(session_id="")
+        self.mod._on_session_start(session_id=None)
+        self.assertEqual(self.stats()["total_sessions"], 5)
+
 
 class TestSubagentStop(HookTestBase):
     """subagent_stop: per-child counting for delegation achievements."""

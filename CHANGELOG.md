@@ -1,5 +1,20 @@
 # Changelog
 
+## [2.18.3] — 2026-08-01
+
+### Fixed
+
+- **`total_sessions` could inflate on gateway re-delivery** —
+  `on_session_start` counted every firing blindly. The gateway delivers
+  `session_id` with the event (previously unread), so a re-delivered
+  session start (crash-recovery retry, hook double-fire) would inflate
+  the counter and unlock **Persistent** (3 sessions) early. The counter
+  is now idempotent per `session_id` (`stats.last_session_id`); sessions
+  without an id keep the legacy count-every-firing behavior. `model` /
+  `platform` on the hook remain deliberately unread — a session that
+  never reaches the LLM has no usage to record, and
+  `post_llm_call`/`on_session_end` already persist them.
+
 ## [2.18.2] — 2026-08-01
 
 ### Fixed

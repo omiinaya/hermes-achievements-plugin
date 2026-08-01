@@ -275,6 +275,7 @@ def _new_state():
             "current_streak": 0,
             "longest_streak": 0,
             "total_sessions": 0,
+            "last_session_id": None,
             "conversations_started": 0,
             "peak_tools_per_response": 0,
             "peak_terminal_output_bytes": 0,
@@ -2407,9 +2408,26 @@ def _pre_api_request(**kwargs):
 # Fired once when a brand-new session is created (not on continuation).
 
 def _on_session_start(**kwargs):
-    """Count distinct sessions (powers the Persistent / session milestones)."""
+    """Count distinct sessions (powers the Persistent / session milestones).
+
+    Idempotent per session: the gateway delivers ``session_id`` with the
+    event, so a re-delivery of the SAME session start (crash-recovery
+    retry, hook double-fire) cannot inflate ``total_sessions``. Sessions
+    without an id (older gateways, synthetic calls) fall back to counting
+    every firing. ``model``/``platform`` are deliberately NOT read here —
+    a session that never reaches the LLM has no model usage to record,
+    and ``on_session_end``/``post_llm_call`` already persist them.
+    """
     state = _load_state()
     stats = state.setdefault("stats", {})
+    session_id = kwargs.get("session_id")
+    if not session_id:
+        stats["total_sessions"] = stats.get("total_sessions", 0) + 1
+        _save_state(force=True)
+        return
+    if stats.get("last_session_id") == session_id:
+        return  # re-delivery of an already-counted session start
+    stats["last_session_id"] = session_id
     stats["total_sessions"] = stats.get("total_sessions", 0) + 1
     _save_state(force=True)
 

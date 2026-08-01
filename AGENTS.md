@@ -46,7 +46,7 @@ using Hermes. Pure Python stdlib, no external dependencies.
 | `post_llm_call` | once per turn (has `assistant_response` — the model's own output text) | cumulative message counts, model/platform diversity, user-command patterns, tiered counters, group/rarity completions, message verbosity (Wordsmith 300 words, Novelist 1500), model-response verbosity (Essayist 1000 words, Novel Author 5000 — a mirror dimension measuring what the MODEL wrote, distinct from user input) |
 | `post_api_request` | once per successful provider API request (has `usage` token buckets, `api_duration` in seconds, `finish_reason`, `message_count`) | cumulative token milestones (Token Tyro/Wizard/Whale), fast-response counting (Speed Demon), `total_tokens` stat, per-request context depth (Deep Context 50 msgs, Context Colossus 100), output-cap truncation (Cut Short 1, Token Wall 25 — `finish_reason="length"` means the model hit its max output tokens and was cut off, a signal usage buckets cannot express) |
 | `pre_api_request` | once per provider API request BEFORE it's sent (has `base_url`, `approx_input_tokens`, `api_mode`, `max_tokens`) | local/self-hosted endpoint detection (Local First, Self-Hosted 25), single-request input-token spikes (Context Monster 200K, Token Tsunami 500K) |
-| `on_session_start` | new session created | `total_sessions` counter |
+| `on_session_start` | new session created | `total_sessions` counter (idempotent per `session_id` — a re-delivered session start never double-counts; `model`/`platform` deliberately ignored: a session with no LLM call has no usage to record) |
 | `on_session_end` | end of run_conversation | daily streaks, completions re-check |
 | `subagent_stop` | once per delegate_task child (has `child_role`, `child_status`, `duration_ms`) | Army Commander (counts children, not calls), Orchestrator, Resilient, subagent runtime (Slow Thinker 10m, Marathon 60m — how long a child actually ran, a dimension child-counting cannot see) |
 | `subagent_start` | once per subagent spawn (has `child_role`, `child_goal`) | true concurrency tracking — live counter + peak (Conductor) |
@@ -69,14 +69,17 @@ identical `if final_response and not interrupted` guard. Registering it
 would add zero observability and invite confusion about transform
 semantics — so 18/19 is the FINAL hook surface, not an oversight.
 
-### Zero-read hooks are a conscious choice
+### Delivered-but-unread kwargs are a conscious choice
 
 `check_plugin.py --gateway` lists every registered hook whose handler
-reads no kwargs, together with what the gateway delivers — so a
-delivered-but-ignored kwarg is visible instead of silently skipped.
-Current zero-read hooks and why that's correct:
-- `on_session_start` — counter only; its `model`/`platform` are already
-  read in `post_llm_call` (identical values, same turn).
+ignores at least one delivered kwarg (and zero-read hooks in full),
+together with what the gateway delivers — so a delivered-but-ignored
+kwarg is visible instead of silently skipped.
+Current unread kwargs and why that's correct:
+- `on_session_start` — reads `session_id` for idempotent counting; its
+  `model`/`platform` are deliberately NOT read — they're already persisted
+  by `post_llm_call`/`on_session_end` (identical values), and a session
+  that never reaches the LLM has no model usage to record.
 - `subagent_start` — live-counter increment (paired with `subagent_stop`
   decrement); `child_role` is read on stop.
 - `on_session_reset` / `on_session_finalize` — counters/force-flush;
