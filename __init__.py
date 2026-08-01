@@ -2832,7 +2832,7 @@ def _on_pre_gateway_dispatch(**kwargs):
         if callable(get_cmd):
             try:
                 cmd = get_cmd()
-            except Exception:
+            except Exception:  # noqa: BLE001 — a broken adapter method must not crash the hook
                 cmd = None
         if not cmd:
             # Fallback: parse the raw text for a leading "/" token

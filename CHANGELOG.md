@@ -1,5 +1,17 @@
 # Changelog
 
+## [2.18.1] — 2026-08-01
+
+### Fixed
+
+- **Ruff version drift (test workflow was red for v2.18.0)** — the CI
+  workflow installs `ruff>=0.15.14,<0.17`, so it runs the latest 0.16.x,
+  which enables BLE001 (blind `except Exception`) by default; the local
+  0.15.14 did not. The new gateway-command handler's defensive
+  `except Exception` passed local lint and failed CI. Added the targeted
+  `# noqa: BLE001` and documented the drift in AGENTS.md — lint with
+  `uv tool run --from "ruff>=0.16,<0.17" ruff check .` before push.
+
 ## [2.18.0] — 2026-08-01
 
 ### Added

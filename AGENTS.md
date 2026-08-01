@@ -109,6 +109,15 @@ python3 -m pytest tests/ --cov=. --cov-fail-under=99 -q   # CI coverage gate
 ruff check .                   # CI lint gate — must pass before push
 ```
 
+- **Ruff version drift (recurring CI failure)** — the CI workflow installs
+  `"ruff>=0.15.14,<0.17"`, so it runs the LATEST 0.16.x, which enables new
+  default rules (e.g. BLE001) that an older local ruff silently passes.
+  Always lint with the CI range before push:
+  `uv tool run --from "ruff>=0.16,<0.17" ruff check .`
+  (v2.18.0 shipped with a red test workflow for exactly this — a bare
+  `except Exception` in the new gateway-command handler passed local 0.15.14
+  and failed CI's 0.16.1.)
+
 - **Coverage is 100% on `__init__.py`** (99.7% full tree — the only misses
   are inside test files themselves). `tests/test_detection.py::TestCoverageEdges`
   exists purely to close defensive/normalization branches the feature
