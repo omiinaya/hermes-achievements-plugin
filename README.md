@@ -65,20 +65,22 @@ Notifications are rarity-colored Discord embeds (gray → gold) posted asynchron
   ✅ **First Steps** — Send your first message to Hermes
   ✅ **Web Walker** — Search the web using Hermes
 
-🚀 **Getting Started** (3/11) ██░░░░░░░░
-🛠️ **Tools & Skills** (3/28) █░░░░░░░░░
-⚡ **Power User** (0/20) ░░░░░░░░░░
-👑 **Expert** (0/15) ░░░░░░░░░░
+🚀 **Getting Started** (2/12) ██░░░░░░░░
+🛠️ **Tools & Skills** (2/28) █░░░░░░░░░
+⚡ **Power User** (0/23) ░░░░░░░░░░
+👑 **Expert** (0/18) ░░░░░░░░░░
 🎯 **Milestones** (0/15) ░░░░░░░░░░
-🤝 **Community** (0/11) ░░░░░░░░░░
+🤝 **Community** (0/4) ░░░░░░░░░░
+
+🔮 Closest to unlock: **Terminal Jockey** ███░░░░░░░ 3/25 (12%)
 
 /achievements next
 
 🎯 **Next Up** — closest to unlocking:
 
-🟩 **Jack of All Trades** — ██████░░░░ 3/5 (60%)
-🟦 **Cron Master** — ████░░░░░░ 2/5 (40%)
-🟦 **Workflow Builder** — ███░░░░░░░ 3/8 (37%)
+🟩 **Deep Diver** — ████░░░░░░ 2/5 (40%)
+🟦 **Terminal Jockey** — █░░░░░░░░░ 3/25 (12%)
+🟦 **Config Guru** — █░░░░░░░░░ 2/15 (13%)
 ```
 
 ### Multi-Language Support (i18n) 🌐

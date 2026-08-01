@@ -40,10 +40,10 @@ def main():
 
     print(f"Bumping version to {version}")
     # pyproject.toml: version = "x.y.z"
-    bump(PYPROJECT, re.compile(r'^version = "\d+\.\d+\.\d+"', re.M),
+    bump(PYPROJECT, re.compile(r'^version = "\d+\.\d+\.\d+"', re.MULTILINE),
          f'version = "{version}"')
     # plugin.yaml: version: x.y.z
-    bump(PLUGIN_YAML, re.compile(r"^version: \d+\.\d+\.\d+$", re.M),
+    bump(PLUGIN_YAML, re.compile(r"^version: \d+\.\d+\.\d+$", re.MULTILINE),
          f"version: {version}")
     # setup.sh: two banner lines — vX.Y.Z (both occurrences)
     bump(SETUP_SH, re.compile(r"v\d+\.\d+\.\d+"), f"v{version}", count=0)

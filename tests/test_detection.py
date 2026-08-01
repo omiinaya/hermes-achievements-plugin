@@ -47,7 +47,7 @@ class HookTestBase(unittest.TestCase):
                 self.mod._notif_timer.cancel()
                 self.mod._notif_timer = None
             self.mod._NOTIF_QUEUE.clear()
-        except Exception:  # noqa: BLE001 — cleanup must never fail the test
+        except Exception:  # noqa: BLE001, S110 — cleanup must never fail the test
             pass
         shutil.rmtree(self._tmp, ignore_errors=True)
         os.environ.pop("HERMES_HOME", None)
