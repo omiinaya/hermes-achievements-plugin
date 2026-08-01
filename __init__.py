@@ -1751,7 +1751,8 @@ def _handle_achievements(raw_args: str) -> str:
                     lines.append(_format_badge(a_id, a_def, state))
             return "\n".join(lines)
 
-    # Default: all grouped
+    # Default: compact group-summary view (full badge lists stay available
+    # via `/achievements <group>` — keeps output under Discord's 2000-char cap)
     lines = [
         _t("ui.all_title", locale),
         _t("ui.all_subtitle", locale) + "\n",
@@ -1773,13 +1774,12 @@ def _handle_achievements(raw_args: str) -> str:
         ug = sum(1 for a_id, _ in ga if a_id in unlocked_ids)
         group_key = group.lower().replace(" & ", "_").replace(" ", "_")
         group_name = _t(f"group.{group_key}", locale)
+        bar = _progress_bar(ug, len(ga), width=10)
         lines.append(
-            _t("ui.group_header", locale,
-               emoji=GROUP_EMOJIS.get(group, ""), group=group_name, unlocked=ug, total=len(ga))
+            f"{GROUP_EMOJIS.get(group, '🎮')} **{group_name}** ({ug}/{len(ga)}) {bar}"
         )
-        for a_id, a_def in ga:
-            lines.append(_format_badge(a_id, a_def, state))
-        lines.append("")
+    lines.append("")
+    lines.append(_t("ui.summary_hint", locale))
     help_all = _t("ui.help_all", locale)
     help_filter = _t("ui.help_filter", locale)
     help_overview = _t("ui.help_overview", locale)

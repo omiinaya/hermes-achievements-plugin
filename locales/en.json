@@ -466,6 +466,7 @@
     "next_title": "🎯 **Next Up** — closest to unlocking:",
     "next_empty": "No progress tracked yet — keep using Hermes!",
     "help_next": "next up",
-    "stats_delegated": "Subagents spawned:          {count}"
+    "stats_delegated": "Subagents spawned:          {count}",
+    "summary_hint": "Use `/achievements <group>` for full lists — e.g. `/achievements tools_skills`"
   }
 }

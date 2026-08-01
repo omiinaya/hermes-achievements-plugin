@@ -596,7 +596,18 @@ class TestCommandHandlers(HookTestBase):
         for g in self.mod.GROUPS:
             self.assertIn(g, out)
         self.assertIn("Hermes Achievements", out)
-        self.assertIn("First Steps", out)
+        self.assertIn("0/11", out)  # Getting Started progress summary
+
+    def test_achievements_list_under_discord_limit(self):
+        # Discord caps messages at 2000 chars — the default view must fit
+        out = self.mod._handle_achievements("")
+        self.assertLessEqual(len(out), 2000, f"default view is {len(out)} chars")
+        # And every group's full list must fit too
+        for g in self.mod.GROUPS:
+            slug = g.lower().replace(" & ", "_").replace(" ", "_")
+            group_out = self.mod._handle_achievements(slug)
+            self.assertLessEqual(len(group_out), 2000,
+                                 f"group {g} view is {len(group_out)} chars")
 
     def test_achievements_stats_has_session_line(self):
         self.tool_call("terminal", {"command": "echo x"}, session_id="sess-stat")

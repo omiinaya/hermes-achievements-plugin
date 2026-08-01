@@ -39,11 +39,11 @@ No external Python dependencies — the plugin uses only the standard library.
 ### Usage
 
 ```
-/achievements              View all achievements and progress
+/achievements              Group summary + recently unlocked (Discord-safe)
 /achievements stats        Overall stats and unlock percentage
 /achievements next         Closest achievements to unlocking
 /achievements recent       Recently unlocked achievements
-/achievements <group>      Filter by group name
+/achievements <group>      Filter by group name (full badge list)
 /achievement <id>          Detail view with progress bar
 ```
 

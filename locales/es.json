@@ -466,6 +466,7 @@
     "next_title": "🎯 **Próximos** — más cerca de desbloquear:",
     "next_empty": "Sin progreso registrado aún — ¡sigue usando Hermes!",
     "help_next": "próximos",
-    "stats_delegated": "Subagentes lanzados:        {count}"
+    "stats_delegated": "Subagentes lanzados:        {count}",
+    "summary_hint": "Usa `/achievements <grupo>` para listas completas — ej. `/achievements tools_skills`"
   }
 }

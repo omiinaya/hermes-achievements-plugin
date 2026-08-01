@@ -13,6 +13,7 @@
 
 - **Model/platform diversity regressed on gateway restart** — `Model Hopper`, `Multi-Model`, `Model Collector`, `Cross-Platform Operative/Networker/Veteran`, and `Gateway Guru` read from in-memory sets that reset on restart; now read from persisted `stats.models_used` / `stats.platforms`. Progress survives restarts.
 - **`/achievements recent` arbitrary ordering** — falls back to `unlocked_at`-sorted top 3 when the recent-unlocks list is empty.
+- **Default `/achievements` view exceeded Discord's 2000-char cap** (6120 chars with all 100 badges) — now a compact group-summary with progress bars; full badge lists stay one command away (`/achievements <group>`).
 - **Stats view** — now shows live session summary (calls + distinct tool types) and tier counters (cron jobs, skills created, config changes) in all 4 locales.
 - **Memory Keeper** only counts `memory` add/replace — `remove` no longer triggers it.
 - Internal: renamed `_SESSION_CATEGORY_THRESHOLDS` → `_SESSION_TOOL_THRESHOLDS` (it counts tool names, not categories).
