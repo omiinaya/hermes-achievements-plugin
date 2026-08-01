@@ -825,6 +825,23 @@ class TestStreakEdgeCases(HookTestBase):
             self.mod._LOCALES_DIR = old_dir
             self.mod._locales_cache = {}
 
+    def test_locale_load_falls_back_to_wheel_data_dir(self):
+        # When the HERMES_HOME locales dir is missing, the wheel-shipped
+        # data dir (next to __init__.py) is used — pip-installed copy works
+        old_dir = self.mod._LOCALES_DIR
+        old_wheel = self.mod._WHEEL_DATA_DIR
+        self.mod._LOCALES_DIR = "/proc/definitely/not/a/locales/dir"
+        # Simulate a pip-installed copy: wheel data dir = checkout locales
+        self.mod._WHEEL_DATA_DIR = LOCALES_DIR
+        self.mod._locales_cache = {}
+        try:
+            cache = self.mod._load_locales()
+            self.assertEqual(len(cache.get("en", {}).get("achievement", {})), 100)
+        finally:
+            self.mod._LOCALES_DIR = old_dir
+            self.mod._WHEEL_DATA_DIR = old_wheel
+            self.mod._locales_cache = {}
+
 
 class TestStatePersistence(HookTestBase):
     """State round-trips through JSON without losing set fields."""

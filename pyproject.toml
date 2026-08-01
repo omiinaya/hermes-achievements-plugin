@@ -28,8 +28,17 @@ Homepage = "https://github.com/omiinaya/hermes-achievements-plugin"
 Repository = "https://github.com/omiinaya/hermes-achievements-plugin"
 Issues = "https://github.com/omiinaya/hermes-achievements-plugin/issues"
 
-[tool.setuptools.packages.find]
-include = ["achievements*"]
+# The plugin is a single module at the repo root (Hermes loads plugins from
+# their directory via plugin.yaml + __init__.py). Package it as a py-module
+# so the wheel actually ships the code, plus the manifest and locales.
+[tool.setuptools]
+py-modules = ["__init__"]
+
+# Extra files ship alongside the module so a pip-installed wheel is
+# self-contained (manifest + translations). Loaded via __file__ fallback
+# in _load_locales / register.
+[tool.setuptools.data-files]
+"achievements" = ["plugin.yaml", "locales/*.json"]
 
 # The plugin directory name (hermes-achievements-plugin) contains hyphens,
 # so ruff's N999 flags it as an invalid module name. This is a false

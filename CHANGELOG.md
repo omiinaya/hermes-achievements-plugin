@@ -2,13 +2,16 @@
 
 ## [2.4.2] — 2026-07-31
 
+### Fixed
+
+- **Wheel shipped no code** — the pyproject `packages.find` include (`achievements*`) matched nothing because the plugin is a single `__init__.py` at the repo root. The built wheel contained only metadata. Now packaged via `py-modules = ["__init__"]` + `data-files` (plugin.yaml + locales), so the wheel is a complete, pip-installable plugin.
+- **Pip-installed copy couldn't find locales** — `_load_locales` only checked `$HERMES_HOME/plugins/achievements/locales`. Added a `__file__`-relative fallback to the wheel data dir, so a pip-installed copy resolves all 4 locales (verified: install wheel into fresh venv → 4 locales, 100 achievements each).
+- **CI lint red on hyphenated checkout dir** — ruff N999 flags `hermes-achievements-plugin/` as an invalid module name. Scoped per-file ignore for `__init__.py` in pyproject.toml. Local lint was green (working dir named `achievements`) which masked the failure — always check `gh run list` after push.
+- **Discord 10-embed cap** — burst batches larger than 10 unlocks are now chunked into multiple messages (10 + remainder) instead of one oversized payload that Discord would reject with HTTP 400.
+
 ### Added
 
 - Stats view now shows the `Distinct users seen` counter (`ui.stats_users_seen`, all 4 locales) alongside the other v2.4 counters.
-
-### Fixed
-
-- **Discord 10-embed cap** — burst batches larger than 10 unlocks are now chunked into multiple messages (10 + remainder) instead of one oversized payload that Discord would reject with HTTP 400.
 
 ## [2.4.1] — 2026-07-31
 

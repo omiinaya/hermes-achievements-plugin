@@ -324,7 +324,13 @@ def _init_achievements():
 
 # ── i18n / Locale ────────────────────────────────────────────────────────
 
+# Locale lookup order: (1) git-checkout / live-plugin dir under HERMES_HOME
+# (the normal install), (2) data-files shipped inside the wheel next to
+# this module (pip-installed copy). Falls back to English-only when
+# neither exists (defensive; _t then returns raw keys).
 _LOCALES_DIR = os.path.join(_HERMES_HOME, "plugins", "achievements", "locales")
+_WHEEL_DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                               "achievements", "locales")
 _locales_cache = {}
 
 
@@ -334,14 +340,17 @@ def _load_locales():
     if _locales_cache:
         return _locales_cache
     _locales_cache = {}
-    try:
-        for fname in sorted(os.listdir(_LOCALES_DIR)):
-            if fname.endswith(".json"):
-                lang = fname[:-5]
-                with open(os.path.join(_LOCALES_DIR, fname), encoding="utf-8") as f:
-                    _locales_cache[lang] = json.load(f)
-    except OSError:
-        pass
+    for candidate in (_LOCALES_DIR, _WHEEL_DATA_DIR):
+        try:
+            for fname in sorted(os.listdir(candidate)):
+                if fname.endswith(".json"):
+                    lang = fname[:-5]
+                    with open(os.path.join(candidate, fname), encoding="utf-8") as f:
+                        _locales_cache[lang] = json.load(f)
+            if _locales_cache:
+                break
+        except OSError:
+            continue
     if "en" not in _locales_cache:
         _locales_cache["en"] = {}
     return _locales_cache
