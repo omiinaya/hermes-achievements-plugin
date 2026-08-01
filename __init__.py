@@ -129,7 +129,8 @@ def _send_discord_notification_batch(batch):
     content = ""
     if len(embeds) > 1:
         content = _t("ui.batch_unlocked", locale, count=len(embeds))
-    payload = json.dumps({"content": content, "embeds": embeds}).encode()
+    # Discord caps embeds at 10 per message — chunk larger bursts
+    MAX_EMBEDS = 10
 
     # Build unique target set — dedup home vs origin
     targets = []
@@ -138,26 +139,30 @@ def _send_discord_notification_batch(batch):
     if origin_channel and origin_channel != home_channel:
         targets.append(("origin", origin_channel, None))
 
-    for label, channel_id, thread_id in targets:
-        # Discord threads: the thread ID IS the channel ID in the API —
-        # use the thread when one is configured for the home channel
-        url = f"https://discord.com/api/v10/channels/{thread_id or channel_id}/messages"
-        try:
-            req = urllib.request.Request(
-                url, data=payload,
-                headers={
-                    "Authorization": f"Bot {token}",
-                    "Content-Type": "application/json",
-                    "User-Agent": "DiscordBot/1.0 (achievements-plugin)",
-                },
-                method="POST",
-            )
-            urllib.request.urlopen(req, timeout=5)
-        except (urllib.error.URLError, urllib.error.HTTPError, OSError) as exc:
-            import logging
-            logging.getLogger(__name__).warning(
-                "Failed to send achievement notification to %s: %s", label, exc
-            )
+    for start in range(0, len(embeds), MAX_EMBEDS):
+        chunk = embeds[start:start + MAX_EMBEDS]
+        chunk_content = content if start == 0 else ""
+        payload = json.dumps({"content": chunk_content, "embeds": chunk}).encode()
+        for label, channel_id, thread_id in targets:
+            # Discord threads: the thread ID IS the channel ID in the API —
+            # use the thread when one is configured for the home channel
+            url = f"https://discord.com/api/v10/channels/{thread_id or channel_id}/messages"
+            try:
+                req = urllib.request.Request(
+                    url, data=payload,
+                    headers={
+                        "Authorization": f"Bot {token}",
+                        "Content-Type": "application/json",
+                        "User-Agent": "DiscordBot/1.0 (achievements-plugin)",
+                    },
+                    method="POST",
+                )
+                urllib.request.urlopen(req, timeout=5)
+            except (urllib.error.URLError, urllib.error.HTTPError, OSError) as exc:
+                import logging
+                logging.getLogger(__name__).warning(
+                    "Failed to send achievement notification to %s: %s", label, exc
+                )
 
 
 def _send_discord_notification_sync(ach_def):

@@ -20,6 +20,7 @@
 ### Fixed
 
 - `scripts/update_locales.py` — NEW translations are now authoritative: stale English fallbacks left by a previous run are overwritten instead of skipped.
+- **Discord 10-embed cap** — burst batches larger than 10 unlocks are now chunked into multiple messages (10 + remainder) instead of one oversized payload that Discord would reject with 400.
 
 ## [2.4.0] — 2026-07-31
 

@@ -814,6 +814,45 @@ class TestStatePersistence(HookTestBase):
             self.mod.urllib.request.urlopen = old
         self.assertEqual(calls, [])
 
+    def test_batch_chunks_over_10_embeds(self):
+        # Discord caps embeds at 10/message — 12 unlocks → 2 messages
+        captured = []
+
+        class FakeResp:
+            def __enter__(self): return self
+            def __exit__(self, *a): return False
+
+        def fake_urlopen(req, timeout=None):
+            captured.append(req.data)
+            return FakeResp()
+
+        self.mod._load_env_var = lambda key, fallback="": {
+            "DISCORD_BOT_TOKEN": "test-token",
+            "DISCORD_HOME_CHANNEL": "456",
+        }.get(key, fallback)
+        old_origin = os.environ.pop("HERMES_SESSION_CHAT_ID", None)
+        old = self.mod.urllib.request.urlopen
+        self.mod.urllib.request.urlopen = fake_urlopen
+        try:
+            ids = list(self.mod.ACHIEVEMENT_DEFS.keys())[:12]
+            for aid in ids:
+                self.mod._send_discord_notification(self.mod.ACHIEVEMENT_DEFS[aid])
+            self.mod._flush_notification_queue()
+        finally:
+            self.mod.urllib.request.urlopen = old
+            if old_origin is not None:
+                os.environ["HERMES_SESSION_CHAT_ID"] = old_origin
+
+        import json as _json
+        self.assertEqual(len(captured), 2)  # 10 + 2
+        first = _json.loads(captured[0])
+        second = _json.loads(captured[1])
+        self.assertEqual(len(first["embeds"]), 10)
+        self.assertEqual(len(second["embeds"]), 2)
+        # Only the first chunk carries the batch header
+        self.assertIn("achievements unlocked", first["content"])
+        self.assertEqual(second["content"], "")
+
     def test_model_platform_progress_survives_restart(self):
         # Model/platform diversity is read from persisted stats, so a
         # gateway restart must not regress progress toward the tiers
