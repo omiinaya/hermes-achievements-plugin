@@ -1894,6 +1894,14 @@ class TestCommandHandlers(HookTestBase):
         self.assertIn("Skills created:", out)
         self.assertIn("Config changes:", out)
 
+    def test_stats_shows_hooks_used_counter(self):
+        # Hook Master's counter (distinct hooks authored in plugins) shows
+        st = self.mod._load_state()["stats"]
+        st["hooks_used"] = {"post_tool_call", "on_session_start", "api_request_error"}
+        out = self.mod._handle_achievements("stats")
+        self.assertIn("Plugin hooks authored:", out)
+        self.assertIn("3", out)
+
     def test_stats_completionist_unlocked_line(self):
         # All achievements unlocked → completionist line appears
         for aid in self.mod.ACHIEVEMENT_DEFS:

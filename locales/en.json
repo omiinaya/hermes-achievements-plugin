@@ -465,6 +465,7 @@
     "stats_models": "Models:                   {models}{more}",
     "stats_platforms": "Platforms:                {platforms}",
     "stats_session_resets": "Session resets:           {count}",
+    "stats_hooks_used": "Plugin hooks authored:   {count}",
     "stats_session_tools": "This session:             {calls} calls · {tools} tool types",
     "stats_sessions": "Sessions:                 {count}",
     "stats_skills_created": "Skills created:             {count}",

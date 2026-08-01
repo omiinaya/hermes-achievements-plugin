@@ -2073,6 +2073,9 @@ def _handle_achievements(raw_args: str) -> str:
                 lines.append(_t("ui.stats_users_seen", locale, count=len(stats.get("users_seen", set()))))
             if stats.get("session_resets"):
                 lines.append(_t("ui.stats_session_resets", locale, count=stats.get("session_resets", 0)))
+            hooks_used = stats.get("hooks_used", set())
+            if hooks_used:
+                lines.append(_t("ui.stats_hooks_used", locale, count=len(hooks_used)))
             platforms = stats.get("platforms", [])
             if isinstance(platforms, set):
                 platforms = sorted(platforms)
