@@ -716,6 +716,16 @@ ACHIEVEMENT_DEFS = {
         "description": "Send a single message of 1500+ words",
         "rarity": "rare", "group": "Expert",
     },
+    "context_monster": {
+        "id": "context_monster", "name": "Context Monster", "emoji": "🧠",
+        "description": "Send one API request with 200K+ input tokens",
+        "rarity": "epic", "group": "Expert",
+    },
+    "token_tsunami": {
+        "id": "token_tsunami", "name": "Token Tsunami", "emoji": "🌊",
+        "description": "Send one API request with 500K+ input tokens",
+        "rarity": "legendary", "group": "Expert",
+    },
     "workflow_builder": {
         "id": "workflow_builder", "name": "Workflow Builder", "emoji": "🏗️",
         "description": "Use 8 different tool types in a single session",
@@ -773,6 +783,16 @@ ACHIEVEMENT_DEFS = {
         "id": "wordsmith", "name": "Wordsmith", "emoji": "✍️",
         "description": "Send a single message of 300+ words",
         "rarity": "uncommon", "group": "Power User",
+    },
+    "local_first": {
+        "id": "local_first", "name": "Local First", "emoji": "🏠",
+        "description": "Run Hermes against a local/self-hosted model endpoint",
+        "rarity": "uncommon", "group": "Power User",
+    },
+    "self_hosted": {
+        "id": "self_hosted", "name": "Self-Hosted", "emoji": "🖥️",
+        "description": "Make 25 API requests to local/self-hosted endpoints",
+        "rarity": "rare", "group": "Power User",
     },
 
     # ═══════════════════════════════════════════════════════════════════════
@@ -1089,6 +1109,26 @@ _CONTEXT_COLOSSUS_MESSAGES = 100
 # Single-message verbosity (word count of user_message from post_llm_call)
 _WORDSMITH_WORDS = 300
 _NOVELIST_WORDS = 1500
+
+# Single-request input-token spikes (approx_input_tokens from pre_api_request):
+# a request carrying ≥ this many input tokens means a huge context window was
+# loaded at once — distinct from cumulative token milestones.
+_CONTEXT_MONSTER_INPUT_TOKENS = 200_000
+_TOKEN_TSUNAMI_INPUT_TOKENS = 500_000
+
+# Local/self-hosted model endpoints (base_url from pre_api_request): hosts
+# that are loopback, private-range, or .local/.internal resolve locally.
+_LOCAL_HOST_MARKERS = (
+    "localhost", "127.0.0.1", "0.0.0.0", "::1",
+)
+_LOCAL_PREFIXES = ("192.168.", "10.", "172.16.", "172.17.", "172.18.",
+                   "172.19.", "172.20.", "172.21.", "172.22.", "172.23.",
+                   "172.24.", "172.25.", "172.26.", "172.27.", "172.28.",
+                   "172.29.", "172.30.", "172.31.", "169.254.")
+_LOCAL_SUFFIXES = (".local", ".internal", ".lan", ".home.arpa")
+
+# Number of requests to local endpoints for the Self-Hosted tier
+_SELF_HOSTED_REQUESTS = 25
 
 # Single-session tool call thresholds
 _SESSION_CALL_THRESHOLDS = [
@@ -1791,6 +1831,74 @@ def _post_api_request(**kwargs):
     _save_state()
 
 
+# ── Hook: pre_api_request ────────────────────────────────────────────────
+# Fires BEFORE each provider API request inside the agent loop. Carries
+# base_url (the endpoint host — local/self-hosted vs cloud), and
+# approx_input_tokens (the preflight estimate of input tokens for THIS
+# request). The post hook sees cumulative totals; this one sees the
+# single-request spike and the endpoint topology.
+
+def _is_local_base_url(base_url):
+    """True when base_url points at a loopback/private/self-hosted host."""
+    if not isinstance(base_url, str) or not base_url.strip():
+        return False
+    try:
+        from urllib.parse import urlparse
+        host = (urlparse(base_url).hostname or "").lower()
+    except ValueError:
+        host = ""
+    if not host:
+        return False
+    if host in _LOCAL_HOST_MARKERS:
+        return True
+    if any(host.startswith(p) for p in _LOCAL_PREFIXES):
+        return True
+    if any(host.endswith(s) for s in _LOCAL_SUFFIXES):
+        return True
+    return False
+
+
+def _pre_api_request(**kwargs):
+    """Detect local-model usage and single-request input-token spikes."""
+    state = _load_state()
+    stats = state.setdefault("stats", {})
+    now = datetime.now(UTC).isoformat()
+
+    # ── Local/self-hosted endpoints (Local First / Self-Hosted) ─
+    base_url = kwargs.get("base_url", "")
+    if _is_local_base_url(base_url):
+        stats["local_requests"] = stats.get("local_requests", 0) + 1
+        local_count = stats["local_requests"]
+        _unlock("local_first", now)
+        if local_count >= _SELF_HOSTED_REQUESTS:
+            _unlock("self_hosted", now)
+        else:
+            _set_progress("self_hosted", local_count, _SELF_HOSTED_REQUESTS)
+
+    # ── Single-request input-token spike (Context Monster/Tsunami)
+    # approx_input_tokens is the preflight estimate for THIS request —
+    # a huge value means the model loaded a massive context window at
+    # once, distinct from cumulative token milestones.
+    approx = kwargs.get("approx_input_tokens")
+    if isinstance(approx, (int, float)) and approx > 0:
+        stats["peak_input_tokens"] = max(
+            stats.get("peak_input_tokens", 0), int(approx)
+        )
+        if approx >= _TOKEN_TSUNAMI_INPUT_TOKENS:
+            _unlock("token_tsunami", now)
+            _unlock("context_monster", now)
+        elif approx >= _CONTEXT_MONSTER_INPUT_TOKENS:
+            _unlock("context_monster", now)
+        else:
+            _set_progress(
+                "context_monster", int(approx), _CONTEXT_MONSTER_INPUT_TOKENS
+            )
+
+    _check_group_completions()
+    _check_completionist()
+    _save_state()
+
+
 # ── Hook: on_session_start ───────────────────────────────────────────────
 # Fired once when a brand-new session is created (not on continuation).
 
@@ -2314,6 +2422,10 @@ def _handle_achievements(raw_args: str) -> str:
                 lines.append(_t("ui.stats_media", locale, count=stats.get("media_messages", 0)))
             if stats.get("peak_context_messages"):
                 lines.append(_t("ui.stats_peak_context", locale, count=stats.get("peak_context_messages", 0)))
+            if stats.get("peak_input_tokens"):
+                lines.append(_t("ui.stats_peak_input", locale, count=stats.get("peak_input_tokens", 0)))
+            if stats.get("local_requests"):
+                lines.append(_t("ui.stats_local_requests", locale, count=stats.get("local_requests", 0)))
             if stats.get("longest_message_words"):
                 lines.append(_t("ui.stats_longest_message", locale, count=stats.get("longest_message_words", 0)))
             hooks_used = stats.get("hooks_used", set())
@@ -2500,6 +2612,8 @@ def register(ctx) -> None:
     # Detection: post_llm_call has conversation_history → tool calls
     ctx.register_hook("post_llm_call", _post_llm_call)
     ctx.register_hook("post_api_request", _post_api_request)
+    # Preflight: local-endpoint usage + single-request input-token spikes
+    ctx.register_hook("pre_api_request", _pre_api_request)
     # Per-tool detection with full arguments (cron jobs, delegation, files)
     ctx.register_hook("post_tool_call", _post_tool_call)
     # Session accounting: new-session counter for session milestones

@@ -97,6 +97,10 @@
       "name": "Contexte Colossal",
       "description": "Faites une requête API avec 100+ messages en contexte"
     },
+    "context_monster": {
+      "name": "Monstre de Contexte",
+      "description": "Envoyez une requête API avec 200K+ tokens d'entrée"
+    },
     "cron_commander": {
       "name": "Commandant Cron",
       "description": "Planifier ta première tâche cron"
@@ -188,6 +192,10 @@
     "legendary_chatter": {
       "name": "Discuteur Légendaire",
       "description": "Envoyer 1 000 messages au total"
+    },
+    "local_first": {
+      "name": "Local d'Abord",
+      "description": "Exécutez Hermes sur un endpoint de modèle local"
     },
     "marathon_session": {
       "name": "Session Marathon",
@@ -309,6 +317,10 @@
       "name": "Résilient",
       "description": "Terminez une tâche après l'échec d'un sous-agent"
     },
+    "self_hosted": {
+      "name": "Auto-Hébergé",
+      "description": "Faites 25 requêtes API vers des endpoints locaux"
+    },
     "session_detective": {
       "name": "Détective de Sessions",
       "description": "Rechercher dans les sessions passées 10 fois"
@@ -376,6 +388,10 @@
     "the_90_turn_club": {
       "name": "Le Club des 90 Tours",
       "description": "Atteindre 90 appels d'outils en une seule session (max_turns par défaut)"
+    },
+    "token_tsunami": {
+      "name": "Tsunami de Tokens",
+      "description": "Envoyez une requête API avec 500K+ tokens d'entrée"
     },
     "token_tyro": {
       "name": "Novice des Jetons",
@@ -523,6 +539,8 @@
     "stats_session_resets": "Réinitialisations:        {count}",
     "stats_media": "Messages média:           {count}",
     "stats_peak_context": "Contexte le plus profond: {count} msgs",
+    "stats_peak_input": "Pic de tokens d'entrée:   {count}",
+    "stats_local_requests": "Appels endpoint local:    {count}",
     "stats_longest_message": "Message le plus long:     {count} mots",
     "stats_hooks_used": "Hooks de plugin écrits :  {count}",
     "stats_session_tools": "Cette session :            {calls} appels · {tools} types",

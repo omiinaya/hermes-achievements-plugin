@@ -97,6 +97,10 @@
       "name": "Contexto Colosal",
       "description": "Haz una solicitud de API con 100+ mensajes en contexto"
     },
+    "context_monster": {
+      "name": "Monstruo de Contexto",
+      "description": "Envía una solicitud de API con 200K+ tokens de entrada"
+    },
     "cron_commander": {
       "name": "Comandante Cron",
       "description": "Programa tu primer trabajo cron"
@@ -188,6 +192,10 @@
     "legendary_chatter": {
       "name": "Charlatán Legendario",
       "description": "Envía 1,000 mensajes en total"
+    },
+    "local_first": {
+      "name": "Local Primero",
+      "description": "Ejecuta Hermes contra un endpoint de modelo local"
     },
     "marathon_session": {
       "name": "Sesión Maratón",
@@ -309,6 +317,10 @@
       "name": "Resiliente",
       "description": "Completa una tarea después de que un subagente falle"
     },
+    "self_hosted": {
+      "name": "Autoalojado",
+      "description": "Haz 25 solicitudes de API a endpoints locales"
+    },
     "session_detective": {
       "name": "Detective de Sesiones",
       "description": "Busca en sesiones pasadas 10 veces"
@@ -376,6 +388,10 @@
     "the_90_turn_club": {
       "name": "El Club de las 90 Jugadas",
       "description": "Alcanza 90 llamadas a herramientas en una sola sesión (max_turns por defecto)"
+    },
+    "token_tsunami": {
+      "name": "Tsunami de Tokens",
+      "description": "Envía una solicitud de API con 500K+ tokens de entrada"
     },
     "token_tyro": {
       "name": "Novato de Tokens",
@@ -523,6 +539,8 @@
     "stats_session_resets": "Reinicios de sesión:      {count}",
     "stats_media": "Mensajes multimedia:      {count}",
     "stats_peak_context": "Contexto más profundo:    {count} msgs",
+    "stats_peak_input": "Pico de tokens de entrada: {count}",
+    "stats_local_requests": "Llamadas a endpoint local: {count}",
     "stats_longest_message": "Mensaje más largo:        {count} palabras",
     "stats_hooks_used": "Hooks de plugin creados: {count}",
     "stats_session_tools": "Esta sesión:              {calls} llamadas · {tools} tipos",

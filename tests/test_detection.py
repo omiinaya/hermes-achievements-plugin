@@ -760,6 +760,106 @@ class TestPostApiRequest(HookTestBase):
         self.assertFalse(self.unlocked("deep_context"))
 
 
+class TestPreApiRequest(HookTestBase):
+    """pre_api_request: local endpoints + single-request input-token spikes."""
+
+    def test_local_first_on_localhost(self):
+        self.mod._pre_api_request(
+            base_url="http://localhost:4000/v1", approx_input_tokens=1000,
+            model="m1", provider="p1", api_call_count=1,
+        )
+        self.assertTrue(self.unlocked("local_first"))
+        self.assertFalse(self.unlocked("self_hosted"))
+        self.assertEqual(self.stats()["local_requests"], 1)
+
+    def test_local_first_private_ip_and_suffixes(self):
+        for url in ("http://192.168.1.10:8080/v1", "http://10.0.0.5:8000",
+                    "http://172.16.0.2:9000", "http://ollama.local:11434",
+                    "http://127.0.0.1:11434/v1"):
+            self.mod._pre_api_request(
+                base_url=url, approx_input_tokens=100, model="m1",
+                provider="p1", api_call_count=1,
+            )
+        self.assertTrue(self.unlocked("local_first"))
+        self.assertEqual(self.stats()["local_requests"], 5)
+
+    def test_cloud_urls_do_not_count_local(self):
+        self.mod._pre_api_request(
+            base_url="https://api.openai.com/v1", approx_input_tokens=100,
+            model="m1", provider="p1", api_call_count=1,
+        )
+        self.mod._pre_api_request(
+            base_url="https://api.anthropic.com/v1", approx_input_tokens=100,
+            model="m1", provider="p1", api_call_count=1,
+        )
+        self.assertFalse(self.unlocked("local_first"))
+        self.assertNotIn("local_requests", self.stats())
+
+    def test_self_hosted_at_25_requests(self):
+        for i in range(25):
+            self.mod._pre_api_request(
+                base_url="http://localhost:4000/v1", approx_input_tokens=100,
+                model="m1", provider="p1", api_call_count=1,
+            )
+        self.assertTrue(self.unlocked("local_first"))
+        self.assertTrue(self.unlocked("self_hosted"))
+        self.assertEqual(self.stats()["local_requests"], 25)
+
+    def test_self_hosted_progress_before_threshold(self):
+        for _ in range(5):
+            self.mod._pre_api_request(
+                base_url="http://localhost:4000/v1", approx_input_tokens=100,
+                model="m1", provider="p1", api_call_count=1,
+            )
+        self.assertFalse(self.unlocked("self_hosted"))
+        st = self.mod._load_state()["achievements"]["self_hosted"]
+        self.assertEqual(st["progress"]["current"], 5)
+        self.assertEqual(st["progress"]["target"], 25)
+
+    def test_context_monster_at_200k(self):
+        self.mod._pre_api_request(
+            base_url="https://api.openai.com/v1", approx_input_tokens=200_000,
+            model="m1", provider="p1", api_call_count=1,
+        )
+        self.assertTrue(self.unlocked("context_monster"))
+        self.assertFalse(self.unlocked("token_tsunami"))
+        self.assertEqual(self.stats()["peak_input_tokens"], 200_000)
+
+    def test_token_tsunami_at_500k(self):
+        self.mod._pre_api_request(
+            base_url="https://api.openai.com/v1", approx_input_tokens=500_000,
+            model="m1", provider="p1", api_call_count=1,
+        )
+        self.assertTrue(self.unlocked("context_monster"))
+        self.assertTrue(self.unlocked("token_tsunami"))
+        self.assertEqual(self.stats()["peak_input_tokens"], 500_000)
+
+    def test_peak_input_keeps_max(self):
+        for n in (1000, 90_000, 250_000, 50_000):
+            self.mod._pre_api_request(
+                base_url="https://api.openai.com/v1", approx_input_tokens=n,
+                model="m1", provider="p1", api_call_count=1,
+            )
+        self.assertEqual(self.stats()["peak_input_tokens"], 250_000)
+        self.assertTrue(self.unlocked("context_monster"))
+
+    def test_missing_approx_is_noop(self):
+        self.mod._pre_api_request(
+            base_url="https://api.openai.com/v1", model="m1",
+            provider="p1", api_call_count=1,
+        )
+        self.assertFalse(self.unlocked("context_monster"))
+        self.assertNotIn("peak_input_tokens", self.stats())
+
+    def test_invalid_base_url_noop(self):
+        self.mod._pre_api_request(
+            base_url="not a url", approx_input_tokens=100,
+            model="m1", provider="p1", api_call_count=1,
+        )
+        self.assertFalse(self.unlocked("local_first"))
+        self.assertNotIn("local_requests", self.stats())
+
+
 class TestApprovalRequest(HookTestBase):
     """pre_approval_request: approval gates drive Under Scrutiny."""
 
@@ -1112,7 +1212,7 @@ class TestStreakEdgeCases(HookTestBase):
         self.mod._locales_cache = {}
         try:
             cache = self.mod._load_locales()
-            self.assertEqual(len(cache.get("en", {}).get("achievement", {})), 114)
+            self.assertEqual(len(cache.get("en", {}).get("achievement", {})), 118)
         finally:
             self.mod._LOCALES_DIR = old_dir
             self.mod._WHEEL_DATA_DIR = old_wheel
@@ -1715,7 +1815,8 @@ class TestPluginRegistration(unittest.TestCase):
         self.mod.register(ctx)
         hook_names = {n for n, _ in ctx.hooks}
         self.assertEqual(hook_names,
-                         {"post_llm_call", "post_api_request", "post_tool_call",
+                         {"post_llm_call", "post_api_request", "pre_api_request",
+                          "post_tool_call",
                           "on_session_start", "on_session_end", "on_session_reset",
                           "on_session_finalize", "subagent_stop", "subagent_start",
                           "post_approval_response", "pre_approval_request",
@@ -2135,6 +2236,20 @@ class TestCommandHandlers(HookTestBase):
         self.assertIn("Deepest context:", out)
         self.assertIn("67", out)
 
+    def test_stats_shows_peak_input_tokens(self):
+        st = self.mod._load_state()["stats"]
+        st["peak_input_tokens"] = 250000
+        out = self.mod._handle_achievements("stats")
+        self.assertIn("Peak input tokens:", out)
+        self.assertIn("250000", out)
+
+    def test_stats_shows_local_requests(self):
+        st = self.mod._load_state()["stats"]
+        st["local_requests"] = 8
+        out = self.mod._handle_achievements("stats")
+        self.assertIn("Local endpoint calls:", out)
+        self.assertIn("8", out)
+
     def test_stats_shows_longest_message(self):
         st = self.mod._load_state()["stats"]
         st["longest_message_words"] = 340
@@ -2147,6 +2262,8 @@ class TestCommandHandlers(HookTestBase):
         self.assertNotIn("Media messages:", out)
         self.assertNotIn("Deepest context:", out)
         self.assertNotIn("Longest message:", out)
+        self.assertNotIn("Peak input tokens:", out)
+        self.assertNotIn("Local endpoint calls:", out)
 
     def test_stats_completionist_unlocked_line(self):
         # All achievements unlocked → completionist line appears
@@ -2259,7 +2376,7 @@ class TestReadmeSync(unittest.TestCase):
         result = subprocess.run([_sys.executable, script], capture_output=True, text=True,
                                 cwd=PLUGIN_DIR, check=False)
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertIn("OK: 114 achievements", result.stdout)
+        self.assertIn("OK: 118 achievements", result.stdout)
 
     def test_health_check_script_passes(self):
         # The health check must pass against the repo checkout (defs,
@@ -2295,7 +2412,7 @@ class TestReadmeSync(unittest.TestCase):
 
 
 class TestEveryAchievementUnlockable(HookTestBase):
-    """Full-grind simulation: prove all 114 achievement defs can unlock.
+    """Full-grind simulation: prove all 118 achievement defs can unlock.
 
     After several rounds of achievement swaps (v2.3.0, v2.4.0, v2.4.1),
     a def could sit in a detection map with an impossible condition (wrong
@@ -2481,6 +2598,20 @@ class TestEveryAchievementUnlockable(HookTestBase):
                     message_count=20 + (i % 120),
                 )
 
+            # ── Preflight: local endpoints + input-token spikes ──
+            # 30 localhost requests → Local First + Self-Hosted (25).
+            # approx_input_tokens escalates past 200K and 500K → Context
+            # Monster + Token Tsunami. Cycle cloud + local base_urls.
+            for i in range(60):
+                mod._pre_api_request(
+                    base_url=("http://localhost:4000/v1" if i % 2 == 0
+                              else "https://api.openai.com/v1"),
+                    approx_input_tokens=20_000 + (i * 15_000),
+                    model=models[i % len(models)],
+                    provider=providers[i % len(providers)],
+                    api_call_count=1 + (i % 14),
+                )
+
             # ── API errors, approvals, distinct users, media, reset ──
             for i in range(12):
                 mod._on_api_request_error(error_type="timeout", status_code=429)
@@ -2518,7 +2649,7 @@ class TestEveryAchievementUnlockable(HookTestBase):
             )
             mod._check_completionist()
 
-    def test_all_114_achievements_can_unlock(self):
+    def test_all_118_achievements_can_unlock(self):
         """Every def in ACHIEVEMENT_DEFS must unlock through real hooks."""
         self._grind()
         state = self.mod._load_state()
@@ -2532,7 +2663,7 @@ class TestEveryAchievementUnlockable(HookTestBase):
             f"{locked}",
         )
 
-    def test_completionist_unlocks_as_114th(self):
+    def test_completionist_unlocks_as_118th(self):
         """Completionist requires every other achievement first."""
         self._grind()
         state = self.mod._load_state()
@@ -2542,7 +2673,7 @@ class TestEveryAchievementUnlockable(HookTestBase):
             1 for aid in self.mod.ACHIEVEMENT_DEFS
             if state["achievements"].get(aid, {}).get("unlocked")
         )
-        self.assertEqual(unlocked, 114)
+        self.assertEqual(unlocked, 118)
 
 
 if __name__ == "__main__":

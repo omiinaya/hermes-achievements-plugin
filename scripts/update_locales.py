@@ -101,6 +101,26 @@ NEW = {
         "fr": {"name": "Romancier", "description": "Envoyez un seul message de 1500+ mots"},
         "pt": {"name": "Romancista", "description": "Envie uma única mensagem com 1500+ palavras"},
     },
+    "local_first": {
+        "es": {"name": "Local Primero", "description": "Ejecuta Hermes contra un endpoint de modelo local"},
+        "fr": {"name": "Local d'Abord", "description": "Exécutez Hermes sur un endpoint de modèle local"},
+        "pt": {"name": "Local Primeiro", "description": "Execute o Hermes contra um endpoint de modelo local"},
+    },
+    "self_hosted": {
+        "es": {"name": "Autoalojado", "description": "Haz 25 solicitudes de API a endpoints locales"},
+        "fr": {"name": "Auto-Hébergé", "description": "Faites 25 requêtes API vers des endpoints locaux"},
+        "pt": {"name": "Auto-Hospedado", "description": "Faça 25 solicitações de API para endpoints locais"},
+    },
+    "context_monster": {
+        "es": {"name": "Monstruo de Contexto", "description": "Envía una solicitud de API con 200K+ tokens de entrada"},
+        "fr": {"name": "Monstre de Contexte", "description": "Envoyez une requête API avec 200K+ tokens d'entrée"},
+        "pt": {"name": "Monstro de Contexto", "description": "Envie uma solicitação de API com 200K+ tokens de entrada"},
+    },
+    "token_tsunami": {
+        "es": {"name": "Tsunami de Tokens", "description": "Envía una solicitud de API con 500K+ tokens de entrada"},
+        "fr": {"name": "Tsunami de Tokens", "description": "Envoyez une requête API avec 500K+ tokens d'entrée"},
+        "pt": {"name": "Tsunami de Tokens", "description": "Envie uma solicitação de API com 500K+ tokens de entrada"},
+    },
 }
 
 

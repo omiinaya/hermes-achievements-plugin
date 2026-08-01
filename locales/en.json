@@ -97,6 +97,10 @@
       "name": "Context Colossus",
       "description": "Make one API request with 100+ messages in context"
     },
+    "context_monster": {
+      "name": "Context Monster",
+      "description": "Send one API request with 200K+ input tokens"
+    },
     "cron_commander": {
       "name": "Cron Commander",
       "description": "Schedule your first cron job"
@@ -188,6 +192,10 @@
     "legendary_chatter": {
       "name": "Legendary Chatter",
       "description": "Send 1,000 messages total"
+    },
+    "local_first": {
+      "name": "Local First",
+      "description": "Run Hermes against a local/self-hosted model endpoint"
     },
     "marathon_session": {
       "name": "Marathon Session",
@@ -309,6 +317,10 @@
       "name": "Resilient",
       "description": "Complete a task after a subagent failed"
     },
+    "self_hosted": {
+      "name": "Self-Hosted",
+      "description": "Make 25 API requests to local/self-hosted endpoints"
+    },
     "session_detective": {
       "name": "Session Detective",
       "description": "Search past sessions 10 times"
@@ -376,6 +388,10 @@
     "the_90_turn_club": {
       "name": "The 90-Turn Club",
       "description": "Reach 90 tool calls in a single session (default max_turns)"
+    },
+    "token_tsunami": {
+      "name": "Token Tsunami",
+      "description": "Send one API request with 500K+ input tokens"
     },
     "token_tyro": {
       "name": "Token Tyro",
@@ -524,6 +540,8 @@
     "stats_session_resets": "Session resets:           {count}",
     "stats_media": "Media messages:           {count}",
     "stats_peak_context": "Deepest context:          {count} msgs",
+    "stats_peak_input": "Peak input tokens:        {count}",
+    "stats_local_requests": "Local endpoint calls:     {count}",
     "stats_longest_message": "Longest message:           {count} words",
     "stats_hooks_used": "Plugin hooks authored:   {count}",
     "stats_session_tools": "This session:             {calls} calls · {tools} tool types",

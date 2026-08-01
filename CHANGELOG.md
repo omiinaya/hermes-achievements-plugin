@@ -1,5 +1,47 @@
 # Changelog
 
+## [2.9.0] — 2026-08-01
+
+### Added
+
+- **14th plugin hook: `pre_api_request`** — fires once per provider API
+  request *before* it's sent, carrying `base_url` (the endpoint host),
+  `approx_input_tokens` (the preflight input-token estimate for THIS
+  request), `api_mode`, and `max_tokens`. Two new dimensions:
+  - **Endpoint topology (114 → 116)** — where the model runs. Local
+    First 🏠 (uncommon, Power User) unlocks on the first request to a
+    loopback/private/self-hosted endpoint (`localhost`, `127.0.0.1`,
+    `192.168.*`, `10.*`, `172.16–31.*`, `169.254.*`, `*.local`,
+    `*.internal`, `*.lan`); Self-Hosted 🖥️ (rare, Power User) at 25 such
+    requests. `local_requests` counter persisted + stats-view line
+    (`ui.stats_local_requests`, all 4 locales).
+  - **Single-request input-token spike (116 → 118)** — how big ONE
+    request's context window is, distinct from cumulative token
+    milestones. Context Monster 🧠 (epic, Expert) at 200K+
+    `approx_input_tokens`; Token Tsunami 🌊 (legendary, Expert) at 500K+.
+    `peak_input_tokens` stat (max, not last) surfaced in the stats view
+    (`ui.stats_peak_input`, all 4 locales). Crossing 500K also unlocks
+    the 200K tier.
+- New `TestPreApiRequest` suite (10 tests: localhost/private-IP/suffix
+  detection, cloud-doesn't-count, 25-request tier, 200K/500K thresholds,
+  max-keeping, missing/invalid kwargs) + 2 new stats-view tests + format
+  args. Full-grind simulation now cycles 60 `pre_api_request` calls with
+  alternating local/cloud base_urls and `approx_input_tokens` escalating
+  to 905K — the all-118-unlockable invariant covers both new dimensions
+  end-to-end.
+- All 4 new achievements translated across es/fr/pt (Local Primero /
+  Local d'Abord / Local Primeiro, Autoalojado / Auto-Hébergé /
+  Auto-Hospedado, Monstruo de Contexto / Monstre de Contexte / Monstro
+  de Contexto, Tsunami de Tokens ×3).
+
+### Changed
+
+- Hook kwarg contract check now verifies **21 keys across 8 hooks** —
+  `pre_api_request`'s `base_url` and `approx_input_tokens` confirmed
+  delivered by the installed Hermes source (agent/conversation_loop.py).
+- Plugin manifest and README/AGENTS.md hook tables updated to the 14-hook
+  architecture.
+
 ## [2.8.0] — 2026-08-01
 
 ### Added
