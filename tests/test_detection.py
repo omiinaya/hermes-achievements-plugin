@@ -2662,11 +2662,47 @@ class TestCommandHandlers(HookTestBase):
     def test_all_views_under_discord_limit_all_locales(self):
         # Every view (default/recent/next/stats/groups) in every locale must
         # stay under Discord's 2000-char cap — guards against locale string
-        # growth and newly_unlocked unbounded rendering
+        # growth and newly_unlocked unbounded rendering. This is the WORST
+        # case: all 151 achievements unlocked + every stats counter populated
+        # (including the longest locales). A stats view that fits when empty
+        # but overflows when full is a regression.
         state = self.mod._load_state()
-        for aid in list(self.mod.ACHIEVEMENT_DEFS.keys())[:50]:
+        for aid in self.mod.ACHIEVEMENT_DEFS:
             self.mod._unlock(aid)
         state["newly_unlocked"] = list(self.mod.ACHIEVEMENT_DEFS.keys())[:20]
+        stats = state.setdefault("stats", {})
+        stats.update({
+            "messages": 500,
+            "tools_used": {"terminal": 400, "web_search": 100, "web_extract": 50,
+                           "read_file": 200, "write_file": 80, "patch": 60,
+                           "search_files": 40, "delegate_task": 25,
+                           "cronjob": 15, "execute_code": 10, "memory": 5,
+                           "skill_manage": 5, "browser_navigate": 10, "todo": 10},
+            "total_tokens": 10_000_000, "fast_responses": 25,
+            "current_streak": 30, "longest_streak": 30, "config_changes": 15,
+            "skills_installed": 15, "skills_created": 5, "plugins_enabled": 5,
+            "profiles_created": 5, "cron_jobs_created": 15,
+            "mcp_servers_connected": 3, "yolo_tasks": 25, "session_resumes": 10,
+            "approvals_always": 5, "approvals_denied": 3,
+            "approval_requests": 40, "approvals_gateway": 12, "api_errors": 10,
+            "session_resets": 8, "conversations_started": 100,
+            "total_sessions": 30, "subagents_spawned": 25, "subagents_failed": 5,
+            "max_concurrent_subagents": 3, "peak_tools_per_response": 20,
+            "peak_terminal_output_bytes": 2_000_000,
+            "peak_tool_result_bytes": 11_000_000, "longest_response_words": 6000,
+            "truncated_responses": 25, "longest_subagent_ms": 3_700_000,
+            "tool_interrupts": 15, "tool_blocks": 10, "max_retry_depth": 4,
+            "approved_patterns": {f"class-{i}" for i in range(25)},
+            "platforms": {"discord", "telegram", "whatsapp", "cli", "matrix"},
+            "models_used": {f"m{i}" for i in range(10)},
+            "providers_used": {"openai", "openrouter", "anthropic", "xai", "local"},
+            "slash_commands_used": {"achievements", "new", "resume", "config"},
+            "hooks_used": {"pre_tool_call", "post_tool_call", "post_llm_call"},
+            "users_seen": {f"u{i}" for i in range(10)},
+            "env_types": {"local", "docker", "ssh"},
+            "local_requests": 25, "peak_context_messages": 100,
+            "peak_input_tokens": 500_000, "tool_errors": 25,
+        })
         views = ["", "recent", "next", "stats",
                  "getting_started", "tools_skills", "power_user",
                  "expert", "milestones", "community"]

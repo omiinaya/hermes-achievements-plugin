@@ -1,5 +1,22 @@
 # Changelog
 
+## [2.17.1] — 2026-08-01
+
+### Fixed
+
+- **README architecture prose** — the `post_approval_response` /
+  `pre_approval_request` / `api_request_error` descriptions still showed
+  the pre-v2.17.0 surface (choice-only, no retry depth). Now document the
+  approval-context dimension (surface + danger-class diversity) and
+  sustained-failure depth.
+- **Discord length regression guard** — `test_all_views_under_discord_limit_all_locales`
+  previously unlocked only 50 achievements and zero stats. It now
+  exercises the true worst case: all 151 achievements unlocked + every
+  stats counter populated, across all 4 locales and all 10 views. Worst
+  measured output: 1364 chars (pt stats view) — comfortably under the
+  2000-char cap. A stats line added in the future that overflows will
+  fail CI instead of silently truncating on Discord.
+
 ## [2.17.0] — 2026-08-01
 
 ### Added
