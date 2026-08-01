@@ -22,6 +22,38 @@ jobs:
         run: python -m pip install pytest && python -m pytest tests/ -q
       - name: Build wheel
         run: python -m build --wheel
+      - name: Verify wheel contents
+        # A wheel missing the locale files, manifest, or LICENSE would
+        # publish silently — check every payload file is actually inside.
+        run: |
+          python - <<'EOF'
+          import glob, zipfile
+          wheel = glob.glob("dist/*.whl")[0]
+          with zipfile.ZipFile(wheel) as z:
+            names = set(z.namelist())
+          # Actual layout: __init__.py at top level; plugin.yaml + locales
+          # in <pkg>-<ver>.data/data/achievements/; LICENSE under
+          # dist-info/licenses. The data dir is version-prefixed, so match
+          # any member whose path ends with the expected suffixes.
+          def ends_with(name, suffix):
+            return name == suffix or name.endswith("/" + suffix)
+
+          required = {
+            "__init__.py",
+          }
+          for loc in ("en", "es", "fr", "pt"):
+            required.add(f"data/achievements/{loc}.json")
+          missing = [p for p in required if not any(ends_with(n, p) for n in names)]
+          plugin_hits = [n for n in names if ends_with(n, "data/achievements/plugin.yaml")]
+          if not plugin_hits:
+            missing.append("data/achievements/plugin.yaml")
+          license_hits = [n for n in names if n.endswith("licenses/LICENSE")]
+          if not license_hits:
+            missing.append("licenses/LICENSE")
+          if missing:
+            raise SystemExit(f"Wheel missing: {missing}")
+          print(f"Wheel OK: {wheel} ({len(names)} files, license={license_hits[0]})")
+          EOF
       - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
