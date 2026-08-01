@@ -117,7 +117,7 @@ Example — Spanish output:
 
 ## Achievement Groups
 
-### 🚀 Getting Started (11)
+### 🚀 Getting Started (13)
 
 | Icon | Name | Description | Rarity |
 |------|------|-------------|--------|
@@ -131,7 +131,9 @@ Example — Spanish output:
 | 📖 | Help Seeker | Use --help on any command | Common |
 | ℹ️ | Version Spotter | Check the Hermes version | Common |
 | 🔄 | Persistent | Send messages across 3 different sessions | Common |
+| 🌱 | Fresh Start | Start a fresh session with /new or /reset | Common |
 | 🌙 | Night Owl | Use Hermes after midnight (local time) | Uncommon |
+| 🛡️ | Cautious | Deny an approval request | Uncommon |
 
 ### 🛠️ Tools & Skills (28)
 
@@ -166,7 +168,7 @@ Example — Spanish output:
 | 🛠️🛠️ | Complete Toolset | Use every available Hermes tool type at least once | Epic |
 | 👥 | Army Commander | Spawn 25 subagents with delegate_task | Epic |
 
-### ⚡ Power User (20)
+### ⚡ Power User (22)
 
 | Icon | Name | Description | Rarity |
 |------|------|-------------|--------|
@@ -182,6 +184,8 @@ Example — Spanish output:
 | 🏗️ | Workflow Builder | Use 8 different tool types in a single session | Rare |
 | ⚡ | Quick Draw | Complete 5 tasks with rapid turnaround | Rare |
 | ⚡⚡ | Parallel Master | Run 3 subagents in parallel with a single delegate_task | Rare |
+| 🎼 | Orchestrator | Use an orchestrator-role subagent | Rare |
+| 🪂 | Trust Fall | Approve a command permanently with 'always' | Rare |
 | 🔐 | YOLO Mode | Run with --yolo flag or disable approval prompts | Epic |
 | 🔐 | YOLO Champion | Complete 25 tasks without approval prompts | Epic |
 | 🌉 | Gateway Networker | Connect to 3 different messaging platforms | Epic |
@@ -191,7 +195,7 @@ Example — Spanish output:
 | 🤖 | Marathon Session | Reach 200 tool calls in a single session | Legendary |
 | 🧩 | Plugin Developer | Create your own Hermes plugin | Legendary |
 
-### 👑 Expert (15)
+### 👑 Expert (16)
 
 | Icon | Name | Description | Rarity |
 |------|------|-------------|--------|
@@ -206,6 +210,7 @@ Example — Spanish output:
 | 📡 | Cross-Platform Operative | Chat with Hermes from 2+ different platforms | Epic |
 | 🔌 | MCP Wizard | Write a custom MCP server configuration | Epic |
 | 🔷 | Rare Collector | Unlock every Rare achievement | Epic |
+| 🧗 | Resilient | Complete a task after a subagent failed | Epic |
 | 📡📡 | Cross-Platform Veteran | Chat with Hermes from 5+ different platforms | Legendary |
 | 🪝 | Hook Master | Create a plugin using 3+ different hook types | Legendary |
 | 📈 | CLI Champion | Execute 500 terminal commands | Legendary |
@@ -231,30 +236,28 @@ Example — Spanish output:
 | 🛠️ | Tools Complete | Unlock every Tools & Skills achievement | Legendary |
 | ⚡ | Power User Complete | Unlock every Power User achievement | Legendary |
 
-### 🤝 Community (11)
+### 🤝 Community (6)
 
 | Icon | Name | Description | Rarity |
 |------|------|-------------|--------|
-| ⭐ | Star Gazer | View the Hermes GitHub repository | Common |
 | 🔍 | Plugin Browser | Browse available Hermes plugins | Common |
 | 🧠 | Skill Browser | Browse available skills in the hub | Common |
 | 📋 | Changelog Checker | Read the Hermes changelog | Common |
-| 🤝 | Helpful Soul | Use the /help command | Common |
 | ⚙️ | First Config | View the Hermes configuration | Common |
 | 📝 | Release Reader | Read the latest Hermes release notes | Uncommon |
-| 🔄 | Updater | Update Hermes to a new version | Uncommon |
-| 🎨 | Theme Setter | Customize the Hermes appearance or output | Uncommon |
-| 💡 | Feedback Friend | Submit feedback or a feature request | Uncommon |
 | 🤝 | Community Complete | Unlock every Community achievement | Epic |
 
 ## Architecture
 
-Achievements are detected via four plugin hooks — no separate scanner or cron job needed:
+Achievements are detected via seven plugin hooks — no separate scanner or cron job needed:
 
 1. **`post_tool_call`** fires after *every* tool execution with the full tool arguments. This is the primary detection path: per-tool usage counters, per-session tool tracking, and argument-based achievements (cron job chaining via `context_from`, parallel delegation via `tasks`, plugin/hook authoring via file content, skill creation).
 2. **`post_llm_call`** fires once per turn and handles per-turn signals: cumulative message counts, model/platform diversity, user-command pattern matching (`hermes doctor`, `/title`, `--yolo`, ...), tiered command counters (config changes, plugins enabled, skills installed), and group/rarity completion checks.
 3. **`on_session_start`** counts distinct sessions (drives the Persistent / session milestones).
 4. **`on_session_end`** tracks daily streaks (Week Warrior, Monthly Master) and re-checks completions.
+5. **`subagent_stop`** fires once per child agent after `delegate_task` finishes, with `child_role`, `child_status`, and `duration_ms`. This is the authoritative subagent count (a single call with 3 tasks spawns 3 children), driving Army Commander (25 children), Orchestrator (orchestrator role), and Resilient (failed/interrupted child).
+6. **`post_approval_response`** fires after the user responds to an approval prompt. Choosing *always* (permanent trust) unlocks Trust Fall and counts toward YOLO Mode / YOLO Champion; choosing *deny* unlocks Cautious.
+7. **`on_session_reset`** fires when the gateway swaps in a fresh session key (`/new`, `/reset`) — drives Fresh Start and the session-resets counter.
 
 When an achievement unlocks, a Discord notification is posted asynchronously (daemon thread — never blocks the agent loop) via the raw HTTP API to both the home channel and the channel where it was unlocked.
 

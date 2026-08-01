@@ -13,6 +13,10 @@
       "name": "Army Commander",
       "description": "Spawn 25 subagents with delegate_task"
     },
+    "cautious": {
+      "name": "Cautious",
+      "description": "Deny an approval request"
+    },
     "century": {
       "name": "Century Mark",
       "description": "Accumulate 100+ messages across all sessions"
@@ -125,10 +129,6 @@
       "name": "Environment Tuner",
       "description": "Configure custom environment variables for a cron job"
     },
-    "feedback_friend": {
-      "name": "Feedback Friend",
-      "description": "Submit feedback or a feature request"
-    },
     "file_artisan": {
       "name": "File Artisan",
       "description": "Read or write 100 files"
@@ -145,6 +145,10 @@
       "name": "First Steps",
       "description": "Send your first message to Hermes"
     },
+    "fresh_start": {
+      "name": "Fresh Start",
+      "description": "Start a fresh session with /new or /reset"
+    },
     "gateway_guru": {
       "name": "Gateway Guru",
       "description": "Connect Hermes to a messaging platform gateway"
@@ -160,10 +164,6 @@
     "help_seeker": {
       "name": "Help Seeker",
       "description": "Use --help on any command"
-    },
-    "helpful_soul": {
-      "name": "Helpful Soul",
-      "description": "Use the /help command"
     },
     "hook_master": {
       "name": "Hook Master",
@@ -229,6 +229,10 @@
       "name": "Night Owl",
       "description": "Use Hermes after midnight (local time)"
     },
+    "orchestrator": {
+      "name": "Orchestrator",
+      "description": "Use an orchestrator-role subagent"
+    },
     "parallel_master": {
       "name": "Parallel Master",
       "description": "Run 3 subagents in parallel with a single delegate_task"
@@ -276,6 +280,10 @@
     "release_reader": {
       "name": "Release Reader",
       "description": "Read the latest Hermes release notes"
+    },
+    "resilient": {
+      "name": "Resilient",
+      "description": "Complete a task after a subagent failed"
     },
     "session_detective": {
       "name": "Session Detective",
@@ -325,10 +333,6 @@
       "name": "Slash Commander",
       "description": "Use 3 different slash commands"
     },
-    "star_gazer": {
-      "name": "Star Gazer",
-      "description": "View the Hermes GitHub repository"
-    },
     "talkative": {
       "name": "Talkative",
       "description": "Send 500 messages total"
@@ -340,10 +344,6 @@
     "the_90_turn_club": {
       "name": "The 90-Turn Club",
       "description": "Reach 90 tool calls in a single session (default max_turns)"
-    },
-    "theme_setter": {
-      "name": "Theme Setter",
-      "description": "Customize the Hermes appearance or output"
     },
     "tool_addict": {
       "name": "Tool Addict",
@@ -369,13 +369,13 @@
       "name": "Tool Obsessed",
       "description": "Accumulate 1,000 total tool calls"
     },
+    "trust_fall": {
+      "name": "Trust Fall",
+      "description": "Approve a command permanently with 'always'"
+    },
     "ultra_marathon": {
       "name": "Ultra Marathon",
       "description": "Reach 150 tool calls in a single session"
-    },
-    "updater": {
-      "name": "Updater",
-      "description": "Update Hermes to a new version"
     },
     "version_spotter": {
       "name": "Version Spotter",

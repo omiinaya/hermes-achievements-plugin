@@ -216,6 +216,11 @@ def _new_state():
             "yolo_tasks": 0,
             "session_resumes": 0,
             "hooks_used": set(),
+            "subagents_spawned": 0,
+            "subagents_failed": 0,
+            "approvals_always": 0,
+            "approvals_denied": 0,
+            "session_resets": 0,
             "last_active_date": None,
             "current_streak": 0,
             "longest_streak": 0,
@@ -340,7 +345,7 @@ def _t(key, locale=None, **kwargs):
 
 ACHIEVEMENT_DEFS = {
     # ═══════════════════════════════════════════════════════════════════════
-    # 🚀 GETTING STARTED  (11)
+    # 🚀 GETTING STARTED  (13)
     # ═══════════════════════════════════════════════════════════════════════
     "first_steps": {
         "id": "first_steps", "name": "First Steps", "emoji": "👣",
@@ -396,6 +401,16 @@ ACHIEVEMENT_DEFS = {
         "id": "persistent", "name": "Persistent", "emoji": "🔄",
         "description": "Send messages across 3 different sessions",
         "rarity": "common", "group": "Getting Started",
+    },
+    "fresh_start": {
+        "id": "fresh_start", "name": "Fresh Start", "emoji": "🌱",
+        "description": "Start a fresh session with /new or /reset",
+        "rarity": "common", "group": "Getting Started",
+    },
+    "cautious": {
+        "id": "cautious", "name": "Cautious", "emoji": "🛡️",
+        "description": "Deny an approval request",
+        "rarity": "uncommon", "group": "Getting Started",
     },
 
     # ═══════════════════════════════════════════════════════════════════════
@@ -543,7 +558,7 @@ ACHIEVEMENT_DEFS = {
     },
 
     # ═══════════════════════════════════════════════════════════════════════
-    # ⚡ POWER USER  (20)
+    # ⚡ POWER USER  (22)
     # ═══════════════════════════════════════════════════════════════════════
     "cron_commander": {
         "id": "cron_commander", "name": "Cron Commander", "emoji": "⏰",
@@ -645,9 +660,19 @@ ACHIEVEMENT_DEFS = {
         "description": "Run 3 subagents in parallel with a single delegate_task",
         "rarity": "rare", "group": "Power User",
     },
+    "orchestrator": {
+        "id": "orchestrator", "name": "Orchestrator", "emoji": "🎼",
+        "description": "Use an orchestrator-role subagent",
+        "rarity": "rare", "group": "Power User",
+    },
+    "trust_fall": {
+        "id": "trust_fall", "name": "Trust Fall", "emoji": "🪂",
+        "description": "Approve a command permanently with 'always'",
+        "rarity": "rare", "group": "Power User",
+    },
 
     # ═══════════════════════════════════════════════════════════════════════
-    # 👑 EXPERT  (15)
+    # 👑 EXPERT  (16)
     # ═══════════════════════════════════════════════════════════════════════
     "the_90_turn_club": {
         "id": "the_90_turn_club", "name": "The 90-Turn Club", "emoji": "🤖",
@@ -722,6 +747,11 @@ ACHIEVEMENT_DEFS = {
     "complete_rare": {
         "id": "complete_rare", "name": "Rare Collector", "emoji": "🔷",
         "description": "Unlock every Rare achievement",
+        "rarity": "epic", "group": "Expert",
+    },
+    "resilient": {
+        "id": "resilient", "name": "Resilient", "emoji": "🧗",
+        "description": "Complete a task after a subagent failed",
         "rarity": "epic", "group": "Expert",
     },
 
@@ -805,21 +835,11 @@ ACHIEVEMENT_DEFS = {
     },
 
     # ═══════════════════════════════════════════════════════════════════════
-    # 🤝 COMMUNITY  (11)
+    # 🤝 COMMUNITY  (6)
     # ═══════════════════════════════════════════════════════════════════════
-    "star_gazer": {
-        "id": "star_gazer", "name": "Star Gazer", "emoji": "⭐",
-        "description": "View the Hermes GitHub repository",
-        "rarity": "common", "group": "Community",
-    },
     "release_reader": {
         "id": "release_reader", "name": "Release Reader", "emoji": "📝",
         "description": "Read the latest Hermes release notes",
-        "rarity": "uncommon", "group": "Community",
-    },
-    "updater": {
-        "id": "updater", "name": "Updater", "emoji": "🔄",
-        "description": "Update Hermes to a new version",
         "rarity": "uncommon", "group": "Community",
     },
     "plugin_browser": {
@@ -832,24 +852,9 @@ ACHIEVEMENT_DEFS = {
         "description": "Browse available skills in the hub",
         "rarity": "common", "group": "Community",
     },
-    "theme_setter": {
-        "id": "theme_setter", "name": "Theme Setter", "emoji": "🎨",
-        "description": "Customize the Hermes appearance or output",
-        "rarity": "uncommon", "group": "Community",
-    },
-    "feedback_friend": {
-        "id": "feedback_friend", "name": "Feedback Friend", "emoji": "💡",
-        "description": "Submit feedback or a feature request",
-        "rarity": "uncommon", "group": "Community",
-    },
     "changelog_checker": {
         "id": "changelog_checker", "name": "Changelog Checker", "emoji": "📋",
         "description": "Read the Hermes changelog",
-        "rarity": "common", "group": "Community",
-    },
-    "helpful_soul": {
-        "id": "helpful_soul", "name": "Helpful Soul", "emoji": "🤝",
-        "description": "Use the /help command",
         "rarity": "common", "group": "Community",
     },
     "first_config": {
@@ -896,7 +901,6 @@ _TOOL_THRESHOLDS = {
     "write_file": [(25, "file_whisperer"), (100, "file_artisan")],
     "patch": [(25, "file_whisperer"), (100, "file_artisan")],
     "search_files": [(25, "file_whisperer"), (100, "file_artisan")],
-    "delegate_task": [(25, "army_commander")],
     "session_search": [(10, "session_detective")],
     "web_scrape": [(25, "deep_diver")],
 }
@@ -974,15 +978,10 @@ TERMINAL_PATTERNS = {
     "yolo_mode": [re.compile(r"--yolo\b", re.IGNORECASE)],
     "plugin_browser": [re.compile(r"hermes\s+plugins\s+list", re.IGNORECASE)],
     "skill_browser": [re.compile(r"hermes\s+skills\s+list|skill_view", re.IGNORECASE)],
-    "updater": [re.compile(r"hermes\s+update", re.IGNORECASE)],
-    "star_gazer": [re.compile(r"hermes\s+repo|github\.com.*hermes", re.IGNORECASE)],
     "release_reader": [re.compile(r"hermes\s+changelog|CHANGELOG|release.notes", re.IGNORECASE)],
     "changelog_checker": [re.compile(r"hermes\s+changelog|CHANGELOG", re.IGNORECASE)],
     "mcp_wizard": [re.compile(r"hermes\s+mcp\s+(config|edit)", re.IGNORECASE)],
-    "feedback_friend": [re.compile(r"hermes\s+feedback|feature.request", re.IGNORECASE)],
-    "helpful_soul": [re.compile(r"/help|hermes\s+help", re.IGNORECASE)],
     "first_config": [re.compile(r"hermes\s+config\s+(get|show|list|view|cat|status)", re.IGNORECASE)],
-    "theme_setter": [re.compile(r"hermes\s+theme|hermes\s+config\s+set\s+theme|hermes\s+config\s+set\s+output", re.IGNORECASE)],
     "env_tuner": [re.compile(r"workdir=|env_file|EnvironmentFile|hermes\s+config\s+set\s+env", re.IGNORECASE)],
     "precision_scheduler": [re.compile(r"cron.*ISO|one.?shot", re.IGNORECASE)],
     "doc_diver": [re.compile(r"hermes.*docs?|hermes.*documentation|hermes-agent.*docs", re.IGNORECASE)],
@@ -1418,9 +1417,8 @@ def _post_llm_call(**kwargs):
         stats.setdefault("platforms", set()).add("cli")
 
     # Track multi-lingual: non-ASCII alphabetic chars in user message
-    if user_message:
-        if any(ord(c) > 0x7F for c in user_message if c.isalpha()):
-            _unlock("multi_lingual", now)
+    if user_message and any(ord(c) > 0x7F for c in user_message if c.isalpha()):
+        _unlock("multi_lingual", now)
 
     # Extract the current turn's user content for command detection
     user_commands = []
@@ -1585,6 +1583,90 @@ def _on_session_end(**kwargs):
     _check_completionist()
 
     _save_state(force=True)
+
+
+# ── Hook: subagent_stop ─────────────────────────────────────────────────
+# Fires once per child agent after delegate_task finishes, with
+# child_role ("leaf"/"orchestrator"), child_status ("completed"/"failed"/
+# "interrupted"/"error"), and duration_ms. This is the authoritative
+# count of subagents *spawned* (a single delegate_task with 3 tasks
+# spawns 3 children) — replacing the old delegate_task-call heuristic.
+
+def _on_subagent_stop(**kwargs):
+    """Count actual subagent children, orchestrator usage, and failures."""
+    state = _load_state()
+    stats = state.setdefault("stats", {})
+    now = datetime.now(UTC).isoformat()
+
+    child_role = kwargs.get("child_role", "")
+    child_status = kwargs.get("child_status", "")
+
+    # Every child that stopped was spawned — this is the true subagent count
+    stats["subagents_spawned"] = stats.get("subagents_spawned", 0) + 1
+    spawned = stats["subagents_spawned"]
+    if spawned >= 25:
+        _unlock("army_commander", now)
+    else:
+        _set_progress("army_commander", spawned, 25)
+
+    # Orchestrator: child used the orchestrator role
+    if child_role and "orchestrator" in str(child_role).lower():
+        _unlock("orchestrator", now)
+
+    # Resilient: a subagent failed/interrupted — user kept going
+    if child_status and str(child_status).lower() in ("failed", "error", "interrupted"):
+        stats["subagents_failed"] = stats.get("subagents_failed", 0) + 1
+        _unlock("resilient", now)
+
+    _check_group_completions()
+    _check_completionist()
+    _save_state()
+
+
+# ── Hook: post_approval_response ────────────────────────────────────────
+# Fires after the user responds to an approval prompt, with
+# choice: "once" | "session" | "always" | "deny" | "timeout".
+# "always" = permanent trust (real YOLO mode); "deny" = cautious.
+
+def _on_approval_response(**kwargs):
+    """Detect approval behavior: permanent trust, denial, yolo mode."""
+    state = _load_state()
+    stats = state.setdefault("stats", {})
+    now = datetime.now(UTC).isoformat()
+
+    choice = str(kwargs.get("choice", ""))
+
+    if choice == "always":
+        stats["approvals_always"] = stats.get("approvals_always", 0) + 1
+        _unlock("trust_fall", now)
+        # Approving permanently is the real-world equivalent of --yolo:
+        # the command will never prompt again.
+        stats["yolo_tasks"] = stats.get("yolo_tasks", 0) + 1
+        _unlock("yolo_mode", now)
+        if stats["yolo_tasks"] >= 25:
+            _unlock("yolo_champion", now)
+        else:
+            _set_progress("yolo_champion", stats["yolo_tasks"], 25)
+    elif choice == "deny":
+        stats["approvals_denied"] = stats.get("approvals_denied", 0) + 1
+        _unlock("cautious", now)
+
+    _check_group_completions()
+    _check_completionist()
+    _save_state()
+
+
+# ── Hook: on_session_reset ──────────────────────────────────────────────
+# Fires when the gateway swaps in a new session key — user invoked
+# /new, /reset, /clear, or the adapter rotated after an idle window.
+
+def _on_session_reset(**kwargs):
+    """Count fresh-session rotations."""
+    state = _load_state()
+    stats = state.setdefault("stats", {})
+    stats["session_resets"] = stats.get("session_resets", 0) + 1
+    _unlock("fresh_start", datetime.now(UTC).isoformat())
+    _save_state()
 
 
 # ── Slash Command Handlers ──────────────────────────────────────────────
@@ -1885,3 +1967,10 @@ def register(ctx) -> None:
     ctx.register_hook("on_session_start", _on_session_start)
     # Fallback metadata tracking + streaks
     ctx.register_hook("on_session_end", _on_session_end)
+    # Subagent delegation: per-child counting (army_commander by children),
+    # orchestrator role usage, failure resilience
+    ctx.register_hook("subagent_stop", _on_subagent_stop)
+    # Approval decisions: permanent trust (yolo/trust_fall), denials
+    ctx.register_hook("post_approval_response", _on_approval_response)
+    # Fresh-session rotations (/new, /reset)
+    ctx.register_hook("on_session_reset", _on_session_reset)

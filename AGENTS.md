@@ -16,8 +16,10 @@ using Hermes. Pure Python stdlib, no external dependencies.
   synthetic gateway kwargs
 - `scripts/render_readme.py` — regenerates README achievement tables from
   `ACHIEVEMENT_DEFS`
+- `scripts/update_locales.py` — adds/removes achievement keys across all 4
+  locales (used when swapping achievements)
 
-## Detection architecture (4 hooks)
+## Detection architecture (7 hooks)
 
 | Hook | Fires | Owns |
 |------|-------|------|
@@ -25,6 +27,9 @@ using Hermes. Pure Python stdlib, no external dependencies.
 | `post_llm_call` | once per turn | cumulative message counts, model/platform diversity, user-command patterns, tiered counters, group/rarity completions |
 | `on_session_start` | new session created | `total_sessions` counter |
 | `on_session_end` | end of run_conversation | daily streaks, completions re-check |
+| `subagent_stop` | once per delegate_task child (has `child_role`, `child_status`, `duration_ms`) | Army Commander (counts children, not calls), Orchestrator, Resilient |
+| `post_approval_response` | user answers an approval prompt (has `choice`: once/session/always/deny/timeout) | Trust Fall, Cautious, YOLO Mode/Champion via "always" |
+| `on_session_reset` | gateway swaps session key (`/new`, `/reset`) | Fresh Start, session-resets counter |
 
 ## Key invariants
 
@@ -49,7 +54,7 @@ using Hermes. Pure Python stdlib, no external dependencies.
 ## Testing
 
 ```bash
-python3 -m pytest tests/ -q    # 97 tests, no deps beyond pytest
+python3 -m pytest tests/ -q    # 109 tests, no deps beyond pytest
 ```
 
 ## Committing

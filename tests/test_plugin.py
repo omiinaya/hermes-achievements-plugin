@@ -149,12 +149,12 @@ class TestAchievementDefinitions(unittest.TestCase):
         from collections import Counter
         counts = Counter(a["group"] for a in self.achievements)
         expected = {
-            "Getting Started": 11,
+            "Getting Started": 13,
             "Tools & Skills": 28,
-            "Power User": 20,
-            "Expert": 15,
+            "Power User": 22,
+            "Expert": 16,
             "Milestones": 15,
-            "Community": 11,
+            "Community": 6,
         }
         for group, expected_count in expected.items():
             self.assertEqual(counts.get(group, 0), expected_count,

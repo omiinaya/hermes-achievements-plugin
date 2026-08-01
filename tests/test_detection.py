@@ -323,6 +323,121 @@ class TestSessionCounting(HookTestBase):
         self.assertEqual(self.stats()["total_sessions"], 3)
 
 
+class TestSubagentStop(HookTestBase):
+    """subagent_stop: per-child counting for delegation achievements."""
+
+    def test_army_commander_counts_children_not_calls(self):
+        # A single delegate_task with 3 tasks spawns 3 children — each
+        # child fires subagent_stop, so 9 calls with 3 tasks = 27 children
+        for _ in range(9):
+            for _ in range(3):
+                self.mod._on_subagent_stop(
+                    parent_session_id="s", child_role="leaf",
+                    child_status="completed", duration_ms=1000,
+                )
+        self.assertTrue(self.unlocked("army_commander"))
+        self.assertEqual(self.stats()["subagents_spawned"], 27)
+
+    def test_army_commander_progress_before_threshold(self):
+        for _ in range(5):
+            self.mod._on_subagent_stop(
+                parent_session_id="s", child_role="leaf",
+                child_status="completed", duration_ms=1000,
+            )
+        self.assertFalse(self.unlocked("army_commander"))
+        st = self.mod._load_state()["achievements"]["army_commander"]
+        self.assertEqual(st["progress"]["current"], 5)
+        self.assertEqual(st["progress"]["target"], 25)
+
+    def test_orchestrator_role_unlocks(self):
+        self.mod._on_subagent_stop(
+            parent_session_id="s", child_role="orchestrator",
+            child_status="completed", duration_ms=1000,
+        )
+        self.assertTrue(self.unlocked("orchestrator"))
+
+    def test_leaf_role_does_not_unlock_orchestrator(self):
+        self.mod._on_subagent_stop(
+            parent_session_id="s", child_role="leaf",
+            child_status="completed", duration_ms=1000,
+        )
+        self.assertFalse(self.unlocked("orchestrator"))
+
+    def test_failed_child_unlocks_resilient(self):
+        self.mod._on_subagent_stop(
+            parent_session_id="s", child_role="leaf",
+            child_status="failed", duration_ms=1000,
+        )
+        self.assertTrue(self.unlocked("resilient"))
+        self.assertEqual(self.stats()["subagents_failed"], 1)
+
+    def test_completed_children_do_not_unlock_resilient(self):
+        for _ in range(5):
+            self.mod._on_subagent_stop(
+                parent_session_id="s", child_role="leaf",
+                child_status="completed", duration_ms=1000,
+            )
+        self.assertFalse(self.unlocked("resilient"))
+        self.assertEqual(self.stats()["subagents_failed"], 0)
+
+
+class TestApprovalResponse(HookTestBase):
+    """post_approval_response: approval choices drive trust/yolo/caution."""
+
+    def test_always_unlocks_trust_fall_and_yolo_mode(self):
+        self.mod._on_approval_response(
+            command="rm -rf /tmp/x", description="dangerous",
+            pattern_key="rm_rf", session_key="s", surface="gateway",
+            choice="always",
+        )
+        self.assertTrue(self.unlocked("trust_fall"))
+        self.assertTrue(self.unlocked("yolo_mode"))
+        self.assertEqual(self.stats()["approvals_always"], 1)
+        self.assertEqual(self.stats()["yolo_tasks"], 1)
+
+    def test_deny_unlocks_cautious(self):
+        self.mod._on_approval_response(
+            command="rm -rf /tmp/x", description="dangerous",
+            pattern_key="rm_rf", session_key="s", surface="gateway",
+            choice="deny",
+        )
+        self.assertTrue(self.unlocked("cautious"))
+        self.assertEqual(self.stats()["approvals_denied"], 1)
+        self.assertFalse(self.unlocked("trust_fall"))
+
+    def test_once_and_session_do_not_unlock_anything(self):
+        for choice in ("once", "session", "timeout"):
+            self.mod._on_approval_response(
+                command="cmd", description="d", pattern_key="k",
+                session_key="s", surface="cli", choice=choice,
+            )
+        self.assertFalse(self.unlocked("trust_fall"))
+        self.assertFalse(self.unlocked("cautious"))
+        self.assertFalse(self.unlocked("yolo_mode"))
+
+    def test_yolo_champion_counts_always_choices(self):
+        for _ in range(25):
+            self.mod._on_approval_response(
+                command="cmd", description="d", pattern_key="k",
+                session_key="s", surface="cli", choice="always",
+            )
+        self.assertTrue(self.unlocked("yolo_champion"))
+
+
+class TestSessionReset(HookTestBase):
+    """on_session_reset: /new rotations drive Fresh Start."""
+
+    def test_first_reset_unlocks_fresh_start(self):
+        self.mod._on_session_reset(session_id="new-1", platform="discord")
+        self.assertTrue(self.unlocked("fresh_start"))
+        self.assertEqual(self.stats()["session_resets"], 1)
+
+    def test_reset_counts_accumulate(self):
+        for i in range(3):
+            self.mod._on_session_reset(session_id=f"new-{i}", platform="discord")
+        self.assertEqual(self.stats()["session_resets"], 3)
+
+
 class TestPerTurnSignals(HookTestBase):
     """Message-derived achievements."""
 
@@ -581,7 +696,9 @@ class TestPluginRegistration(unittest.TestCase):
         self.mod.register(ctx)
         hook_names = {n for n, _ in ctx.hooks}
         self.assertEqual(hook_names,
-                         {"post_llm_call", "post_tool_call", "on_session_start", "on_session_end"})
+                         {"post_llm_call", "post_tool_call", "on_session_start",
+                          "on_session_end", "subagent_stop",
+                          "post_approval_response", "on_session_reset"})
         cmd_names = {n for n, _ in ctx.commands}
         self.assertEqual(cmd_names, {"achievements", "achievement"})
         # Handlers are the real functions, not lambdas
@@ -596,7 +713,7 @@ class TestCommandHandlers(HookTestBase):
         for g in self.mod.GROUPS:
             self.assertIn(g, out)
         self.assertIn("Hermes Achievements", out)
-        self.assertIn("0/11", out)  # Getting Started progress summary
+        self.assertIn("0/13", out)  # Getting Started progress summary
 
     def test_achievements_list_under_discord_limit(self):
         # Discord caps messages at 2000 chars — the default view must fit

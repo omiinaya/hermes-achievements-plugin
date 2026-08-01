@@ -13,6 +13,10 @@
       "name": "Général en Chef",
       "description": "Invoquer 25 sous-agents avec delegate_task"
     },
+    "cautious": {
+      "name": "Prudent",
+      "description": "Refusez une demande d'approbation"
+    },
     "century": {
       "name": "Cap du Siècle",
       "description": "Accumuler 100+ messages toutes sessions confondues"
@@ -125,10 +129,6 @@
       "name": "Accordeur d'Environnement",
       "description": "Configurer des variables d'environnement personnalisées pour une tâche cron"
     },
-    "feedback_friend": {
-      "name": "Ami du Feedback",
-      "description": "Soumettre un avis ou une demande de fonctionnalité"
-    },
     "file_artisan": {
       "name": "Artisan du Fichier",
       "description": "Lire ou écrire 100 fichiers"
@@ -145,6 +145,10 @@
       "name": "Premiers Pas",
       "description": "Envoyer ton premier message à Hermes"
     },
+    "fresh_start": {
+      "name": "Nouveau Départ",
+      "description": "Démarrez une nouvelle session avec /new ou /reset"
+    },
     "gateway_guru": {
       "name": "Gourou des Passerelles",
       "description": "Connecter Hermes à une passerelle de messagerie"
@@ -160,10 +164,6 @@
     "help_seeker": {
       "name": "Chercheur d'Aide",
       "description": "Utiliser --help sur n'importe quelle commande"
-    },
-    "helpful_soul": {
-      "name": "Âme Charitable",
-      "description": "Utiliser la commande /help"
     },
     "hook_master": {
       "name": "Maître des Hooks",
@@ -229,6 +229,10 @@
       "name": "Oiseau de Nuit",
       "description": "Utiliser Hermes après minuit (heure locale)"
     },
+    "orchestrator": {
+      "name": "Orchestrateur",
+      "description": "Utilisez un sous-agent avec le rôle d'orchestrateur"
+    },
     "parallel_master": {
       "name": "Maître du Parallèle",
       "description": "Lancer 3 sous-agents en parallèle avec un seul delegate_task"
@@ -276,6 +280,10 @@
     "release_reader": {
       "name": "Lecteur de Notes de Version",
       "description": "Lire les dernières notes de version d'Hermes"
+    },
+    "resilient": {
+      "name": "Résilient",
+      "description": "Terminez une tâche après l'échec d'un sous-agent"
     },
     "session_detective": {
       "name": "Détective de Sessions",
@@ -325,10 +333,6 @@
       "name": "Commandant Slash",
       "description": "Utiliser 3 commandes slash différentes"
     },
-    "star_gazer": {
-      "name": "Observateur d'Étoiles",
-      "description": "Consulter le dépôt GitHub d'Hermes"
-    },
     "talkative": {
       "name": "Volubile",
       "description": "Envoyer 500 messages au total"
@@ -340,10 +344,6 @@
     "the_90_turn_club": {
       "name": "Le Club des 90 Tours",
       "description": "Atteindre 90 appels d'outils en une seule session (max_turns par défaut)"
-    },
-    "theme_setter": {
-      "name": "Personnalisateur",
-      "description": "Personnaliser l'apparence ou les sorties d'Hermes"
     },
     "tool_addict": {
       "name": "Accro aux Outils",
@@ -369,13 +369,13 @@
       "name": "Obsédé des Outils",
       "description": "Accumuler 1 000 appels d'outils au total"
     },
+    "trust_fall": {
+      "name": "Chute de Confiance",
+      "description": "Approuvez une commande définitivement avec « always »"
+    },
     "ultra_marathon": {
       "name": "Ultra Marathon",
       "description": "Atteindre 150 appels d'outils en une seule session"
-    },
-    "updater": {
-      "name": "Mise à Jour",
-      "description": "Mettre Hermes à jour vers une nouvelle version"
     },
     "version_spotter": {
       "name": "Détecteur de Version",

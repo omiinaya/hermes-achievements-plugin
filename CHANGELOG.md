@@ -1,5 +1,33 @@
 # Changelog
 
+## [2.3.0] — 2026-07-31
+
+### Added
+
+- **Three new plugin hooks** (7 total) with real gateway signals:
+  - **`subagent_stop`** — fires once per `delegate_task` child with `child_role`, `child_status`, `duration_ms`. This is the authoritative subagent count: a single call with 3 tasks spawns 3 children. Drives:
+    - `Army Commander` — now counts **children** (25 spawned), not `delegate_task` calls
+    - `Orchestrator` — used an orchestrator-role subagent
+    - `Resilient` — completed a task after a subagent failed/interrupted
+  - **`post_approval_response`** — fires after the user answers an approval prompt (`choice`: once/session/always/deny/timeout):
+    - `Trust Fall` — approved a command permanently ("always")
+    - `Cautious` — denied an approval request
+    - `YOLO Mode` / `YOLO Champion` — choosing "always" is the real-world equivalent of `--yolo` (the command never prompts again); each counts toward the 25-task champion
+  - **`on_session_reset`** — fires when the gateway swaps in a fresh session key (`/new`, `/reset`):
+    - `Fresh Start` — started a fresh session
+    - `session_resets` counter in stats
+- **5 new hook-backed achievements** (keeps exactly 100): Trust Fall, Cautious, Orchestrator, Resilient, Fresh Start
+- **`scripts/update_locales.py`** — keeps all 4 locale files in sync when swapping achievements
+
+### Removed
+
+- 5 niche CLI-pattern achievements that were near-impossible to unlock from the gateway: `Star Gazer`, `Updater`, `Feedback Friend`, `Helpful Soul`, `Theme Setter` (with their `TERMINAL_PATTERNS` entries)
+
+### Fixed
+
+- **Army Commander undercounted parallel delegation** — counted `delegate_task` calls, but a call with 3 tasks spawns 3 subagents; now counts actual children via `subagent_stop`
+- **YOLO Mode was CLI-only** — `--yolo` flag sniffing never fired on the gateway; approval "always" is now the primary signal (CLI flag still works)
+
 ## [2.2.1] — 2026-07-31
 
 ### Added
