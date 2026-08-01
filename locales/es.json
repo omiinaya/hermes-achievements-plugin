@@ -141,6 +141,10 @@
       "name": "Veterano Multiplataforma",
       "description": "Chatea con Hermes desde 5+ plataformas distintas"
     },
+    "cut_short": {
+      "name": "Cortado",
+      "description": "Alcanza el límite de tokens de salida del modelo (finish_reason=length)"
+    },
     "data_flood": {
       "name": "Inundación de Datos",
       "description": "Produce 1MB+ de salida de un solo comando de terminal"
@@ -176,6 +180,10 @@
     "env_tuner": {
       "name": "Sintonizador de Entorno",
       "description": "Configura variables de entorno personalizadas para un trabajo cron"
+    },
+    "essayist": {
+      "name": "Ensayista",
+      "description": "Recibe una respuesta del modelo de 1000+ palabras"
     },
     "file_artisan": {
       "name": "Artesano de Archivos",
@@ -233,6 +241,10 @@
       "name": "Local Primero",
       "description": "Ejecuta Hermes contra un endpoint de modelo local"
     },
+    "marathon": {
+      "name": "Maratón",
+      "description": "Ejecuta un subagente que tarda 60+ minutos"
+    },
     "marathon_session": {
       "name": "Sesión Maratón",
       "description": "Alcanza 200 llamadas a herramientas en una sola sesión"
@@ -288,6 +300,10 @@
     "night_owl": {
       "name": "Búho Nocturno",
       "description": "Usa Hermes después de medianoche (hora local)"
+    },
+    "novel_author": {
+      "name": "Autor de Novela",
+      "description": "Recibe una respuesta del modelo de 5000+ palabras"
     },
     "novelist": {
       "name": "Novelista",
@@ -421,6 +437,10 @@
       "name": "Comandante Slash",
       "description": "Usa 3 comandos slash distintos"
     },
+    "slow_thinker": {
+      "name": "Pensador Lento",
+      "description": "Ejecuta un subagente que tarda 10+ minutos"
+    },
     "social_butterfly": {
       "name": "Mariposa Social",
       "description": "Recibe mensajes de 3 usuarios diferentes"
@@ -448,6 +468,10 @@
     "token_tyro": {
       "name": "Novato de Tokens",
       "description": "Consume 100.000 tokens en todas las sesiones"
+    },
+    "token_wall": {
+      "name": "Muro de Tokens",
+      "description": "Alcanza el límite de tokens de salida del modelo 25 veces (finish_reason=length)"
     },
     "token_whale": {
       "name": "Ballena de Tokens",
@@ -607,6 +631,9 @@
     "stats_peak_terminal_output": "Mayor salida de comando:  {size}",
     "stats_peak_tool_result": "Mayor resultado de tool:  {size}",
     "stats_env_types": "Entornos usados:          {count} ({envs})",
+    "stats_longest_response": "Respuesta más larga del modelo: {count} palabras",
+    "stats_truncations": "Respuestas truncadas:     {count}",
+    "stats_longest_subagent": "Subagente más largo:       {duration}",
     "stats_longest_message": "Mensaje más largo:        {count} palabras",
     "stats_hooks_used": "Hooks de plugin creados: {count}",
     "stats_session_tools": "Esta sesión:              {calls} llamadas · {tools} tipos",

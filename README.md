@@ -6,7 +6,7 @@
 [![CI](https://github.com/omiinaya/hermes-achievements-plugin/actions/workflows/test.yml/badge.svg)](https://github.com/omiinaya/hermes-achievements-plugin/actions/workflows/test.yml)
 [![Coverage](https://img.shields.io/badge/coverage-99%25-brightgreen.svg)](https://github.com/omiinaya/hermes-achievements-plugin/actions/workflows/test.yml)
 
-**133 Steam-style achievement badges** for [Hermes Agent](https://hermes-agent.nousresearch.com). Unlock achievements as you use Hermes — run commands, search the web, schedule cron jobs, create skills, and explore the platform. Achievements are tracked silently and delivered to your Discord home channel the moment they unlock.
+**139 Steam-style achievement badges** for [Hermes Agent](https://hermes-agent.nousresearch.com). Unlock achievements as you use Hermes — run commands, search the web, schedule cron jobs, create skills, and explore the platform. Achievements are tracked silently and delivered to your Discord home channel the moment they unlock.
 
 ## Quick Start
 
@@ -182,7 +182,7 @@ unlock them, Steam-style. Currently secret: `Fresh Start`, `Cautious`,
 | 🛠️🛠️ | Complete Toolset | Use every available Hermes tool type at least once | Epic |
 | 👥 | Army Commander | Spawn 25 subagents with delegate_task | Epic |
 
-### ⚡ Power User (38)
+### ⚡ Power User (42)
 
 | Icon | Name | Description | Rarity |
 |------|------|-------------|--------|
@@ -194,6 +194,8 @@ unlock them, Steam-style. Currently secret: `Fresh Start`, `Cautious`,
 | 🏠 | Local First | Run Hermes against a local/self-hosted model endpoint | Uncommon |
 | 💦 | Verbose Output | Produce 100KB+ of output from a single terminal command | Uncommon |
 | 🏝️ | Multi-Environment | Run terminal commands in 2 different execution environments | Uncommon |
+| 🎙️ | Essayist | Receive a 1000+ word response from the model | Uncommon |
+| ✂️ | Cut Short | Hit the model's output token limit (finish_reason=length) | Uncommon |
 | ⏰ | Cron Commander | Schedule your first cron job | Rare |
 | 🔌 | MCP Master | Add an MCP server connection | Rare |
 | 👥 | Agent Swarm | Spawn a subagent with delegate_task | Rare |
@@ -213,6 +215,8 @@ unlock them, Steam-style. Currently secret: `Fresh Start`, `Cautious`,
 | 🖥️ | Self-Hosted | Make 25 API requests to local/self-hosted endpoints | Rare |
 | 🌋 | Data Flood | Produce 1MB+ of output from a single terminal command | Rare |
 | 🚫 | Ghost Command | Hit exit code 127 (command not found) on a terminal command | Rare |
+| 📜 | Novel Author | Receive a 5000+ word response from the model | Rare |
+| 🐢 | Slow Thinker | Run a subagent that takes 10+ minutes | Rare |
 | 🔐 | YOLO Mode | Run with --yolo flag or disable approval prompts | Epic |
 | 🔐 | YOLO Champion | Complete 25 tasks without approval prompts | Epic |
 | 🌉 | Gateway Networker | Connect to 3 different messaging platforms | Epic |
@@ -225,7 +229,7 @@ unlock them, Steam-style. Currently secret: `Fresh Start`, `Cautious`,
 | 🧩 | Plugin Developer | Create your own Hermes plugin | Legendary |
 | 🧰 | Tool Torrent | Emit 20 tool calls in a single response | Legendary |
 
-### 👑 Expert (26)
+### 👑 Expert (28)
 
 | Icon | Name | Description | Rarity |
 |------|------|-------------|--------|
@@ -234,6 +238,7 @@ unlock them, Steam-style. Currently secret: `Fresh Start`, `Cautious`,
 | 📚 | Doc Diver | Read the Hermes documentation | Uncommon |
 | 📖 | Novelist | Send a single message of 1500+ words | Rare |
 | 📦 | Big Haul | Receive a 1MB+ result from a single tool call | Rare |
+| 🛑 | Token Wall | Hit the model's output token limit 25 times (finish_reason=length) | Rare |
 | 🌉 | Gateway Guru | Connect Hermes to a messaging platform gateway | Rare |
 | 🧩 | Plugin Power | Install and enable a Hermes plugin | Rare |
 | 🔧 | Config Guru | Modify 15 different configuration settings | Rare |
@@ -244,6 +249,7 @@ unlock them, Steam-style. Currently secret: `Fresh Start`, `Cautious`,
 | 🏛️ | Context Colossus | Make one API request with 100+ messages in context | Epic |
 | 🧠 | Context Monster | Send one API request with 200K+ input tokens | Epic |
 | 🗄️ | Colossal Result | Receive a 10MB+ result from a single tool call | Epic |
+| 🏃 | Marathon | Run a subagent that takes 60+ minutes | Epic |
 | 🤖 | The 90-Turn Club | Reach 90 tool calls in a single session (default max_turns) | Epic |
 | 📡 | Cross-Platform Operative | Chat with Hermes from 2+ different platforms | Epic |
 | 🔌 | MCP Wizard | Write a custom MCP server configuration | Epic |
@@ -300,12 +306,12 @@ Achievements are detected via eighteen plugin hooks — no separate scanner or c
 3. **`transform_terminal_output`** fires per terminal command with the FULL raw output *before* the terminal tool truncates it (default ~50KiB head+tail) — the only hook that sees what the model was NOT handed. Raw output volume drives Verbose Output (100KB) and Data Flood (1MB); `env_type` (local/ssh/docker/singularity/modal/daytona) diversity drives Multi-Environment (2) and Omnipresent (5); the numeric `returncode` detects exit code 127 — command not found — for Ghost Command (post_tool_call only buckets ok/error, it cannot express specific codes). The handler is a strict observer: it always returns None so command output is never altered.
 4. **`transform_tool_result`** fires per tool call with the FULL result string — post_tool_call only gets status/error_type, never the content. Result size measures context bloat: how much data a single tool pushed into the conversation drives Big Haul (1MB) and Colossal Result (10MB). Also a strict observer — always returns None.
 5. **`post_tool_call`** fires after *every* tool execution with the full tool arguments. This is the primary detection path: per-tool usage counters, per-session tool tracking, argument-based achievements (cron job chaining via `context_from`, parallel delegation via `tasks`, plugin/hook authoring via file content, skill creation), and tool-error resilience (the gateway's `status="error"` feeds Trial and Error — 25 failed calls).
-6. **`post_llm_call`** fires once per turn and handles per-turn signals: cumulative message counts, model/platform diversity, user-command pattern matching (`hermes doctor`, `/title`, `--yolo`, ...), tiered command counters (config changes, plugins enabled, skills installed), and group/rarity completion checks.
-7. **`post_api_request`** fires once per successful provider API request with normalized `usage` token buckets and `api_duration` in seconds. It powers the token-consumption milestones (Token Tyro/Wizard/Whale at 100K/1M/10M tokens) and the fast-response achievement (Speed Demon — 25 responses under 2s), plus the "Tokens consumed" stat.
+6. **`post_llm_call`** fires once per turn and handles per-turn signals: cumulative message counts, model/platform diversity, user-command pattern matching (`hermes doctor`, `/title`, `--yolo`, ...), tiered command counters (config changes, plugins enabled, skills installed), group/rarity completion checks, user-message verbosity (Wordsmith 300, Novelist 1500) — and model-response verbosity (Essayist at a 1000-word reply, Novel Author at 5000): a mirror dimension measuring what the *model* wrote, strictly separated from the user's input length.
+7. **`post_api_request`** fires once per successful provider API request with normalized `usage` token buckets, `api_duration` in seconds, and `finish_reason`. It powers the token-consumption milestones (Token Tyro/Wizard/Whale at 100K/1M/10M tokens), the fast-response achievement (Speed Demon — 25 responses under 2s), and the "Tokens consumed" stat — plus output-cap truncation: `finish_reason="length"` means the model hit its max output tokens and was cut off mid-response, driving Cut Short (first hit) and Token Wall (25 hits). Usage buckets show how many tokens were consumed; only `finish_reason` reveals the response was *incomplete*.
 8. **`pre_api_request`** fires once per provider API request *before* it's sent, carrying `base_url` and `approx_input_tokens`. It detects local/self-hosted model endpoints (Local First on first local call, Self-Hosted at 25) and single-request input-token spikes (Context Monster at 200K, Token Tsunami at 500K) — the endpoint topology and one-shot context size, distinct from the post hook's cumulative totals.
 9. **`on_session_start`** counts distinct sessions (drives the Persistent / session milestones).
 10. **`on_session_end`** tracks daily streaks (Week Warrior, Monthly Master) and re-checks completions.
-11. **`subagent_stop`** fires once per child agent after `delegate_task` finishes, with `child_role`, `child_status`, and `duration_ms`. This is the authoritative subagent count (a single call with 3 tasks spawns 3 children), driving Army Commander (25 children), Orchestrator (orchestrator role), and Resilient (failed/interrupted child).
+11. **`subagent_stop`** fires once per child agent after `delegate_task` finishes, with `child_role`, `child_status`, and `duration_ms`. This is the authoritative subagent count (a single call with 3 tasks spawns 3 children), driving Army Commander (25 children), Orchestrator (orchestrator role), and Resilient (failed/interrupted child) — and subagent runtime: a 10-minute child (Slow Thinker) is a very different delegation than a 10-second one (Marathon at 60 minutes).
 12. **`subagent_start`** fires when a subagent is spawned. It increments a live concurrency counter that `subagent_stop` decrements — the peak (max simultaneous children) drives Conductor (3 concurrent subagents). This is true parallelism, not just call counting.
 13. **`post_approval_response`** fires after the user responds to an approval prompt. Choosing *always* (permanent trust) unlocks Trust Fall and counts toward YOLO Mode / YOLO Champion; choosing *deny* unlocks Cautious.
 14. **`pre_approval_request`** fires when an approval prompt is raised, before the user answers. It counts how often commands trigger approval gates — 10 gates unlock Under Scrutiny, independent of how the user responds.
@@ -346,7 +352,7 @@ State data is stored at `~/.hermes/achievements/state.json` (user-local, not par
 vim ~/.hermes/plugins/achievements/__init__.py
 
 # Run the test suite (static + functional) — includes the full-grind
-# simulation that proves all 133 achievements can unlock
+# simulation that proves all 139 achievements can unlock
 python3 -m pytest tests/ -q
 
 # Run the one-shot health check (defs, locales, manifest↔register hooks,

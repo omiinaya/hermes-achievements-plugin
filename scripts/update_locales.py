@@ -196,6 +196,36 @@ NEW = {
         "fr": {"name": "Résultat Colossal", "description": "Recevez un résultat de 10MB+ d'un seul appel d'outil"},
         "pt": {"name": "Resultado Colossal", "description": "Receba um resultado de 10MB+ de uma única chamada de ferramenta"},
     },
+    "essayist": {
+        "es": {"name": "Ensayista", "description": "Recibe una respuesta del modelo de 1000+ palabras"},
+        "fr": {"name": "Essayiste", "description": "Recevez une réponse du modèle de 1000+ mots"},
+        "pt": {"name": "Ensaísta", "description": "Receba uma resposta do modelo de 1000+ palavras"},
+    },
+    "novel_author": {
+        "es": {"name": "Autor de Novela", "description": "Recibe una respuesta del modelo de 5000+ palabras"},
+        "fr": {"name": "Romancier", "description": "Recevez une réponse du modèle de 5000+ mots"},
+        "pt": {"name": "Autor de Romance", "description": "Receba uma resposta do modelo de 5000+ palavras"},
+    },
+    "cut_short": {
+        "es": {"name": "Cortado", "description": "Alcanza el límite de tokens de salida del modelo (finish_reason=length)"},
+        "fr": {"name": "Coupé Court", "description": "Atteignez la limite de tokens de sortie du modèle (finish_reason=length)"},
+        "pt": {"name": "Cortado", "description": "Atingiu o limite de tokens de saída do modelo (finish_reason=length)"},
+    },
+    "token_wall": {
+        "es": {"name": "Muro de Tokens", "description": "Alcanza el límite de tokens de salida del modelo 25 veces (finish_reason=length)"},
+        "fr": {"name": "Mur de Tokens", "description": "Atteignez la limite de tokens de sortie du modèle 25 fois (finish_reason=length)"},
+        "pt": {"name": "Muro de Tokens", "description": "Atingiu o limite de tokens de saída do modelo 25 vezes (finish_reason=length)"},
+    },
+    "slow_thinker": {
+        "es": {"name": "Pensador Lento", "description": "Ejecuta un subagente que tarda 10+ minutos"},
+        "fr": {"name": "Penseur Lent", "description": "Exécutez un sous-agent qui prend 10+ minutes"},
+        "pt": {"name": "Pensador Lento", "description": "Execute um subagente que leva 10+ minutos"},
+    },
+    "marathon": {
+        "es": {"name": "Maratón", "description": "Ejecuta un subagente que tarda 60+ minutos"},
+        "fr": {"name": "Marathon", "description": "Exécutez un sous-agent qui prend 60+ minutes"},
+        "pt": {"name": "Maratona", "description": "Execute um subagente que leva 60+ minutos"},
+    },
 }
 
 

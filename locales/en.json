@@ -141,6 +141,10 @@
       "name": "Cross-Platform Veteran",
       "description": "Chat with Hermes from 5+ different platforms"
     },
+    "cut_short": {
+      "name": "Cut Short",
+      "description": "Hit the model's output token limit (finish_reason=length)"
+    },
     "data_flood": {
       "name": "Data Flood",
       "description": "Produce 1MB+ of output from a single terminal command"
@@ -176,6 +180,10 @@
     "env_tuner": {
       "name": "Environment Tuner",
       "description": "Configure custom environment variables for a cron job"
+    },
+    "essayist": {
+      "name": "Essayist",
+      "description": "Receive a 1000+ word response from the model"
     },
     "file_artisan": {
       "name": "File Artisan",
@@ -233,6 +241,10 @@
       "name": "Local First",
       "description": "Run Hermes against a local/self-hosted model endpoint"
     },
+    "marathon": {
+      "name": "Marathon",
+      "description": "Run a subagent that takes 60+ minutes"
+    },
     "marathon_session": {
       "name": "Marathon Session",
       "description": "Reach 200 tool calls in a single session"
@@ -288,6 +300,10 @@
     "night_owl": {
       "name": "Night Owl",
       "description": "Use Hermes after midnight (local time)"
+    },
+    "novel_author": {
+      "name": "Novel Author",
+      "description": "Receive a 5000+ word response from the model"
     },
     "novelist": {
       "name": "Novelist",
@@ -421,6 +437,10 @@
       "name": "Slash Commander",
       "description": "Use 3 different slash commands"
     },
+    "slow_thinker": {
+      "name": "Slow Thinker",
+      "description": "Run a subagent that takes 10+ minutes"
+    },
     "social_butterfly": {
       "name": "Social Butterfly",
       "description": "Receive messages from 3 different users"
@@ -448,6 +468,10 @@
     "token_tyro": {
       "name": "Token Tyro",
       "description": "Consume 100,000 tokens across all sessions"
+    },
+    "token_wall": {
+      "name": "Token Wall",
+      "description": "Hit the model's output token limit 25 times (finish_reason=length)"
     },
     "token_whale": {
       "name": "Token Whale",
@@ -608,6 +632,9 @@
     "stats_peak_terminal_output": "Biggest command output:   {size}",
     "stats_peak_tool_result": "Biggest tool result:      {size}",
     "stats_env_types": "Environments used:        {count} ({envs})",
+    "stats_longest_response": "Longest model response:   {count} words",
+    "stats_truncations": "Truncated responses:      {count}",
+    "stats_longest_subagent": "Longest subagent:          {duration}",
     "stats_longest_message": "Longest message:           {count} words",
     "stats_hooks_used": "Plugin hooks authored:   {count}",
     "stats_session_tools": "This session:             {calls} calls · {tools} tool types",

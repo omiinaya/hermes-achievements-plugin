@@ -1136,6 +1136,143 @@ class TestTransformToolResult(HookTestBase):
         self.assertFalse(self.unlocked("big_haul"))
 
 
+class TestModelResponseVerbosity(HookTestBase):
+    """post_llm_call assistant_response: model-output word count."""
+
+    def _turn(self, response="hi"):
+        self.mod._post_llm_call(
+            user_message="hello",
+            assistant_response=response,
+            conversation_history=[
+                {"role": "user", "content": "hello"},
+                {"role": "assistant", "content": response},
+            ],
+            model="m1", platform="cli",
+        )
+
+    def test_short_response_no_unlock(self):
+        self._turn(response="short reply")
+        self.assertFalse(self.unlocked("essayist"))
+        self.assertFalse(self.unlocked("novel_author"))
+        self.assertEqual(self.stats().get("longest_response_words", 0), 2)
+
+    def test_essayist_at_1000_words(self):
+        self._turn(response=("word " * 1000).strip())
+        self.assertTrue(self.unlocked("essayist"))
+        self.assertFalse(self.unlocked("novel_author"))
+
+    def test_novel_author_at_5000_words(self):
+        self._turn(response=("word " * 5000).strip())
+        self.assertTrue(self.unlocked("essayist"))
+        self.assertTrue(self.unlocked("novel_author"))
+
+    def test_peak_keeps_max(self):
+        self._turn(response="a")
+        self._turn(response=("word " * 1200).strip())
+        self.assertEqual(self.stats()["longest_response_words"], 1200)
+
+    def test_missing_response_noop(self):
+        self.mod._post_llm_call(
+            user_message="hello", conversation_history=[],
+            model="m1", platform="cli",
+        )
+        self.assertEqual(self.stats().get("longest_response_words", 0), 0)
+
+    def test_progress_tracks_current(self):
+        self._turn(response=("word " * 250).strip())
+        st = self.mod._load_state()["achievements"]["essayist"]
+        self.assertEqual(st["progress"]["current"], 250)
+        self.assertEqual(st["progress"]["target"], 1000)
+
+    def test_user_verbosity_does_not_unlock_model_achievements(self):
+        # A long USER message must NOT unlock essayist (that's the model's
+        # own response) — the two dimensions are strictly separated.
+        self.mod._post_llm_call(
+            user_message=("word " * 2000).strip(),
+            assistant_response="short",
+            conversation_history=[{"role": "user", "content": "x"}],
+            model="m1", platform="cli",
+        )
+        self.assertFalse(self.unlocked("essayist"))
+
+
+class TestTruncation(HookTestBase):
+    """post_api_request finish_reason=length: output-cap hits."""
+
+    def _fire(self, finish_reason="stop"):
+        self.mod._post_api_request(
+            usage={"total_tokens": 1000}, api_duration=1.0,
+            model="m1", provider="p1", api_call_count=1,
+            message_count=10, finish_reason=finish_reason,
+        )
+
+    def test_stop_no_unlock(self):
+        self._fire("stop")
+        self._fire("tool_calls")
+        self.assertFalse(self.unlocked("cut_short"))
+        self.assertEqual(self.stats().get("truncated_responses", 0), 0)
+
+    def test_cut_short_on_first_length(self):
+        self._fire("length")
+        self.assertTrue(self.unlocked("cut_short"))
+        self.assertFalse(self.unlocked("token_wall"))
+
+    def test_token_wall_at_25(self):
+        for _ in range(25):
+            self._fire("length")
+        self.assertTrue(self.unlocked("cut_short"))
+        self.assertTrue(self.unlocked("token_wall"))
+
+    def test_count_persists_across_mixed(self):
+        for _ in range(3):
+            self._fire("length")
+        for _ in range(5):
+            self._fire("stop")
+        self.assertEqual(self.stats()["truncated_responses"], 3)
+
+    def test_missing_finish_reason_noop(self):
+        self.mod._post_api_request(
+            usage={"total_tokens": 1000}, api_duration=1.0,
+            model="m1", provider="p1", api_call_count=1, message_count=10,
+        )
+        self.assertEqual(self.stats().get("truncated_responses", 0), 0)
+
+
+class TestSubagentRuntime(HookTestBase):
+    """subagent_stop duration_ms: how long delegated children ran."""
+
+    def _stop(self, duration_ms=500):
+        self.mod._on_subagent_stop(
+            child_role="leaf", child_status="completed",
+            duration_ms=duration_ms,
+        )
+
+    def test_fast_subagent_no_unlock(self):
+        self._stop(500)
+        self.assertFalse(self.unlocked("slow_thinker"))
+        self.assertFalse(self.unlocked("marathon"))
+        self.assertEqual(self.stats().get("longest_subagent_ms", 0), 500)
+
+    def test_slow_thinker_at_10_minutes(self):
+        self._stop(10 * 60 * 1000)
+        self.assertTrue(self.unlocked("slow_thinker"))
+        self.assertFalse(self.unlocked("marathon"))
+
+    def test_marathon_at_60_minutes(self):
+        self._stop(60 * 60 * 1000)
+        self.assertTrue(self.unlocked("slow_thinker"))
+        self.assertTrue(self.unlocked("marathon"))
+
+    def test_peak_keeps_max(self):
+        self._stop(500)
+        self._stop(30 * 60 * 1000)
+        self.assertEqual(self.stats()["longest_subagent_ms"], 30 * 60 * 1000)
+
+    def test_missing_duration_noop(self):
+        self.mod._on_subagent_stop(child_role="leaf", child_status="completed")
+        self.assertEqual(self.stats().get("longest_subagent_ms", 0), 0)
+
+
 class TestApprovalRequest(HookTestBase):
     """pre_approval_request: approval gates drive Under Scrutiny."""
 
@@ -1488,7 +1625,7 @@ class TestStreakEdgeCases(HookTestBase):
         self.mod._locales_cache = {}
         try:
             cache = self.mod._load_locales()
-            self.assertEqual(len(cache.get("en", {}).get("achievement", {})), 133)
+            self.assertEqual(len(cache.get("en", {}).get("achievement", {})), 139)
         finally:
             self.mod._LOCALES_DIR = old_dir
             self.mod._WHEEL_DATA_DIR = old_wheel
@@ -2581,6 +2718,27 @@ class TestCommandHandlers(HookTestBase):
         self.assertIn("docker", out)
         self.assertIn("local", out)
 
+    def test_stats_shows_longest_response(self):
+        st = self.mod._load_state()["stats"]
+        st["longest_response_words"] = 1234
+        out = self.mod._handle_achievements("stats")
+        self.assertIn("Longest model response:", out)
+        self.assertIn("1234", out)
+
+    def test_stats_shows_truncations(self):
+        st = self.mod._load_state()["stats"]
+        st["truncated_responses"] = 4
+        out = self.mod._handle_achievements("stats")
+        self.assertIn("Truncated responses:", out)
+        self.assertIn("4", out)
+
+    def test_stats_shows_longest_subagent(self):
+        st = self.mod._load_state()["stats"]
+        st["longest_subagent_ms"] = 12 * 60 * 1000 + 30 * 1000
+        out = self.mod._handle_achievements("stats")
+        self.assertIn("Longest subagent:", out)
+        self.assertIn("12m 30s", out)
+
     def test_stats_new_dimensions_hidden_when_absent(self):
         out = self.mod._handle_achievements("stats")
         self.assertNotIn("Media messages:", out)
@@ -2593,6 +2751,9 @@ class TestCommandHandlers(HookTestBase):
         self.assertNotIn("Biggest command output:", out)
         self.assertNotIn("Biggest tool result:", out)
         self.assertNotIn("Environments used:", out)
+        self.assertNotIn("Longest model response:", out)
+        self.assertNotIn("Truncated responses:", out)
+        self.assertNotIn("Longest subagent:", out)
 
     def test_stats_completionist_unlocked_line(self):
         # All achievements unlocked → completionist line appears
@@ -2707,7 +2868,7 @@ class TestReadmeSync(unittest.TestCase):
         result = subprocess.run([_sys.executable, script], capture_output=True, text=True,
                                 cwd=PLUGIN_DIR, check=False)
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertIn("OK: 133 achievements", result.stdout)
+        self.assertIn("OK: 139 achievements", result.stdout)
 
     def test_health_check_script_passes(self):
         # The health check must pass against the repo checkout (defs,
@@ -2743,7 +2904,7 @@ class TestReadmeSync(unittest.TestCase):
 
 
 class TestEveryAchievementUnlockable(HookTestBase):
-    """Full-grind simulation: prove all 133 achievement defs can unlock.
+    """Full-grind simulation: prove all 139 achievement defs can unlock.
 
     After several rounds of achievement swaps (v2.3.0, v2.4.0, v2.4.1),
     a def could sit in a detection map with an impossible condition (wrong
@@ -2828,9 +2989,18 @@ class TestEveryAchievementUnlockable(HookTestBase):
             ]
             for i in range(1050):
                 cmd = commands[i % len(commands)]
+                # A few turns carry a long model response → Essayist (1000)
+                # + Novel Author (5000) unlock. Cycle lengths so most turns
+                # stay short (no unlock) but 3 responses cross the 5000 bar.
+                if i % 350 == 0:
+                    resp = ("word " * 5200).strip()
+                else:
+                    resp = "short reply"
                 mod._post_llm_call(
                     user_message=cmd,
-                    conversation_history=[{"role": "user", "content": cmd}],
+                    assistant_response=resp,
+                    conversation_history=[{"role": "user", "content": cmd},
+                                          {"role": "assistant", "content": resp}],
                     model=models[i % len(models)],
                     platform=platforms[i % len(platforms)],
                 )
@@ -2921,13 +3091,16 @@ class TestEveryAchievementUnlockable(HookTestBase):
                 mod._on_session_end(session_id=f"g-end-{i + 2}")
 
             # ── Subagents: 3 concurrent (Conductor) then 28 stops ──
+            # One stop carries a 65-minute duration → Slow Thinker (10m) +
+            # Marathon (60m). Others are fast (500ms).
             for i in range(3):
                 mod._on_subagent_start(child_role="leaf", child_goal=f"g-{i}")
             for i in range(28):
                 role = "orchestrator" if i == 2 else "leaf"
                 status = "failed" if i in (0, 1) else "completed"
+                dur_ms = 65 * 60 * 1000 if i == 5 else 500
                 mod._on_subagent_stop(
-                    child_role=role, child_status=status, duration_ms=500,
+                    child_role=role, child_status=status, duration_ms=dur_ms,
                 )
 
             # ── Tool errors: 30 failed calls → Trial and Error ──
@@ -2952,6 +3125,9 @@ class TestEveryAchievementUnlockable(HookTestBase):
                     usage = {"prompt_tokens": 8000, "completion_tokens": 4000}
                 else:
                     usage = {"total_tokens": 12000}
+                # finish_reason="length" on 30 requests → Cut Short (1) +
+                # Token Wall (25). Others use "stop" (no truncation).
+                fr = "length" if i < 30 else "stop"
                 mod._post_api_request(
                     usage=usage,
                     api_duration=0.5 if i % 2 == 0 else 9.0,
@@ -2959,6 +3135,7 @@ class TestEveryAchievementUnlockable(HookTestBase):
                     provider=providers[i % len(providers)],
                     api_call_count=1 + (i % 14),
                     message_count=20 + (i % 120),
+                    finish_reason=fr,
                 )
 
             # ── Preflight: local endpoints + input-token spikes ──
@@ -3048,7 +3225,7 @@ class TestEveryAchievementUnlockable(HookTestBase):
             )
             mod._check_completionist()
 
-    def test_all_133_achievements_can_unlock(self):
+    def test_all_139_achievements_can_unlock(self):
         """Every def in ACHIEVEMENT_DEFS must unlock through real hooks."""
         self._grind()
         state = self.mod._load_state()
@@ -3062,7 +3239,7 @@ class TestEveryAchievementUnlockable(HookTestBase):
             f"{locked}",
         )
 
-    def test_completionist_unlocks_as_133rd(self):
+    def test_completionist_unlocks_as_139th(self):
         """Completionist requires every other achievement first."""
         self._grind()
         state = self.mod._load_state()
@@ -3072,7 +3249,7 @@ class TestEveryAchievementUnlockable(HookTestBase):
             1 for aid in self.mod.ACHIEVEMENT_DEFS
             if state["achievements"].get(aid, {}).get("unlocked")
         )
-        self.assertEqual(unlocked, 133)
+        self.assertEqual(unlocked, 139)
 
 
 if __name__ == "__main__":

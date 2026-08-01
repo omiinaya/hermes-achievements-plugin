@@ -280,6 +280,9 @@ def _new_state():
             "peak_terminal_output_bytes": 0,
             "peak_tool_result_bytes": 0,
             "env_types": set(),
+            "longest_response_words": 0,
+            "truncated_responses": 0,
+            "longest_subagent_ms": 0,
             # Live per-session tracking (reset whenever session_id changes)
             "active_session": {
                 "id": None,
@@ -410,7 +413,7 @@ def _t(key, locale=None, **kwargs):
 # (per-turn tracking state lives in stats.active_session; no module globals)
 
 
-# ── Achievement Definitions (133 total) ──────────────────────────────────
+# ── Achievement Definitions (139 total) ──────────────────────────────────
 
 ACHIEVEMENT_DEFS = {
     # ═══════════════════════════════════════════════════════════════════════
@@ -639,7 +642,7 @@ ACHIEVEMENT_DEFS = {
     },
 
     # ═══════════════════════════════════════════════════════════════════════
-    # ⚡ POWER USER  (38)
+    # ⚡ POWER USER  (42)
     # ═══════════════════════════════════════════════════════════════════════
     "cron_commander": {
         "id": "cron_commander", "name": "Cron Commander", "emoji": "⏰",
@@ -761,6 +764,16 @@ ACHIEVEMENT_DEFS = {
         "description": "Receive a 10MB+ result from a single tool call",
         "rarity": "epic", "group": "Expert",
     },
+    "token_wall": {
+        "id": "token_wall", "name": "Token Wall", "emoji": "🛑",
+        "description": "Hit the model's output token limit 25 times (finish_reason=length)",
+        "rarity": "rare", "group": "Expert",
+    },
+    "marathon": {
+        "id": "marathon", "name": "Marathon", "emoji": "🏃",
+        "description": "Run a subagent that takes 60+ minutes",
+        "rarity": "epic", "group": "Expert",
+    },
     "workflow_builder": {
         "id": "workflow_builder", "name": "Workflow Builder", "emoji": "🏗️",
         "description": "Use 8 different tool types in a single session",
@@ -875,9 +888,29 @@ ACHIEVEMENT_DEFS = {
         "rarity": "rare", "group": "Power User",
         "secret": True,
     },
+    "essayist": {
+        "id": "essayist", "name": "Essayist", "emoji": "🎙️",
+        "description": "Receive a 1000+ word response from the model",
+        "rarity": "uncommon", "group": "Power User",
+    },
+    "novel_author": {
+        "id": "novel_author", "name": "Novel Author", "emoji": "📜",
+        "description": "Receive a 5000+ word response from the model",
+        "rarity": "rare", "group": "Power User",
+    },
+    "cut_short": {
+        "id": "cut_short", "name": "Cut Short", "emoji": "✂️",
+        "description": "Hit the model's output token limit (finish_reason=length)",
+        "rarity": "uncommon", "group": "Power User",
+    },
+    "slow_thinker": {
+        "id": "slow_thinker", "name": "Slow Thinker", "emoji": "🐢",
+        "description": "Run a subagent that takes 10+ minutes",
+        "rarity": "rare", "group": "Power User",
+    },
 
     # ═══════════════════════════════════════════════════════════════════════
-    # 👑 EXPERT  (26)
+    # 👑 EXPERT  (28)
     # ═══════════════════════════════════════════════════════════════════════
     "the_90_turn_club": {
         "id": "the_90_turn_club", "name": "The 90-Turn Club", "emoji": "🤖",
@@ -1260,6 +1293,27 @@ _ENV_THRESHOLDS = [
 # the classic "command not found" code — a distinct, recognizable signal
 # that post_tool_call's status/error_type bucket cannot express.
 _GHOST_COMMAND_EXIT_CODE = 127
+
+# Model-response verbosity thresholds (assistant_response from
+# post_llm_call): word count of the MODEL's own output — a mirror of the
+# user-message verbosity dimension (Wordsmith/Novelist) that measures how
+# much the model wrote in a single response, distinct from user input.
+_ESSAYIST_WORDS = 1000
+_NOVEL_AUTHOR_WORDS = 5000
+
+# Output-cap truncation thresholds (finish_reason from post_api_request):
+# finish_reason="length" means the model hit its max output tokens and was
+# cut off — a real, recognizable event that usage buckets cannot express
+# (the response came back, but incomplete).
+_TRUNCATION_THRESHOLDS = [
+    (1, "cut_short"),
+    (25, "token_wall"),
+]
+
+# Subagent runtime thresholds (duration_ms from subagent_stop): how long a
+# delegated child actually ran — a dimension subagent counting cannot see.
+_SLOW_SUBAGENT_MS = 10 * 60 * 1000    # 10 minutes
+_MARATHON_SUBAGENT_MS = 60 * 60 * 1000  # 60 minutes
 
 # Single-session tool call thresholds
 _SESSION_CALL_THRESHOLDS = [
@@ -1941,6 +1995,25 @@ def _post_llm_call(**kwargs):
         else:
             _set_progress("wordsmith", word_count, _WORDSMITH_WORDS)
 
+    # ── Model-response verbosity: word count of the assistant reply ──
+    # Mirrors the user-verbosity dimension but for the model's OWN output —
+    # how much it wrote in a single response (assistant_response), distinct
+    # from user input length. A novel-length response means a deep analysis
+    # or long-form generation was requested.
+    assistant_response = kwargs.get("assistant_response", "")
+    if isinstance(assistant_response, str) and assistant_response.strip():
+        resp_words = len(assistant_response.split())
+        stats["longest_response_words"] = max(
+            stats.get("longest_response_words", 0), resp_words
+        )
+        if resp_words >= _NOVEL_AUTHOR_WORDS:
+            _unlock("novel_author", now)
+            _unlock("essayist", now)
+        elif resp_words >= _ESSAYIST_WORDS:
+            _unlock("essayist", now)
+        else:
+            _set_progress("essayist", resp_words, _ESSAYIST_WORDS)
+
     # Extract the current turn's user content for command detection
     user_commands = []
     slash_cmds_this_turn = set()
@@ -2109,6 +2182,21 @@ def _post_api_request(**kwargs):
             _unlock("speed_demon", now)
         else:
             _set_progress("speed_demon", stats["fast_requests"], _FAST_RESPONSE_COUNT)
+
+    # ── Output-cap truncation: finish_reason="length" ──────────
+    # The model hit its max output tokens and was cut off mid-response.
+    # A real, recognizable event: usage buckets show the tokens consumed,
+    # but only finish_reason reveals the response was INCOMPLETE.
+    finish_reason = kwargs.get("finish_reason", "")
+    if finish_reason and str(finish_reason).lower() == "length":
+        stats["truncated_responses"] = stats.get("truncated_responses", 0) + 1
+        trunc = stats["truncated_responses"]
+        for threshold, ach_id in _TRUNCATION_THRESHOLDS:
+            if trunc >= threshold:
+                _unlock(ach_id, now)
+            else:
+                _set_progress(ach_id, trunc, threshold)
+                break
 
     _save_state()
 
@@ -2286,6 +2374,23 @@ def _on_subagent_stop(**kwargs):
     if child_status and str(child_status).lower() in ("failed", "error", "interrupted"):
         stats["subagents_failed"] = stats.get("subagents_failed", 0) + 1
         _unlock("resilient", now)
+
+    # Subagent runtime: how long the child actually ran (duration_ms).
+    # Subagent counting cannot see this — a 10-minute child is a very
+    # different delegation than a 10-second one.
+    duration_ms = kwargs.get("duration_ms")
+    if isinstance(duration_ms, (int, float)) and duration_ms >= 0:
+        stats["longest_subagent_ms"] = max(
+            stats.get("longest_subagent_ms", 0), int(duration_ms)
+        )
+        longest = stats["longest_subagent_ms"]
+        if longest >= _MARATHON_SUBAGENT_MS:
+            _unlock("marathon", now)
+            _unlock("slow_thinker", now)
+        elif longest >= _SLOW_SUBAGENT_MS:
+            _unlock("slow_thinker", now)
+        else:
+            _set_progress("slow_thinker", longest, _SLOW_SUBAGENT_MS)
 
     _check_group_completions()
     _check_completionist()
@@ -2639,6 +2744,19 @@ def _format_bytes(n: int) -> str:
     return f"{n} B"
 
 
+def _format_duration(ms: int) -> str:
+    """Human-readable duration from milliseconds (e.g. 12m 30s)."""
+    ms = int(ms or 0)
+    total_s = max(0, ms // 1000)
+    h, rem = divmod(total_s, 3600)
+    m, s = divmod(rem, 60)
+    if h:
+        return f"{h}h {m}m"
+    if m:
+        return f"{m}m {s}s"
+    return f"{s}s"
+
+
 def _handle_achievements(raw_args: str) -> str:
     args = raw_args.strip().lower()
     state = _load_state()
@@ -2749,6 +2867,15 @@ def _handle_achievements(raw_args: str) -> str:
             if env_types:
                 lines.append(_t("ui.stats_env_types", locale,
                                 count=len(env_types), envs=", ".join(env_types)))
+            if stats.get("longest_response_words"):
+                lines.append(_t("ui.stats_longest_response", locale,
+                                count=stats.get("longest_response_words", 0)))
+            if stats.get("truncated_responses"):
+                lines.append(_t("ui.stats_truncations", locale,
+                                count=stats.get("truncated_responses", 0)))
+            if stats.get("longest_subagent_ms"):
+                lines.append(_t("ui.stats_longest_subagent", locale,
+                                duration=_format_duration(stats.get("longest_subagent_ms", 0))))
             if stats.get("longest_message_words"):
                 lines.append(_t("ui.stats_longest_message", locale, count=stats.get("longest_message_words", 0)))
             hooks_used = stats.get("hooks_used", set())

@@ -1,5 +1,47 @@
 # Changelog
 
+## [2.13.0] — 2026-08-01
+
+### Added
+
+- **Model-response verbosity** — `post_llm_call` now reads
+  `assistant_response` (the model's OWN output text, delivered but
+  previously ignored). Mirrors the user-verbosity dimension for what the
+  MODEL wrote: Essayist 🎙️ (uncommon, Power User) on a 1000-word reply;
+  Novel Author 📜 (rare) at 5000 words. Strictly separated from
+  user-message length (Wordsmith/Novelist) — a long user message never
+  unlocks these, and vice versa (tested). `longest_response_words` stat.
+- **Output-cap truncation** — `post_api_request` now reads `finish_reason`.
+  `finish_reason="length"` means the model hit its max output tokens and
+  was cut off mid-response: Cut Short ✂️ (uncommon, Power User) on the
+  first hit; Token Wall 🛑 (rare, Expert) at 25. Usage buckets show how
+  many tokens were consumed — only `finish_reason` reveals the response
+  was *incomplete* (new dimension, 133 → 139).
+- **Subagent runtime** — `subagent_stop` now reads `duration_ms` (how long
+  a delegated child actually ran, delivered but previously ignored):
+  Slow Thinker 🐢 (rare, Power User) on a 10-minute child; Marathon 🏃
+  (epic, Expert) at 60 minutes. Child-counting cannot see this — a
+  10-minute delegation is a very different event than a 10-second one.
+  `longest_subagent_ms` stat with `_format_duration` (e.g. "12m 30s").
+- New `TestModelResponseVerbosity` suite (7 tests: thresholds, peak-max,
+  missing-response no-op, progress, user/model dimension separation),
+  `TestTruncation` suite (5 tests: stop/tool_calls no-op, first hit,
+  25-hit wall, mixed counting, missing no-op), and `TestSubagentRuntime`
+  suite (5 tests: fast no-op, 10m, 60m, peak-max, missing no-op).
+- Grind extended: 3 turns with 5200-word responses, 30 requests with
+  `finish_reason="length"`, one 65-minute subagent.
+- 3 new `ui.*` stats keys (`stats_longest_response`, `stats_truncations`,
+  `stats_longest_subagent`) — all 4 locales, real es/fr/pt translations.
+
+### Changed
+
+- Power User group: 38 → 42 achievements; Expert: 26 → 28. Group headers
+  and the group-counts test updated. Compact group views keep every
+  group (largest: Power User, 42) under Discord's 2000-char cap.
+- Tests: 302 → 322; all green. Health check: 31 kwargs across 12 hooks
+  (`finish_reason`, `assistant_response`, `duration_ms` confirmed
+  delivered by the installed Hermes source).
+
 ## [2.12.0] — 2026-08-01
 
 ### Added
