@@ -340,6 +340,11 @@ class TestCounterAchievements(HookTestBase):
         # No crash; nothing unlocked
         self.assertFalse(self.unlocked("terminal_jockey"))
 
+    def test_count_user_commands_ignores_non_strings(self):
+        self.mod._count_user_commands([123, None, {"a": 1}], self.stats(),
+                                      "2026-01-01T00:00:00")
+        self.assertEqual(self.stats().get("config_changes", 0), 0)
+
 
 class TestQuickDraw(HookTestBase):
     """5 consecutive fast tool calls unlock Quick Draw."""
@@ -1021,6 +1026,18 @@ class TestStatePersistence(HookTestBase):
         self.assertEqual(st["tool_names"], set())
         self.assertEqual(st["fast_streak"], 0)
 
+    def test_active_session_missing_scalar_keys_defaulted(self):
+        # A dict active_session missing id/calls/fast_streak gets defaults
+        state = self.mod._load_state()
+        state["stats"]["active_session"] = {"tool_names": ["terminal"]}
+        self.mod._save_state(force=True)
+        self.mod._state = None
+        st = self.mod._load_state()["stats"]["active_session"]
+        self.assertEqual(st["id"], None)
+        self.assertEqual(st["calls"], 0)
+        self.assertEqual(st["fast_streak"], 0)
+        self.assertEqual(st["tool_names"], {"terminal"})
+
     def test_stale_achievement_entries_pruned(self):
         # Entries for removed/renamed achievements must not linger in state
         state = self.mod._load_state()
@@ -1083,6 +1100,16 @@ class TestStatePersistence(HookTestBase):
         os.environ["ACH_TEST_VAR"] = "from-env"
         try:
             self.assertEqual(self.mod._load_env_var("ACH_TEST_VAR"), "from-env")
+        finally:
+            os.environ.pop("ACH_TEST_VAR", None)
+
+    def test_load_env_var_skips_malformed_lines(self):
+        # Lines without '=' are skipped; valid lines still parsed
+        env_file = os.path.join(self._tmp, ".env")
+        with open(env_file, "w") as f:
+            f.write("NO_EQUALS_HERE\nACH_TEST_VAR=from-dotenv\n")
+        try:
+            self.assertEqual(self.mod._load_env_var("ACH_TEST_VAR"), "from-dotenv")
         finally:
             os.environ.pop("ACH_TEST_VAR", None)
 
@@ -1581,6 +1608,11 @@ class TestCommandHandlers(HookTestBase):
     def test_t_format_error_returns_unformatted(self):
         # Missing format arg → unformatted string, not an exception
         out = self.mod._t("ui.stats_cron", "en")
+        self.assertEqual(out, self.mod._load_locales()["en"]["ui"]["stats_cron"])
+
+    def test_t_format_kwargs_mismatch_returns_unformatted(self):
+        # kwargs given but placeholder missing → unformatted, no exception
+        out = self.mod._t("ui.stats_cron", "en", wrong_key=42)
         self.assertEqual(out, self.mod._load_locales()["en"]["ui"]["stats_cron"])
 
     def test_t_non_dict_intermediate_returns_key(self):
