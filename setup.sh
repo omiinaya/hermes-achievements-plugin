@@ -5,6 +5,7 @@
 # Usage:
 #   ./setup.sh              Interactive install
 #   ./setup.sh --ci         Unattended install (no prompts)
+#   ./setup.sh --test       Run the test suite after install
 #   ./setup.sh --help       Show this help
 #
 # Installs the plugin to ~/.hermes/plugins/achievements/, validates the
@@ -13,11 +14,17 @@
 set -euo pipefail
 
 CI_MODE=false
-if [[ "${1:-}" == "--ci" ]]; then CI_MODE=true; fi
-if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
-    sed -n '/^# Usage:/,/^set -e/p' "$0" | head -n -1
-    exit 0
-fi
+RUN_TESTS=false
+for arg in "$@"; do
+    case "$arg" in
+        --ci) CI_MODE=true ;;
+        --test) RUN_TESTS=true ;;
+        --help|-h)
+            sed -n '/^# Usage:/,/^set -e/p' "$0" | head -n -1
+            exit 0
+            ;;
+    esac
+done
 
 # ── Colors ──────────────────────────────────────────────────────────────────
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
@@ -97,6 +104,17 @@ for f in __init__.py plugin.yaml locales/en.json; do
     fi
 done
 ok "Files installed to $PLUGIN_DIR/"
+
+# Run the test suite if requested
+if $RUN_TESTS; then
+    step "2b/4  Running test suite"
+    if (cd "$PLUGIN_DIR" && python3 -m pytest tests/ -q); then
+        ok "All tests passed"
+    else
+        err "Test suite failed — the installed plugin may be incomplete."
+        exit 1
+    fi
+fi
 
 # ── Step 3: Validate environment ────────────────────────────────────────────
 step "3/4  Validating environment"
