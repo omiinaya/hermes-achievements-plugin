@@ -2008,5 +2008,208 @@ class TestReadmeSync(unittest.TestCase):
         self.assertIn("OK: 100 achievements", result.stdout)
 
 
+class TestEveryAchievementUnlockable(HookTestBase):
+    """Full-grind simulation: prove all 100 achievement defs can unlock.
+
+    After several rounds of achievement swaps (v2.3.0, v2.4.0, v2.4.1),
+    a def could sit in a detection map with an impossible condition (wrong
+    threshold, typo'd key, or no detection path at all) and no test would
+    catch it. This test drives every hook with escalating synthetic data —
+    the same kwargs the gateway passes — and asserts EVERY def unlocks.
+    A dead achievement fails the run with its ID listed.
+    """
+
+    def setUp(self):
+        super().setUp()
+        # Hermetic: never touch real Discord during the grind
+        os.environ.pop("DISCORD_BOT_TOKEN", None)
+        os.environ.pop("DISCORD_HOME_CHANNEL", None)
+
+    def _gateway_event(self, platform, user_id):
+        class _Source:
+            pass
+
+        class _Event:
+            pass
+
+        src = _Source()
+        src.platform = platform
+        src.user_id = user_id
+        src.user_name = f"User {user_id}"
+        src.is_bot = False
+        ev = _Event()
+        ev.internal = False
+        ev.source = src
+        return ev
+
+    def _grind(self):
+        """Drive all 12 hooks with realistic synthetic gateway data."""
+        import datetime as _dt
+        from datetime import date, timedelta
+        from unittest.mock import patch as _patch
+
+        mod = self.mod
+
+        # Time control: 3:30 AM local → Early Bird + Night Owl both fire.
+        class FakeDT(_dt.datetime):
+            @classmethod
+            def now(cls, tz=None):
+                return cls(2026, 7, 15, 3, 30, 0, tzinfo=tz)
+
+        # _save_state is exercised by dedicated tests; a no-op keeps the
+        # 2000+ hook calls fast while detection still mutates in-memory state.
+        with _patch.object(mod, "datetime", FakeDT), \
+             _patch.object(mod, "_save_state", lambda force=False: None):
+            # ── Sessions first, so Persistent sees total_sessions=3 ──
+            for sid in ("g-s1", "g-s2", "g-s3"):
+                mod._on_session_start(session_id=sid)
+
+            # ── Turn grind: 1050 turns across models/platforms/commands ──
+            models = [f"model-{i}" for i in range(12)]
+            platforms = ["discord", "whatsapp", "telegram", "cli", "matrix"]
+            commands = [
+                "hello",
+                "hermes config set theme dark",
+                "hermes doctor",
+                "hermes mcp add my-server",
+                "hermes profile create work",
+                "hermes plugins enable achievements",
+                "hermes changelog",
+                "hermes config get model",
+                "cron 2026-07-20T09:00:00 one-shot",
+                "hermes docs",
+                "hermes mcp config server",
+                "/resume",
+                "--yolo",
+                "hermes config set env_file .env",
+                "¡Hola! ¿Cómo estás? 你好",
+                "hermes skills install foo",
+                "/achievements list",
+                "/new",
+                "hermes changelog release notes",
+                "hermes update --check",
+            ]
+            for i in range(1050):
+                cmd = commands[i % len(commands)]
+                mod._post_llm_call(
+                    user_message=cmd,
+                    conversation_history=[{"role": "user", "content": cmd}],
+                    model=models[i % len(models)],
+                    platform=platforms[i % len(platforms)],
+                )
+
+            # ── Tool grind: one big session covering every tool type ──
+            # Counts chosen so every per-tool threshold crosses; read_file
+            # at 110 feeds file_artisan (best-of feeding tools, not sum).
+            tool_counts = {
+                "terminal": 510, "web_search": 30, "web_extract": 30,
+                "execute_code": 110, "memory": 110, "read_file": 110,
+                "write_file": 40, "patch": 40, "search_files": 40,
+                "session_search": 12, "web_scrape": 30,
+                "browser_navigate": 3, "browser_click": 3,
+                "browser_snapshot": 3, "browser_type": 3,
+                "vision_analyze": 3, "delegate_task": 5,
+                "skill_manage": 18, "cronjob": 18, "send_message": 3,
+                "text_to_speech": 2, "todo": 3, "clarify": 2,
+            }
+            special_args = {
+                "cronjob": {"action": "create", "schedule": "2026-07-20T09:00:00",
+                            "workdir": "/tmp/x", "context_from": ["job-1"]},
+                "delegate_task": {"tasks": [{"goal": "a"}, {"goal": "b"},
+                                            {"goal": "c"}]},
+                "skill_manage": {"action": "create"},
+                "memory": {"action": "add"},
+            }
+            for tool, count in tool_counts.items():
+                for i in range(count):
+                    if tool in special_args:
+                        args = special_args[tool]
+                    elif tool == "write_file" and i < 3:
+                        # Plugin Developer + Hook Master: manifest writes
+                        args = {
+                            "path": "/plugins/x/plugin.yaml",
+                            "content": (
+                                "name: test\nhooks:\n"
+                                "register_hook('post_tool_call')\n"
+                                "register_hook('api_request_error')\n"
+                                "register_hook('on_session_start')"
+                            ),
+                        }
+                    else:
+                        args = {"command": "echo x"} if tool == "terminal" else {}
+                    mod._post_tool_call(
+                        tool_name=tool, args=args, session_id="s-main",
+                        duration_ms=500,
+                    )
+
+            # ── Streaks: 30 consecutive days → Week Warrior + Monthly ──
+            mod._on_session_end(session_id="g-end-1")   # streak = 1
+            for i in range(29):
+                st = mod._load_state()["stats"]
+                st["last_active_date"] = (
+                    date.today() - timedelta(days=1)  # noqa: DTZ011
+                ).isoformat()
+                mod._on_session_end(session_id=f"g-end-{i + 2}")
+
+            # ── Subagents: 3 concurrent (Conductor) then 28 stops ──
+            for i in range(3):
+                mod._on_subagent_start(child_role="leaf", child_goal=f"g-{i}")
+            for i in range(28):
+                role = "orchestrator" if i == 2 else "leaf"
+                status = "failed" if i in (0, 1) else "completed"
+                mod._on_subagent_stop(
+                    child_role=role, child_status=status, duration_ms=500,
+                )
+
+            # ── API errors, approvals, distinct users, session reset ──
+            for i in range(12):
+                mod._on_api_request_error(error_type="timeout", status_code=429)
+            for i in range(12):
+                mod._on_approval_request(command="terminal", surface="cli")
+            mod._on_approval_response(choice="deny")
+            mod._on_approval_response(choice="always")
+            for i in range(10):
+                mod._on_pre_gateway_dispatch(
+                    event=self._gateway_event("discord", f"g-user-{i}"),
+                    gateway=None, session_store=None,
+                )
+            mod._on_session_reset(session_id="g-new")
+            mod._on_session_finalize()
+
+            # Final turn: re-checks group/rarity completions + completionist
+            mod._post_llm_call(
+                user_message="one more turn",
+                conversation_history=[{"role": "user", "content": "one more turn"}],
+                model="model-0", platform="cli",
+            )
+            mod._check_completionist()
+
+    def test_all_100_achievements_can_unlock(self):
+        """Every def in ACHIEVEMENT_DEFS must unlock through real hooks."""
+        self._grind()
+        state = self.mod._load_state()
+        locked = [
+            aid for aid in self.mod.ACHIEVEMENT_DEFS
+            if not state["achievements"].get(aid, {}).get("unlocked")
+        ]
+        self.assertEqual(
+            locked, [],
+            "Unlockable-invariant violated — dead/unreachable achievement defs: "
+            f"{locked}",
+        )
+
+    def test_completionist_unlocks_as_100th(self):
+        """Completionist requires every other achievement first."""
+        self._grind()
+        state = self.mod._load_state()
+        ach = state["achievements"]["completionist"]
+        self.assertTrue(ach["unlocked"])
+        unlocked = sum(
+            1 for aid in self.mod.ACHIEVEMENT_DEFS
+            if state["achievements"].get(aid, {}).get("unlocked")
+        )
+        self.assertEqual(unlocked, 100)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

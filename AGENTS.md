@@ -62,8 +62,16 @@ using Hermes. Pure Python stdlib, no external dependencies.
 ## Testing
 
 ```bash
-python3 -m pytest tests/ -q    # 220 tests, no deps beyond pytest
+python3 -m pytest tests/ -q    # 222 tests, no deps beyond pytest
 ```
+
+- `tests/test_detection.py::TestEveryAchievementUnlockable` — full-grind
+  simulation: drives every hook with escalating synthetic gateway data and
+  asserts **all 100 defs actually unlock**. This is the enforcement of the
+  "every def must be detectable" invariant — after any swap, a dead def
+  (impossible threshold, typo'd key, missing path) fails the run with its
+  ID listed. Keep the grind's tool/command data broad enough to cover
+  every detection map when adding achievements.
 
 ## Committing
 
