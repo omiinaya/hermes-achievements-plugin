@@ -18,7 +18,10 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
       - name: Install pytest
-        run: python -m pip install --upgrade pip pytest pytest-cov ruff
+        # ruff is bounded (<0.17) on purpose: newer ruff majors ship new
+        # default rulesets that broke CI once while local ruff passed
+        # (N999 incident, v2.4.2). Patch releases still land automatically.
+        run: python -m pip install --upgrade pip pytest pytest-cov "ruff>=0.15.14,<0.17"
       - name: Run test suite
         run: python -m pytest tests/ -q
       - name: Coverage gate

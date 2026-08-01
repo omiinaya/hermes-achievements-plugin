@@ -21,6 +21,11 @@ using Hermes. Pure Python stdlib, no external dependencies.
   backfills missing translations (WARN + English fallback)
 - `scripts/bump_version.py` — updates the version in all 4 places that
   carry it (pyproject.toml, plugin.yaml, setup.sh ×2) in one shot
+- `scripts/check_plugin.py` — health check: module loads, manifest↔register()
+  hook agreement, exactly-100 defs, locale parity, no dead detection-map
+  references, live state.json reconciliation (--live), and real
+  PluginManager load (--manifest). Run after any swap:
+  `python3 scripts/check_plugin.py --live --manifest`
 
 ## Detection architecture (12 hooks)
 
@@ -62,7 +67,7 @@ using Hermes. Pure Python stdlib, no external dependencies.
 ## Testing
 
 ```bash
-python3 -m pytest tests/ -q    # 222 tests, no deps beyond pytest
+python3 -m pytest tests/ -q    # 223 tests, no deps beyond pytest
 ```
 
 - `tests/test_detection.py::TestEveryAchievementUnlockable` — full-grind

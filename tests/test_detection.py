@@ -2007,6 +2007,21 @@ class TestReadmeSync(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("OK: 100 achievements", result.stdout)
 
+    def test_health_check_script_passes(self):
+        # The health check must pass against the repo checkout (defs,
+        # locales, manifest↔register agreement, detection maps). Guards
+        # against the exact drift failures it was written to catch.
+        import subprocess
+        import sys as _sys
+        script = os.path.join(PLUGIN_DIR, "scripts", "check_plugin.py")
+        result = subprocess.run([_sys.executable, script], capture_output=True, text=True,
+                                cwd=PLUGIN_DIR, check=False)
+        self.assertEqual(
+            result.returncode, 0,
+            f"check_plugin.py failed:\n{result.stdout}\n{result.stderr}",
+        )
+        self.assertIn("Plugin healthy", result.stdout)
+
 
 class TestEveryAchievementUnlockable(HookTestBase):
     """Full-grind simulation: prove all 100 achievement defs can unlock.
