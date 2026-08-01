@@ -540,6 +540,13 @@ class TestSessionFinalize(HookTestBase):
         finally:
             self.mod._STATE_PATH, self.mod._STATE_BAK_PATH = old_path, old_bak
 
+    def test_finalize_before_any_state_is_noop(self):
+        # Gateway can finalize before the first hook ever fires — no crash,
+        # no spurious state file
+        self.mod._state = None
+        self.mod._on_session_finalize(session_id="s", platform="gateway")
+        self.assertFalse(os.path.exists(self.mod._STATE_PATH))
+
 
 class TestSubagentStart(HookTestBase):
     """subagent_start: true concurrency tracking drives Conductor."""

@@ -185,6 +185,8 @@ def _save_state(force=False):
     unless force=True (used by post_llm_call / on_session_end).
     """
     global _last_save_ts
+    if _state is None:
+        return  # nothing loaded yet (e.g. finalize before first hook)
     with _state_lock:
         now = time.monotonic()
         if not force and _last_save_ts and (now - _last_save_ts) < 2.0:
