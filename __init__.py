@@ -52,29 +52,54 @@ def _load_env_var(key, fallback=""):
 
 # ── Discord delivery ─────────────────────────────────────────────────────
 
+# Burst unlocks (several thresholds crossing in one turn) are batched into
+# a single Discord message instead of spamming one message per achievement.
+_NOTIF_QUEUE: list = []
+_NOTIF_QUEUE_LOCK = threading.Lock()
+_NOTIF_DEBOUNCE_S = 3.0
+_notif_timer = None
+
+
 def _send_discord_notification(ach_def):
     """Deliver achievement notification asynchronously (non-blocking).
 
-    Spawns a daemon thread so a slow Discord API response never stalls the
-    agent's hook pipeline. Reads token/channel from .env or environment.
+    Unlocks are debounced: rapid-fire unlocks within the debounce window
+    coalesce into ONE batched message (multiple embeds) rather than one
+    message per achievement. A daemon timer does the delivery so a slow
+    Discord API response never stalls the agent's hook pipeline.
     """
-    def _worker():
-        try:
-            _send_discord_notification_sync(ach_def)
-        except Exception as exc:  # noqa: BLE001 — never let a notification thread crash
-            import logging
-            logging.getLogger(__name__).warning(
-                "Achievement notification thread failed: %s", exc
-            )
-    t = threading.Thread(target=_worker, daemon=True, name="ach-notify")
-    t.start()
+    global _notif_timer
+    with _NOTIF_QUEUE_LOCK:
+        _NOTIF_QUEUE.append(ach_def)
+        if _notif_timer is not None:
+            _notif_timer.cancel()
+        _notif_timer = threading.Timer(_NOTIF_DEBOUNCE_S, _flush_notification_queue)
+        _notif_timer.daemon = True
+        _notif_timer.start()
 
 
-def _send_discord_notification_sync(ach_def):
-    """Deliver achievement notification to Hermes home channel AND the
-    channel where it was unlocked. If both are the same, sends only once."""
+def _flush_notification_queue():
+    """Deliver everything queued in the debounce window as one batch."""
+    global _notif_timer
+    with _NOTIF_QUEUE_LOCK:
+        batch = list(_NOTIF_QUEUE)
+        _NOTIF_QUEUE.clear()
+        _notif_timer = None
+    if not batch:
+        return
+    try:
+        _send_discord_notification_batch(batch)
+    except Exception as exc:  # noqa: BLE001 — never let a notification thread crash
+        import logging
+        logging.getLogger(__name__).warning(
+            "Achievement notification batch failed: %s", exc
+        )
+
+
+def _send_discord_notification_batch(batch):
+    """Send one message per target with all embeds (deduped targets)."""
     token = _load_env_var("DISCORD_BOT_TOKEN")
-    if not token:
+    if not token or not batch:
         return
 
     home_channel = _load_env_var("DISCORD_HOME_CHANNEL")
@@ -85,20 +110,26 @@ def _send_discord_notification_sync(ach_def):
 
     state = _load_state()
     locale = state.get("locale", "en") if state else "en"
-    emoji = RARITY_EMOJIS.get(ach_def.get("rarity", "common"), "⬜")
-    ach_name = _t(f"achievement.{ach_def['id']}.name", locale)
-    ach_desc = _t(f"achievement.{ach_def['id']}.description", locale)
-    rarity_label = _t(f"rarity.{ach_def['rarity']}", locale)
-    group_key = ach_def["group"].lower().replace(" & ", "_").replace(" ", "_")
-    group_label = _t(f"group.{group_key}", locale)
-    # Rarity-colored embed for a polished notification card
-    embed = {
-        "title": f"{emoji} {ach_def['emoji']} {ach_name}",
-        "description": ach_desc,
-        "color": _RARITY_COLORS.get(ach_def.get("rarity", "common"), 0x9CA3AF),
-        "footer": {"text": f"{rarity_label} · {group_label}"},
-    }
-    payload = json.dumps({"content": "", "embeds": [embed]}).encode()
+
+    embeds = []
+    for ach_def in batch:
+        emoji = RARITY_EMOJIS.get(ach_def.get("rarity", "common"), "⬜")
+        ach_name = _t(f"achievement.{ach_def['id']}.name", locale)
+        ach_desc = _t(f"achievement.{ach_def['id']}.description", locale)
+        rarity_label = _t(f"rarity.{ach_def['rarity']}", locale)
+        group_key = ach_def["group"].lower().replace(" & ", "_").replace(" ", "_")
+        group_label = _t(f"group.{group_key}", locale)
+        embeds.append({
+            "title": f"{emoji} {ach_def['emoji']} {ach_name}",
+            "description": ach_desc,
+            "color": _RARITY_COLORS.get(ach_def.get("rarity", "common"), 0x9CA3AF),
+            "footer": {"text": f"{rarity_label} · {group_label}"},
+        })
+
+    content = ""
+    if len(embeds) > 1:
+        content = _t("ui.batch_unlocked", locale, count=len(embeds))
+    payload = json.dumps({"content": content, "embeds": embeds}).encode()
 
     # Build unique target set — dedup home vs origin
     targets = []
@@ -127,6 +158,11 @@ def _send_discord_notification_sync(ach_def):
             logging.getLogger(__name__).warning(
                 "Failed to send achievement notification to %s: %s", label, exc
             )
+
+
+def _send_discord_notification_sync(ach_def):
+    """Synchronous single-achievement delivery (used by tests and helpers)."""
+    _send_discord_notification_batch([ach_def])
 
 
 # ── State management (thread-safe, cached in memory) ────────────────────

@@ -425,6 +425,7 @@
     "all_subtitle": "*Los logros se desbloquean automáticamente mientras usas Hermes*",
     "all_title": "**🎮 Logros de Hermes**",
     "badge_format": "{icon} **{name}** — {description}{progress}",
+    "batch_unlocked": "🎉 ¡{count} logros desbloqueados!",
     "completionist_unlocked": "\n🎉 **¡COMPLETISTA DESBLOQUEADO!**",
     "detail_group": "**Grupo:** {group}",
     "detail_progress": "**Progreso:** {bar} {current}/{target} ({percent}%)",

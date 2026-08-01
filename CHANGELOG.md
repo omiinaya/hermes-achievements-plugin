@@ -4,6 +4,7 @@
 
 ### Added
 
+- **Batched Discord notifications** — burst unlocks (several thresholds crossing in one turn) are now debounced into a single message with multiple embeds instead of one message per achievement. A 3-second window coalesces rapid unlocks; multi-unlock messages carry a `🎉 N achievements unlocked!` header. Single unlocks behave exactly as before.
 - **Three new plugin hooks** (10 total), each mapping to a real Hermes gateway signal:
   - **`subagent_start`** — fires when a subagent is spawned (has `child_role`, `child_goal`). Paired with `subagent_stop`, it tracks TRUE concurrency: a live counter incremented on spawn and decremented on stop, with a persisted peak.
     - `Conductor` — ran 3 subagents simultaneously (peak concurrency, not just call count)

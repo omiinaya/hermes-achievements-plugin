@@ -41,6 +41,14 @@ class HookTestBase(unittest.TestCase):
         self.fresh()
 
     def tearDown(self):
+        # Cancel any pending notification-debounce timer from this module
+        try:
+            if getattr(self.mod, "_notif_timer", None) is not None:
+                self.mod._notif_timer.cancel()
+                self.mod._notif_timer = None
+            self.mod._NOTIF_QUEUE.clear()
+        except Exception:  # noqa: BLE001 — cleanup must never fail the test
+            pass
         shutil.rmtree(self._tmp, ignore_errors=True)
         os.environ.pop("HERMES_HOME", None)
 
@@ -653,6 +661,69 @@ class TestStatePersistence(HookTestBase):
         threads_before = threading.active_count()
         self.mod._send_discord_notification(ach_def)
         self.assertLessEqual(threading.active_count(), threads_before + 1)
+
+    def test_notifications_batch_coalesce_in_debounce_window(self):
+        # Rapid unlocks → one batched message with N embeds
+        captured = []
+
+        class FakeResp:
+            def __enter__(self): return self
+            def __exit__(self, *a): return False
+
+        def fake_urlopen(req, timeout=None):
+            captured.append(req.data)
+            return FakeResp()
+
+        self.mod._load_env_var = lambda key, fallback="": {
+            "DISCORD_BOT_TOKEN": "test-token",
+            "DISCORD_HOME_CHANNEL": "456",
+        }.get(key, fallback)
+        # Drop the gateway origin env so only the home channel is a target
+        old_origin = os.environ.pop("HERMES_SESSION_CHAT_ID", None)
+        old = self.mod.urllib.request.urlopen
+        self.mod.urllib.request.urlopen = fake_urlopen
+        try:
+            # Fire 3 unlocks within the debounce window
+            self.mod._send_discord_notification(self.mod.ACHIEVEMENT_DEFS["first_steps"])
+            self.mod._send_discord_notification(self.mod.ACHIEVEMENT_DEFS["chatty"])
+            self.mod._send_discord_notification(self.mod.ACHIEVEMENT_DEFS["night_owl"])
+            # Simulate the debounce timer firing
+            self.mod._flush_notification_queue()
+        finally:
+            self.mod.urllib.request.urlopen = old
+            if old_origin is not None:
+                os.environ["HERMES_SESSION_CHAT_ID"] = old_origin
+
+        # Exactly ONE message with 3 embeds (not 3 messages)
+        self.assertEqual(len(captured), 1)
+        import json as _json
+        payload = _json.loads(captured[0])
+        self.assertEqual(len(payload["embeds"]), 3)
+        self.assertIn("3 achievements unlocked", payload["content"])
+
+    def test_flush_with_empty_queue_is_noop(self):
+        # No pending notifications → flush does nothing, no HTTP
+        old = self.mod.urllib.request.urlopen
+        calls = []
+        self.mod.urllib.request.urlopen = lambda *a, **k: calls.append(a)
+        try:
+            self.mod._flush_notification_queue()
+        finally:
+            self.mod.urllib.request.urlopen = old
+        self.assertEqual(calls, [])
+
+    def test_batch_skips_without_token(self):
+        # No token → silent no-op even with queued items
+        self.mod._load_env_var = lambda key, fallback="": ""
+        old = self.mod.urllib.request.urlopen
+        calls = []
+        self.mod.urllib.request.urlopen = lambda *a, **k: calls.append(a)
+        try:
+            self.mod._send_discord_notification(self.mod.ACHIEVEMENT_DEFS["first_steps"])
+            self.mod._flush_notification_queue()
+        finally:
+            self.mod.urllib.request.urlopen = old
+        self.assertEqual(calls, [])
 
     def test_model_platform_progress_survives_restart(self):
         # Model/platform diversity is read from persisted stats, so a

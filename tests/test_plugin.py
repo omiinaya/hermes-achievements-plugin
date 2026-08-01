@@ -379,6 +379,7 @@ class TestTranslationFunction(unittest.TestCase):
             "lang_invalid": {"code": "xx"},
             "notification_format": {"emoji": "⬜", "icon": "👣", "name": "Test",
                                      "description": "Test", "rarity": "Common", "group": "Test"},
+            "batch_unlocked": {"count": 3},
             "badge_format": {"icon": "⬜", "name": "Test", "description": "Test", "progress": ""},
             "stats_header": {},
             "stats_footer": {},

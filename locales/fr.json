@@ -425,6 +425,7 @@
     "all_subtitle": "*Les succès se débloquent automatiquement au fur et à mesure que tu utilises Hermes*",
     "all_title": "**🎮 Succès Hermes**",
     "badge_format": "{icon} **{name}** — {description}{progress}",
+    "batch_unlocked": "🎉 {count} succès débloqués !",
     "completionist_unlocked": "\n🎉 **COMPLÉTISTE DÉBLOQUÉ !**",
     "detail_group": "**Groupe :** {group}",
     "detail_progress": "**Progression :** {bar} {current}/{target} ({percent}%)",

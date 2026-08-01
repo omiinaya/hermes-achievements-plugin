@@ -425,6 +425,7 @@
     "all_subtitle": "*Achievements unlock automatically as you use Hermes*",
     "all_title": "**🎮 Hermes Achievements**",
     "badge_format": "{icon} **{name}** — {description}{progress}",
+    "batch_unlocked": "🎉 {count} achievements unlocked!",
     "completionist_unlocked": "\n🎉 **COMPLETIONIST UNLOCKED!**",
     "detail_group": "**Group:** {group}",
     "detail_progress": "**Progress:** {bar} {current}/{target} ({percent}%)",
