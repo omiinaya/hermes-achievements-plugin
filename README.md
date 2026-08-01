@@ -285,7 +285,10 @@ When an achievement unlocks, a Discord notification is posted asynchronously (de
 ├── plugin.yaml        # Plugin metadata (name, version, hooks)
 ├── pyproject.toml     # Python package metadata
 ├── scripts/
-│   └── render_readme.py  # Regenerates README achievement tables from defs
+│   ├── render_readme.py   # Regenerates README achievement tables from defs
+│   ├── update_locales.py  # Auto-syncs achievement keys across all 4 locales
+│   ├── bump_version.py    # Bumps the version in pyproject/plugin.yaml/setup.sh
+│   └── check_plugin.py    # Health check: defs, locales, hooks, live state
 ├── locales/           # i18n JSON files (en/es/fr/pt)
 ├── tests/
 │   ├── test_plugin.py     # Static validation (defs, locales, files)
@@ -303,11 +306,17 @@ State data is stored at `~/.hermes/achievements/state.json` (user-local, not par
 # Edit the plugin
 vim ~/.hermes/plugins/achievements/__init__.py
 
-# Restart gateway to pick up changes
-hermes gateway restart
-
-# Run the test suite (static + functional)
+# Run the test suite (static + functional) — includes the full-grind
+# simulation that proves all 100 achievements can unlock
 python3 -m pytest tests/ -q
+
+# Run the one-shot health check (defs, locales, manifest↔register hooks,
+# live state) — add --manifest to also load through the real PluginManager
+python3 scripts/check_plugin.py --live --manifest
+
+# Changes take effect on gateway restart (kills MCP connections — get
+# explicit user approval first)
+hermes gateway restart
 
 # View achievements
 /achievements
@@ -322,7 +331,8 @@ python3 -m pytest tests/ -q
    ```bash
    python3 scripts/render_readme.py
    ```
-5. Run `python3 -m pytest tests/ -q` — the test suite enforces 100 definitions, key parity across locales, and detection behavior
+5. Run `python3 -m pytest tests/ -q` — the suite enforces 100 definitions, key parity across locales, and detection behavior; the full-grind test (`TestEveryAchievementUnlockable`) verifies the new def actually unlocks through a real hook call
+6. Run `python3 scripts/check_plugin.py` — confirms defs, locales, and manifest↔register agreement in one shot
 
 ## License
 

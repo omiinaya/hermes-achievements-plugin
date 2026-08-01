@@ -1,5 +1,13 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- **Full-grind simulation test** (`TestEveryAchievementUnlockable`) — drives all 12 hooks with escalating synthetic gateway data (1050 turns, 1128 tool calls, streaks, subagents, approvals, API errors, distinct users) and asserts **all 100 defs unlock**, with Completionist as the 100th. This enforces the "every def must be detectable" invariant that was previously documentation-only — after 4 rounds of achievement swaps, a def with an impossible threshold or typo'd key now fails CI with its ID listed.
+- **`scripts/check_plugin.py` health check** — one-shot integrity verification: module loads, manifest hooks ↔ `register()` hooks agree (no drift), exactly-100 defs, locale parity, no dead detection-map references, `--live` reconciles the real `state.json`, `--manifest` loads through the real PluginManager. Wired into `setup.sh --test` and covered by a CI test.
+- **CI ruff pin** (`ruff>=0.15.14,<0.17`) — the N999 incident (v2.4.2) was caused by a newer ruff major shipping a new default ruleset that broke CI while local ruff passed. Patch releases still land automatically.
+
 ## [2.4.3] — 2026-07-31
 
 ### Fixed
