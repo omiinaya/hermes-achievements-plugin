@@ -299,6 +299,25 @@ class TestCounterAchievements(HookTestBase):
         self.turn("hermes skills install web-search")
         self.assertTrue(self.unlocked("skill_finder"))
 
+    def test_skill_apprentice_at_5_installs(self):
+        for _ in range(5):
+            self.turn("hermes skills install web-search")
+        self.assertTrue(self.unlocked("skill_apprentice"))
+        self.assertEqual(self.stats()["skills_installed"], 5)
+
+    def test_profile_collector_at_5_profiles(self):
+        for _ in range(5):
+            self.turn("hermes profile create work")
+        self.assertTrue(self.unlocked("profile_collector"))
+        self.assertTrue(self.unlocked("profile_juggler"))
+        self.assertEqual(self.stats()["profiles_created"], 5)
+
+    def test_mcp_networker_at_3_servers(self):
+        for _ in range(3):
+            self.turn("hermes mcp add my-server")
+        self.assertTrue(self.unlocked("mcp_networker"))
+        self.assertEqual(self.stats()["mcp_servers_connected"], 3)
+
     def test_yolo_champion_at_25(self):
         for _ in range(25):
             self.turn("hermes run --yolo task")
