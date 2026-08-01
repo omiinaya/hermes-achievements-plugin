@@ -24,3 +24,7 @@ Thumbs.db
 
 # State data (user-local, regenerated)
 state.json
+
+# Coverage
+.coverage
+htmlcov/
