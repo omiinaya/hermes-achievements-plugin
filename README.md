@@ -52,7 +52,7 @@ When an achievement unlocks, a notification is posted to:
 - Your Hermes **home channel** (configured via `DISCORD_HOME_CHANNEL`)
 - The **channel where you're chatting** (if different from home)
 
-Notifications are rarity-colored Discord embeds (gray → gold) posted asynchronously — they never block the agent loop.
+Notifications are rarity-colored Discord embeds (gray → gold) posted asynchronously via a debounced timer — rapid unlock bursts are batched into a single message (capped at 10 embeds per Discord message), and they never block the agent loop.
 
 ### Example output
 
@@ -275,7 +275,7 @@ Achievements are detected via twelve plugin hooks — no separate scanner or cro
 11. **`pre_gateway_dispatch`** fires once per incoming user-originated message, before auth. It is the ONLY hook that sees messages from *other* users (everything else fires for agent turns) — distinct senders drive Social Butterfly (3 users) and Party Host (10 users).
 12. **`on_session_finalize`** fires when the gateway shuts down an agent or a session's reset policy expires. It force-flushes the debounced state save and synchronously delivers any notifications still in the debounce window — nothing is lost when the process exits.
 
-When an achievement unlocks, a Discord notification is posted asynchronously (daemon thread — never blocks the agent loop) via the raw HTTP API to both the home channel and the channel where it was unlocked.
+When an achievement unlocks, a Discord notification is posted asynchronously (debounced daemon timer — never blocks the agent loop) via the raw HTTP API to both the home channel and the channel where it was unlocked; bursts coalesce into one message.
 
 ### File layout
 
