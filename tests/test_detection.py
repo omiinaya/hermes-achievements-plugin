@@ -1438,6 +1438,26 @@ class TestCommandHandlers(HookTestBase):
             self.assertLessEqual(len(group_out), 2000,
                                  f"group {g} view is {len(group_out)} chars")
 
+    def test_all_views_under_discord_limit_all_locales(self):
+        # Every view (default/recent/next/stats/groups) in every locale must
+        # stay under Discord's 2000-char cap — guards against locale string
+        # growth and newly_unlocked unbounded rendering
+        state = self.mod._load_state()
+        for aid in list(self.mod.ACHIEVEMENT_DEFS.keys())[:50]:
+            self.mod._unlock(aid)
+        state["newly_unlocked"] = list(self.mod.ACHIEVEMENT_DEFS.keys())[:20]
+        views = ["", "recent", "next", "stats",
+                 "getting_started", "tools_skills", "power_user",
+                 "expert", "milestones", "community"]
+        for loc in ("en", "es", "fr", "pt"):
+            self.mod._handle_lang(loc)
+            for v in views:
+                out = self.mod._handle_achievements(v)
+                self.assertLessEqual(
+                    len(out), 2000,
+                    f"view {v!r} in {loc} is {len(out)} chars",
+                )
+
     def test_achievements_stats_has_session_line(self):
         self.tool_call("terminal", {"command": "echo x"}, session_id="sess-stat")
         out = self.mod._handle_achievements("stats")
