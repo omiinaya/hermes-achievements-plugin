@@ -1,5 +1,26 @@
 # Changelog
 
+## [2.10.0] — 2026-08-01
+
+### Added
+
+- **15th plugin hook: `pre_llm_call`** — fires once per turn *before* the
+  LLM is invoked, carrying `is_first_turn` (True only when
+  `run_conversation` was handed no prior history). This is the one signal
+  that counts natural conversation starts: session creation
+  (`on_session_start`) can fire without a message, and `/new` or `/reset`
+  (`on_session_reset`) are explicit user rotations rather than context
+  boundaries. New dimension (118 → 122):
+  - **Fresh-conversation count** — Icebreaker 🧊 (uncommon, Getting
+    Started) on the first fresh context; Conversation Habit 💬 (rare) at
+    10; Serial Starter 🔥 (epic) at 50; Conversation Colossus 🗼
+    (legendary) at 100. `conversations_started` counter persisted +
+    stats-view line (`ui.stats_conversations`, all 4 locales).
+- New `TestPreLlmCall` suite (7 tests: first-turn unlock, no-op guards for
+  `is_first_turn=False` and missing flag, all four tier thresholds,
+  progress tracking). Grind extended with 105 fresh-context fires so all
+  four new defs are proven unlockable through real hook calls.
+
 ## [2.9.0] — 2026-08-01
 
 ### Added

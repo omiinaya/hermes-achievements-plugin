@@ -6,7 +6,7 @@
 [![CI](https://github.com/omiinaya/hermes-achievements-plugin/actions/workflows/test.yml/badge.svg)](https://github.com/omiinaya/hermes-achievements-plugin/actions/workflows/test.yml)
 [![Coverage](https://img.shields.io/badge/coverage-99%25-brightgreen.svg)](https://github.com/omiinaya/hermes-achievements-plugin/actions/workflows/test.yml)
 
-**118 Steam-style achievement badges** for [Hermes Agent](https://hermes-agent.nousresearch.com). Unlock achievements as you use Hermes — run commands, search the web, schedule cron jobs, create skills, and explore the platform. Achievements are tracked silently and delivered to your Discord home channel the moment they unlock.
+**122 Steam-style achievement badges** for [Hermes Agent](https://hermes-agent.nousresearch.com). Unlock achievements as you use Hermes — run commands, search the web, schedule cron jobs, create skills, and explore the platform. Achievements are tracked silently and delivered to your Discord home channel the moment they unlock.
 
 ## Quick Start
 
@@ -128,7 +128,7 @@ unlock them, Steam-style. Currently secret: `Fresh Start`, `Cautious`,
 
 ## Achievement Groups
 
-### 🚀 Getting Started (12)
+### 🚀 Getting Started (16)
 
 | Icon | Name | Description | Rarity |
 |------|------|-------------|--------|
@@ -143,7 +143,11 @@ unlock them, Steam-style. Currently secret: `Fresh Start`, `Cautious`,
 | 🌱 | Fresh Start | Start a fresh session with /new or /reset | Common |
 | 🔄 | Provider Hopper | Use 2 different AI providers | Common |
 | 🌙 | Night Owl | Use Hermes after midnight (local time) | Uncommon |
+| 🧊 | Icebreaker | Start your first conversation | Uncommon |
 | 🛡️ | Cautious | Deny an approval request | Uncommon |
+| 💬 | Conversation Habit | Start 10 conversations | Rare |
+| 🔥 | Serial Starter | Start 50 conversations | Epic |
+| 🗼 | Conversation Colossus | Start 100 conversations | Legendary |
 
 ### 🛠️ Tools & Skills (28)
 
@@ -278,22 +282,23 @@ unlock them, Steam-style. Currently secret: `Fresh Start`, `Cautious`,
 
 ## Architecture
 
-Achievements are detected via fourteen plugin hooks — no separate scanner or cron job needed:
+Achievements are detected via fifteen plugin hooks — no separate scanner or cron job needed:
 
-1. **`post_tool_call`** fires after *every* tool execution with the full tool arguments. This is the primary detection path: per-tool usage counters, per-session tool tracking, argument-based achievements (cron job chaining via `context_from`, parallel delegation via `tasks`, plugin/hook authoring via file content, skill creation), and tool-error resilience (the gateway's `status="error"` feeds Trial and Error — 25 failed calls).
-2. **`post_llm_call`** fires once per turn and handles per-turn signals: cumulative message counts, model/platform diversity, user-command pattern matching (`hermes doctor`, `/title`, `--yolo`, ...), tiered command counters (config changes, plugins enabled, skills installed), and group/rarity completion checks.
-3. **`post_api_request`** fires once per successful provider API request with normalized `usage` token buckets and `api_duration` in seconds. It powers the token-consumption milestones (Token Tyro/Wizard/Whale at 100K/1M/10M tokens) and the fast-response achievement (Speed Demon — 25 responses under 2s), plus the "Tokens consumed" stat.
-4. **`pre_api_request`** fires once per provider API request *before* it's sent, carrying `base_url` and `approx_input_tokens`. It detects local/self-hosted model endpoints (Local First on first local call, Self-Hosted at 25) and single-request input-token spikes (Context Monster at 200K, Token Tsunami at 500K) — the endpoint topology and one-shot context size, distinct from the post hook's cumulative totals.
-5. **`on_session_start`** counts distinct sessions (drives the Persistent / session milestones).
-6. **`on_session_end`** tracks daily streaks (Week Warrior, Monthly Master) and re-checks completions.
-7. **`subagent_stop`** fires once per child agent after `delegate_task` finishes, with `child_role`, `child_status`, and `duration_ms`. This is the authoritative subagent count (a single call with 3 tasks spawns 3 children), driving Army Commander (25 children), Orchestrator (orchestrator role), and Resilient (failed/interrupted child).
-8. **`subagent_start`** fires when a subagent is spawned. It increments a live concurrency counter that `subagent_stop` decrements — the peak (max simultaneous children) drives Conductor (3 concurrent subagents). This is true parallelism, not just call counting.
-9. **`post_approval_response`** fires after the user responds to an approval prompt. Choosing *always* (permanent trust) unlocks Trust Fall and counts toward YOLO Mode / YOLO Champion; choosing *deny* unlocks Cautious.
-10. **`pre_approval_request`** fires when an approval prompt is raised, before the user answers. It counts how often commands trigger approval gates — 10 gates unlock Under Scrutiny, independent of how the user responds.
-11. **`on_session_reset`** fires when the gateway swaps in a fresh session key (`/new`, `/reset`) — drives Fresh Start and the session-resets counter.
-12. **`api_request_error`** fires when an LLM provider call fails (invalid response, rate limit, timeout, retries exhausted). Surviving 10 such errors without quitting unlocks Indestructible.
-13. **`pre_gateway_dispatch`** fires once per incoming user-originated message, before auth. It is the ONLY hook that sees messages from *other* users (everything else fires for agent turns) — distinct senders drive Social Butterfly (3 users) and Party Host (10 users), and media attachments (Show and Tell, Visual Storyteller).
-14. **`on_session_finalize`** fires when the gateway shuts down an agent or a session's reset policy expires. It force-flushes the debounced state save and synchronously delivers any notifications still in the debounce window — nothing is lost when the process exits.
+1. **`pre_llm_call`** fires once per turn *before* the LLM is invoked, carrying `is_first_turn` — True only when `run_conversation` was handed no prior history. That makes it the one signal that counts natural conversation starts: session creation (`on_session_start`) can fire without a message, and `/new` or `/reset` (`on_session_reset`) are explicit rotations. Fresh contexts drive Icebreaker (1), Conversation Habit (10), Serial Starter (50), and Conversation Colossus (100).
+2. **`post_tool_call`** fires after *every* tool execution with the full tool arguments. This is the primary detection path: per-tool usage counters, per-session tool tracking, argument-based achievements (cron job chaining via `context_from`, parallel delegation via `tasks`, plugin/hook authoring via file content, skill creation), and tool-error resilience (the gateway's `status="error"` feeds Trial and Error — 25 failed calls).
+3. **`post_llm_call`** fires once per turn and handles per-turn signals: cumulative message counts, model/platform diversity, user-command pattern matching (`hermes doctor`, `/title`, `--yolo`, ...), tiered command counters (config changes, plugins enabled, skills installed), and group/rarity completion checks.
+4. **`post_api_request`** fires once per successful provider API request with normalized `usage` token buckets and `api_duration` in seconds. It powers the token-consumption milestones (Token Tyro/Wizard/Whale at 100K/1M/10M tokens) and the fast-response achievement (Speed Demon — 25 responses under 2s), plus the "Tokens consumed" stat.
+5. **`pre_api_request`** fires once per provider API request *before* it's sent, carrying `base_url` and `approx_input_tokens`. It detects local/self-hosted model endpoints (Local First on first local call, Self-Hosted at 25) and single-request input-token spikes (Context Monster at 200K, Token Tsunami at 500K) — the endpoint topology and one-shot context size, distinct from the post hook's cumulative totals.
+6. **`on_session_start`** counts distinct sessions (drives the Persistent / session milestones).
+7. **`on_session_end`** tracks daily streaks (Week Warrior, Monthly Master) and re-checks completions.
+8. **`subagent_stop`** fires once per child agent after `delegate_task` finishes, with `child_role`, `child_status`, and `duration_ms`. This is the authoritative subagent count (a single call with 3 tasks spawns 3 children), driving Army Commander (25 children), Orchestrator (orchestrator role), and Resilient (failed/interrupted child).
+9. **`subagent_start`** fires when a subagent is spawned. It increments a live concurrency counter that `subagent_stop` decrements — the peak (max simultaneous children) drives Conductor (3 concurrent subagents). This is true parallelism, not just call counting.
+10. **`post_approval_response`** fires after the user responds to an approval prompt. Choosing *always* (permanent trust) unlocks Trust Fall and counts toward YOLO Mode / YOLO Champion; choosing *deny* unlocks Cautious.
+11. **`pre_approval_request`** fires when an approval prompt is raised, before the user answers. It counts how often commands trigger approval gates — 10 gates unlock Under Scrutiny, independent of how the user responds.
+12. **`on_session_reset`** fires when the gateway swaps in a fresh session key (`/new`, `/reset`) — drives Fresh Start and the session-resets counter.
+13. **`api_request_error`** fires when an LLM provider call fails (invalid response, rate limit, timeout, retries exhausted). Surviving 10 such errors without quitting unlocks Indestructible.
+14. **`pre_gateway_dispatch`** fires once per incoming user-originated message, before auth. It is the ONLY hook that sees messages from *other* users (everything else fires for agent turns) — distinct senders drive Social Butterfly (3 users) and Party Host (10 users), and media attachments (Show and Tell, Visual Storyteller).
+15. **`on_session_finalize`** fires when the gateway shuts down an agent or a session's reset policy expires. It force-flushes the debounced state save and synchronously delivers any notifications still in the debounce window — nothing is lost when the process exits.
 
 When an achievement unlocks, a Discord notification is posted asynchronously (debounced daemon timer — never blocks the agent loop) via the raw HTTP API to both the home channel and the channel where it was unlocked; bursts coalesce into one message.
 
@@ -327,7 +332,7 @@ State data is stored at `~/.hermes/achievements/state.json` (user-local, not par
 vim ~/.hermes/plugins/achievements/__init__.py
 
 # Run the test suite (static + functional) — includes the full-grind
-# simulation that proves all 118 achievements can unlock
+# simulation that proves all 122 achievements can unlock
 python3 -m pytest tests/ -q
 
 # Run the one-shot health check (defs, locales, manifest↔register hooks,

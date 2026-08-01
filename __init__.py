@@ -275,6 +275,7 @@ def _new_state():
             "current_streak": 0,
             "longest_streak": 0,
             "total_sessions": 0,
+            "conversations_started": 0,
             # Live per-session tracking (reset whenever session_id changes)
             "active_session": {
                 "id": None,
@@ -409,7 +410,7 @@ def _t(key, locale=None, **kwargs):
 
 ACHIEVEMENT_DEFS = {
     # ═══════════════════════════════════════════════════════════════════════
-    # 🚀 GETTING STARTED  (10)
+    # 🚀 GETTING STARTED  (16)
     # ═══════════════════════════════════════════════════════════════════════
     "first_steps": {
         "id": "first_steps", "name": "First Steps", "emoji": "👣",
@@ -461,6 +462,26 @@ ACHIEVEMENT_DEFS = {
         "description": "Start a fresh session with /new or /reset",
         "rarity": "common", "group": "Getting Started",
         "secret": True,
+    },
+    "icebreaker": {
+        "id": "icebreaker", "name": "Icebreaker", "emoji": "🧊",
+        "description": "Start your first conversation",
+        "rarity": "uncommon", "group": "Getting Started",
+    },
+    "conversation_habit": {
+        "id": "conversation_habit", "name": "Conversation Habit", "emoji": "💬",
+        "description": "Start 10 conversations",
+        "rarity": "rare", "group": "Getting Started",
+    },
+    "serial_starter": {
+        "id": "serial_starter", "name": "Serial Starter", "emoji": "🔥",
+        "description": "Start 50 conversations",
+        "rarity": "epic", "group": "Getting Started",
+    },
+    "conversation_colossus": {
+        "id": "conversation_colossus", "name": "Conversation Colossus", "emoji": "🗼",
+        "description": "Start 100 conversations",
+        "rarity": "legendary", "group": "Getting Started",
     },
     "cautious": {
         "id": "cautious", "name": "Cautious", "emoji": "🛡️",
@@ -1125,6 +1146,17 @@ _LOCAL_PREFIXES = ("192.168.", "10.", "172.16.", "172.17.", "172.18.",
                    "172.19.", "172.20.", "172.21.", "172.22.", "172.23.",
                    "172.24.", "172.25.", "172.26.", "172.27.", "172.28.",
                    "172.29.", "172.30.", "172.31.", "169.254.")
+
+# Conversation-start thresholds (is_first_turn from pre_llm_call): fires
+# exactly once per fresh LLM context — a conversation that actually reached
+# the model, distinct from session creation (on_session_start) and explicit
+# /new or /reset (on_session_reset).
+_CONVERSATION_THRESHOLDS = [
+    (1, "icebreaker"),
+    (10, "conversation_habit"),
+    (50, "serial_starter"),
+    (100, "conversation_colossus"),
+]
 _LOCAL_SUFFIXES = (".local", ".internal", ".lan", ".home.arpa")
 
 # Number of requests to local endpoints for the Self-Hosted tier
@@ -1613,6 +1645,32 @@ def _check_counter_achievements(stats, now):
         _unlock("session_surfer", now)
     else:
         _set_progress("session_surfer", sr, 10)
+
+
+# ── Hook: pre_llm_call ────────────────────────────────────────────────
+# Fires once per turn BEFORE the tool-calling loop, with is_first_turn=True
+# exactly when run_conversation was handed no prior history — i.e. a brand
+# new conversation that actually reaches the model. This is the only signal
+# that counts conversation starts: session creation (on_session_start) can
+# fire without a message, and /new or /reset (on_session_reset) are explicit
+# user rotations rather than natural context boundaries.
+
+def _pre_llm_call(**kwargs):
+    """Count fresh conversations via is_first_turn."""
+    if not kwargs.get("is_first_turn"):
+        return
+    state = _load_state()
+    stats = state.setdefault("stats", {})
+    now = datetime.now(UTC).isoformat()
+    stats["conversations_started"] = stats.get("conversations_started", 0) + 1
+    cs = stats["conversations_started"]
+    for threshold, ach_id in _CONVERSATION_THRESHOLDS:
+        if cs >= threshold:
+            _unlock(ach_id, now)
+        else:
+            _set_progress(ach_id, cs, threshold)
+            break
+    _save_state()
 
 
 # ── Hook: post_llm_call ─────────────────────────────────────────────────
@@ -2418,6 +2476,8 @@ def _handle_achievements(raw_args: str) -> str:
                 lines.append(_t("ui.stats_users_seen", locale, count=len(stats.get("users_seen", set()))))
             if stats.get("session_resets"):
                 lines.append(_t("ui.stats_session_resets", locale, count=stats.get("session_resets", 0)))
+            if stats.get("conversations_started"):
+                lines.append(_t("ui.stats_conversations", locale, count=stats.get("conversations_started", 0)))
             if stats.get("media_messages"):
                 lines.append(_t("ui.stats_media", locale, count=stats.get("media_messages", 0)))
             if stats.get("peak_context_messages"):
@@ -2609,6 +2669,8 @@ def register(ctx) -> None:
         description="Show details for a specific achievement.",
         args_hint="<achievement-id>")
 
+    # Detection: pre_llm_call counts fresh conversations (is_first_turn)
+    ctx.register_hook("pre_llm_call", _pre_llm_call)
     # Detection: post_llm_call has conversation_history → tool calls
     ctx.register_hook("post_llm_call", _post_llm_call)
     ctx.register_hook("post_api_request", _post_api_request)

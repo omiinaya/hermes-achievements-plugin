@@ -860,6 +860,76 @@ class TestPreApiRequest(HookTestBase):
         self.assertNotIn("local_requests", self.stats())
 
 
+class TestPreLlmCall(HookTestBase):
+    """pre_llm_call: fresh-conversation counting via is_first_turn."""
+
+    def test_icebreaker_on_first_fresh_context(self):
+        self.mod._pre_llm_call(
+            is_first_turn=True, session_id="s1", task_id="t1",
+            turn_id="t", user_message="hi", conversation_history=[],
+            model="m1", platform="cli",
+        )
+        self.assertTrue(self.unlocked("icebreaker"))
+        self.assertEqual(self.stats()["conversations_started"], 1)
+
+    def test_not_first_turn_is_noop(self):
+        self.mod._pre_llm_call(
+            is_first_turn=False, session_id="s1", task_id="t1",
+            turn_id="t", user_message="hi", conversation_history=[],
+            model="m1", platform="cli",
+        )
+        self.assertFalse(self.unlocked("icebreaker"))
+        self.assertEqual(self.stats().get("conversations_started", 0), 0)
+
+    def test_missing_flag_is_noop(self):
+        self.mod._pre_llm_call(session_id="s1", user_message="hi")
+        self.assertFalse(self.unlocked("icebreaker"))
+        self.assertEqual(self.stats().get("conversations_started", 0), 0)
+
+    def test_conversation_habit_at_10(self):
+        for i in range(10):
+            self.mod._pre_llm_call(
+                is_first_turn=True, session_id=f"s{i}", task_id="t",
+                turn_id="t", user_message="hi", conversation_history=[],
+                model="m1", platform="cli",
+            )
+        self.assertTrue(self.unlocked("icebreaker"))
+        self.assertTrue(self.unlocked("conversation_habit"))
+        self.assertFalse(self.unlocked("serial_starter"))
+        self.assertFalse(self.unlocked("conversation_colossus"))
+        self.assertEqual(self.stats()["conversations_started"], 10)
+
+    def test_serial_starter_at_50(self):
+        for i in range(50):
+            self.mod._pre_llm_call(
+                is_first_turn=True, session_id=f"s{i}", task_id="t",
+                turn_id="t", user_message="hi", conversation_history=[],
+                model="m1", platform="cli",
+            )
+        self.assertTrue(self.unlocked("serial_starter"))
+        self.assertFalse(self.unlocked("conversation_colossus"))
+
+    def test_colossus_at_100(self):
+        for i in range(100):
+            self.mod._pre_llm_call(
+                is_first_turn=True, session_id=f"s{i}", task_id="t",
+                turn_id="t", user_message="hi", conversation_history=[],
+                model="m1", platform="cli",
+            )
+        self.assertTrue(self.unlocked("conversation_colossus"))
+        self.assertEqual(self.stats()["conversations_started"], 100)
+
+    def test_progress_tracks_current_count(self):
+        self.mod._pre_llm_call(
+            is_first_turn=True, session_id="s1", task_id="t",
+            turn_id="t", user_message="hi", conversation_history=[],
+            model="m1", platform="cli",
+        )
+        st = self.mod._load_state()["achievements"]["conversation_habit"]
+        self.assertEqual(st["progress"]["current"], 1)
+        self.assertEqual(st["progress"]["target"], 10)
+
+
 class TestApprovalRequest(HookTestBase):
     """pre_approval_request: approval gates drive Under Scrutiny."""
 
@@ -1212,7 +1282,7 @@ class TestStreakEdgeCases(HookTestBase):
         self.mod._locales_cache = {}
         try:
             cache = self.mod._load_locales()
-            self.assertEqual(len(cache.get("en", {}).get("achievement", {})), 118)
+            self.assertEqual(len(cache.get("en", {}).get("achievement", {})), 122)
         finally:
             self.mod._LOCALES_DIR = old_dir
             self.mod._WHEEL_DATA_DIR = old_wheel
@@ -1815,7 +1885,8 @@ class TestPluginRegistration(unittest.TestCase):
         self.mod.register(ctx)
         hook_names = {n for n, _ in ctx.hooks}
         self.assertEqual(hook_names,
-                         {"post_llm_call", "post_api_request", "pre_api_request",
+                         {"pre_llm_call", "post_llm_call", "post_api_request",
+                          "pre_api_request",
                           "post_tool_call",
                           "on_session_start", "on_session_end", "on_session_reset",
                           "on_session_finalize", "subagent_stop", "subagent_start",
@@ -1824,7 +1895,7 @@ class TestPluginRegistration(unittest.TestCase):
         cmd_names = {n for n, _ in ctx.commands}
         self.assertEqual(cmd_names, {"achievements", "achievement"})
         # Handlers are the real functions, not lambdas
-        self.assertIs(ctx.hooks[0][1], self.mod._post_llm_call)
+        self.assertIs(ctx.hooks[0][1], self.mod._pre_llm_call)
 
 
 class TestCommandHandlers(HookTestBase):
@@ -1835,7 +1906,7 @@ class TestCommandHandlers(HookTestBase):
         for g in self.mod.GROUPS:
             self.assertIn(g, out)
         self.assertIn("Hermes Achievements", out)
-        self.assertIn("0/12", out)  # Getting Started progress summary
+        self.assertIn("0/16", out)  # Getting Started progress summary
 
     def test_achievements_unknown_args_fall_through_to_default(self):
         # Unrecognized args must fall through to the default view, not crash
@@ -2257,6 +2328,13 @@ class TestCommandHandlers(HookTestBase):
         self.assertIn("Longest message:", out)
         self.assertIn("340", out)
 
+    def test_stats_shows_conversations_started(self):
+        st = self.mod._load_state()["stats"]
+        st["conversations_started"] = 4
+        out = self.mod._handle_achievements("stats")
+        self.assertIn("Conversations started:", out)
+        self.assertIn("4", out)
+
     def test_stats_new_dimensions_hidden_when_absent(self):
         out = self.mod._handle_achievements("stats")
         self.assertNotIn("Media messages:", out)
@@ -2264,6 +2342,7 @@ class TestCommandHandlers(HookTestBase):
         self.assertNotIn("Longest message:", out)
         self.assertNotIn("Peak input tokens:", out)
         self.assertNotIn("Local endpoint calls:", out)
+        self.assertNotIn("Conversations started:", out)
 
     def test_stats_completionist_unlocked_line(self):
         # All achievements unlocked → completionist line appears
@@ -2376,7 +2455,7 @@ class TestReadmeSync(unittest.TestCase):
         result = subprocess.run([_sys.executable, script], capture_output=True, text=True,
                                 cwd=PLUGIN_DIR, check=False)
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertIn("OK: 118 achievements", result.stdout)
+        self.assertIn("OK: 122 achievements", result.stdout)
 
     def test_health_check_script_passes(self):
         # The health check must pass against the repo checkout (defs,
@@ -2412,7 +2491,7 @@ class TestReadmeSync(unittest.TestCase):
 
 
 class TestEveryAchievementUnlockable(HookTestBase):
-    """Full-grind simulation: prove all 118 achievement defs can unlock.
+    """Full-grind simulation: prove all 122 achievement defs can unlock.
 
     After several rounds of achievement swaps (v2.3.0, v2.4.0, v2.4.1),
     a def could sit in a detection map with an impossible condition (wrong
@@ -2502,6 +2581,21 @@ class TestEveryAchievementUnlockable(HookTestBase):
                     conversation_history=[{"role": "user", "content": cmd}],
                     model=models[i % len(models)],
                     platform=platforms[i % len(platforms)],
+                )
+
+            # ── Conversation starts: 105 fresh contexts → Icebreaker (1),
+            # Conversation Habit (10), Serial Starter (50), Colossus (100).
+            # is_first_turn=False on a couple fires exercises the no-op guard.
+            for i in range(105):
+                mod._pre_llm_call(
+                    is_first_turn=(i < 103),
+                    session_id="g-conv",
+                    task_id="t",
+                    turn_id="t",
+                    user_message="hi",
+                    conversation_history=[],
+                    model=models[0],
+                    platform="cli",
                 )
 
             # ── Tool grind: one big session covering every tool type ──
@@ -2649,7 +2743,7 @@ class TestEveryAchievementUnlockable(HookTestBase):
             )
             mod._check_completionist()
 
-    def test_all_118_achievements_can_unlock(self):
+    def test_all_122_achievements_can_unlock(self):
         """Every def in ACHIEVEMENT_DEFS must unlock through real hooks."""
         self._grind()
         state = self.mod._load_state()
@@ -2663,7 +2757,7 @@ class TestEveryAchievementUnlockable(HookTestBase):
             f"{locked}",
         )
 
-    def test_completionist_unlocks_as_118th(self):
+    def test_completionist_unlocks_as_122th(self):
         """Completionist requires every other achievement first."""
         self._grind()
         state = self.mod._load_state()
@@ -2673,7 +2767,7 @@ class TestEveryAchievementUnlockable(HookTestBase):
             1 for aid in self.mod.ACHIEVEMENT_DEFS
             if state["achievements"].get(aid, {}).get("unlocked")
         )
-        self.assertEqual(unlocked, 118)
+        self.assertEqual(unlocked, 122)
 
 
 if __name__ == "__main__":

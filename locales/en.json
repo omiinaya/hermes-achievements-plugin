@@ -101,6 +101,14 @@
       "name": "Context Monster",
       "description": "Send one API request with 200K+ input tokens"
     },
+    "conversation_colossus": {
+      "name": "Conversation Colossus",
+      "description": "Start 100 conversations"
+    },
+    "conversation_habit": {
+      "name": "Conversation Habit",
+      "description": "Start 10 conversations"
+    },
     "cron_commander": {
       "name": "Cron Commander",
       "description": "Schedule your first cron job"
@@ -184,6 +192,10 @@
     "hook_master": {
       "name": "Hook Master",
       "description": "Create a plugin using 3+ different hook types"
+    },
+    "icebreaker": {
+      "name": "Icebreaker",
+      "description": "Start your first conversation"
     },
     "indestructible": {
       "name": "Indestructible",
@@ -320,6 +332,10 @@
     "self_hosted": {
       "name": "Self-Hosted",
       "description": "Make 25 API requests to local/self-hosted endpoints"
+    },
+    "serial_starter": {
+      "name": "Serial Starter",
+      "description": "Start 50 conversations"
     },
     "session_detective": {
       "name": "Session Detective",
@@ -538,6 +554,7 @@
     "stats_platforms": "Platforms:                {platforms}",
     "stats_providers": "Providers:                {providers}{more}",
     "stats_session_resets": "Session resets:           {count}",
+    "stats_conversations": "Conversations started:     {count}",
     "stats_media": "Media messages:           {count}",
     "stats_peak_context": "Deepest context:          {count} msgs",
     "stats_peak_input": "Peak input tokens:        {count}",

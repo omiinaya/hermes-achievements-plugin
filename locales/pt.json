@@ -101,6 +101,14 @@
       "name": "Monstro de Contexto",
       "description": "Envie uma solicitação de API com 200K+ tokens de entrada"
     },
+    "conversation_colossus": {
+      "name": "Colosso da Conversa",
+      "description": "Inicie 100 conversas"
+    },
+    "conversation_habit": {
+      "name": "Hábito de Conversa",
+      "description": "Inicie 10 conversas"
+    },
     "cron_commander": {
       "name": "Comandante Cron",
       "description": "Agendar sua primeira tarefa cron"
@@ -184,6 +192,10 @@
     "hook_master": {
       "name": "Mestre dos Hooks",
       "description": "Criar um plugin usando 3+ tipos diferentes de hook"
+    },
+    "icebreaker": {
+      "name": "Quebra-Gelo",
+      "description": "Inicie sua primeira conversa"
     },
     "indestructible": {
       "name": "Indestrutível",
@@ -320,6 +332,10 @@
     "self_hosted": {
       "name": "Auto-Hospedado",
       "description": "Faça 25 solicitações de API para endpoints locais"
+    },
+    "serial_starter": {
+      "name": "Iniciador em Série",
+      "description": "Inicie 50 conversas"
     },
     "session_detective": {
       "name": "Detetive de Sessões",
@@ -537,6 +553,7 @@
     "stats_models": "Modelos:                   {models}{more}",
     "stats_platforms": "Plataformas:               {platforms}",
     "stats_session_resets": "Reinicializações:         {count}",
+    "stats_conversations": "Conversas iniciadas:       {count}",
     "stats_media": "Mensagens de mídia:       {count}",
     "stats_peak_context": "Contexto mais profundo:   {count} msgs",
     "stats_peak_input": "Pico de tokens de entrada: {count}",

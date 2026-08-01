@@ -121,6 +121,26 @@ NEW = {
         "fr": {"name": "Tsunami de Tokens", "description": "Envoyez une requête API avec 500K+ tokens d'entrée"},
         "pt": {"name": "Tsunami de Tokens", "description": "Envie uma solicitação de API com 500K+ tokens de entrada"},
     },
+    "icebreaker": {
+        "es": {"name": "Rompehielos", "description": "Inicia tu primera conversación"},
+        "fr": {"name": "Brise-Glace", "description": "Démarrez votre première conversation"},
+        "pt": {"name": "Quebra-Gelo", "description": "Inicie sua primeira conversa"},
+    },
+    "conversation_habit": {
+        "es": {"name": "Hábito de Conversación", "description": "Inicia 10 conversaciones"},
+        "fr": {"name": "Habitude de Conversation", "description": "Démarrez 10 conversations"},
+        "pt": {"name": "Hábito de Conversa", "description": "Inicie 10 conversas"},
+    },
+    "serial_starter": {
+        "es": {"name": "Iniciador en Serie", "description": "Inicia 50 conversaciones"},
+        "fr": {"name": "Serial Démarreur", "description": "Démarrez 50 conversations"},
+        "pt": {"name": "Iniciador em Série", "description": "Inicie 50 conversas"},
+    },
+    "conversation_colossus": {
+        "es": {"name": "Coloso de la Conversación", "description": "Inicia 100 conversaciones"},
+        "fr": {"name": "Colosse de la Conversation", "description": "Démarrez 100 conversations"},
+        "pt": {"name": "Colosso da Conversa", "description": "Inicie 100 conversas"},
+    },
 }
 
 

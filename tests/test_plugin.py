@@ -104,16 +104,16 @@ def _parse_groups_and_rarities():
 
 
 class TestAchievementDefinitions(unittest.TestCase):
-    """Validate that all 118 achievement definitions are complete and valid."""
+    """Validate that all 122 achievement definitions are complete and valid."""
 
     def setUp(self):
         self.achievements = _parse_achievement_defs()
         self.groups, self.rarities = _parse_groups_and_rarities()
 
     def test_exact_count(self):
-        """There should be exactly 118 achievements."""
-        self.assertEqual(len(self.achievements), 118,
-                         f"Expected 118 achievements, got {len(self.achievements)}")
+        """There should be exactly 122 achievements."""
+        self.assertEqual(len(self.achievements), 122,
+                         f"Expected 122 achievements, got {len(self.achievements)}")
 
     def test_required_fields(self):
         """Every achievement must have id, name, description, emoji, rarity, group."""
@@ -149,7 +149,7 @@ class TestAchievementDefinitions(unittest.TestCase):
         from collections import Counter
         counts = Counter(a["group"] for a in self.achievements)
         expected = {
-            "Getting Started": 12,
+            "Getting Started": 16,
             "Tools & Skills": 28,
             "Power User": 29,
             "Expert": 24,
@@ -363,6 +363,7 @@ class TestTranslationFunction(unittest.TestCase):
             "stats_api_errors": {"count": 3},
             "stats_users_seen": {"count": 4},
             "stats_session_resets": {"count": 3},
+            "stats_conversations": {"count": 4},
             "stats_media": {"count": 12},
             "stats_peak_context": {"count": 67},
             "stats_peak_input": {"count": 250000},
