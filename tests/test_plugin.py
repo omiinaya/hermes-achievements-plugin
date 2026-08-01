@@ -354,6 +354,7 @@ class TestTranslationFunction(unittest.TestCase):
             "stats_cron": {"count": 3},
             "stats_skills_created": {"count": 2},
             "stats_config": {"count": 9},
+            "stats_delegated": {"count": 4},
             "stats_platforms": {"platforms": "discord, telegram"},
             "stats_models": {"models": "gpt4", "more": ""},
             "model_more": {"count": 3},

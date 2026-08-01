@@ -110,8 +110,9 @@ def _send_discord_notification_sync(ach_def):
         targets.append(("origin", origin_channel, None))
 
     for label, channel_id, thread_id in targets:
-        # Discord threads: the thread ID IS the channel ID in the API
-        url = f"https://discord.com/api/v10/channels/{channel_id}/messages"
+        # Discord threads: the thread ID IS the channel ID in the API —
+        # use the thread when one is configured for the home channel
+        url = f"https://discord.com/api/v10/channels/{thread_id or channel_id}/messages"
         try:
             req = urllib.request.Request(
                 url, data=payload,
@@ -207,7 +208,6 @@ def _new_state():
             "slash_commands_used": set(),
             "skills_installed": 0,
             "skills_created": 0,
-            "plugins_created": 0,
             "plugins_enabled": 0,
             "profiles_created": 0,
             "cron_jobs_created": 0,
@@ -252,12 +252,11 @@ def _normalize_state():
         stats["active_session"] = {"id": None, "calls": 0, "tool_names": set(), "fast_streak": 0}
         return
     tn = active.get("tool_names")
-    if isinstance(tn, set):
-        return
     if isinstance(tn, (list, tuple)):
         active["tool_names"] = set(tn)
-    else:
+    elif not isinstance(tn, set):
         active["tool_names"] = set()
+    # Default missing scalar keys even when tool_names was already a set
     for k in ("id", "calls", "fast_streak"):
         if k not in active:
             active[k] = None if k == "id" else 0
@@ -334,7 +333,7 @@ def _t(key, locale=None, **kwargs):
 
 # ── Per-turn tracking ────────────────────────────────────────────────────
 
-_last_turn_user_msg = ""
+# (per-turn tracking state lives in stats.active_session; no module globals)
 
 
 # ── Achievement Definitions (100 total) ──────────────────────────────────
@@ -891,7 +890,7 @@ _TOOL_THRESHOLDS = {
     "terminal": [(25, "terminal_jockey"), (100, "shell_master"), (500, "cli_champion")],
     "web_search": [(25, "deep_diver")],
     "web_extract": [(25, "deep_diver")],
-    "execute_code": [(50, "code_slinger"), (100, "code_architect")],
+    "execute_code": [(10, "code_wizard"), (50, "code_slinger"), (100, "code_architect")],
     "memory": [(25, "memory_archivist"), (100, "memory_librarian")],
     "read_file": [(25, "file_whisperer"), (100, "file_artisan")],
     "write_file": [(25, "file_whisperer"), (100, "file_artisan")],
@@ -943,8 +942,6 @@ _TOOL_ACHIEVEMENTS = {
     "web_extract": "web_walker",
     "delegate_task": "agent_swarm",
     "vision_analyze": "visionary",
-    "execute_code": "code_wizard",
-    "session_search": "session_detective",
 }
 
 _TOOL_CATEGORIES = {
@@ -984,10 +981,10 @@ TERMINAL_PATTERNS = {
     "mcp_wizard": [re.compile(r"hermes\s+mcp\s+(config|edit)", re.IGNORECASE)],
     "feedback_friend": [re.compile(r"hermes\s+feedback|feature.request", re.IGNORECASE)],
     "helpful_soul": [re.compile(r"/help|hermes\s+help", re.IGNORECASE)],
-    "first_config": [re.compile(r"hermes\s+config", re.IGNORECASE)],
+    "first_config": [re.compile(r"hermes\s+config\s+(get|show|list|view|cat|status)", re.IGNORECASE)],
     "theme_setter": [re.compile(r"hermes\s+theme|hermes\s+config\s+set\s+theme|hermes\s+config\s+set\s+output", re.IGNORECASE)],
     "env_tuner": [re.compile(r"workdir=|env_file|EnvironmentFile|hermes\s+config\s+set\s+env", re.IGNORECASE)],
-    "precision_scheduler": [re.compile(r"cron.*ISO|one.?shot|timestamp", re.IGNORECASE)],
+    "precision_scheduler": [re.compile(r"cron.*ISO|one.?shot", re.IGNORECASE)],
     "doc_diver": [re.compile(r"hermes.*docs?|hermes.*documentation|hermes-agent.*docs", re.IGNORECASE)],
 }
 
@@ -1125,22 +1122,26 @@ def _check_tool_diversity(tc_counts, now):
         else:
             _set_progress(ach_id, distinct_tools, threshold)
 
-    # Complete Toolset: used every tool type at least once
+    # Complete Toolset: used every known tool type at least once.
+    # Superset check — unknown/plugin tools (e.g. `process`) must not
+    # permanently brick the achievement by breaking exact equality.
     all_used = set(tc_counts.keys()) if tc_counts else set()
-    if all_used and all_used == _ALL_TOOL_TYPES:
+    if all_used and _ALL_TOOL_TYPES.issubset(all_used):
         _unlock("complete_toolset", now)
     elif all_used:
-        _set_progress("complete_toolset", len(all_used), len(_ALL_TOOL_TYPES))
+        _set_progress("complete_toolset",
+                      len(all_used & _ALL_TOOL_TYPES), len(_ALL_TOOL_TYPES))
 
     # Tool Diversity: used every category
     all_cats = set()
     for tn in all_used:
         all_cats.add(_TOOL_CATEGORIES.get(tn, tn))
     all_cat_ids = set(_TOOL_CATEGORIES.values())
-    if all_cats and all_cats == all_cat_ids:
+    if all_cats and all_cat_ids.issubset(all_cats):
         _unlock("tool_diversity", now)
     elif all_cats:
-        _set_progress("tool_diversity", len(all_cats), len(all_cat_ids))
+        _set_progress("tool_diversity",
+                      len(all_cat_ids & all_cats), len(all_cat_ids))
 
 
 def _check_streaks(stats, now):
@@ -1237,7 +1238,7 @@ def _check_tool_args(tool_name, args, stats, now):
             ) or repeat in ("once", 1, True):
                 _unlock("precision_scheduler", now)
             # Environment Tuner: custom env/workdir for the job
-            if args.get("workdir") or args.get("env_file") or args.get("profile"):
+            if args.get("workdir") or args.get("env_file"):
                 _unlock("env_tuner", now)
         # Chain Reaction: cron job chained via context_from
         if args.get("context_from"):
@@ -1275,7 +1276,12 @@ def _check_tool_args(tool_name, args, stats, now):
     elif tool_name in ("write_file", "patch"):
         path = str(args.get("path", "") or args.get("file_path", ""))
         content = str(args.get("content", "") or args.get("new_string", ""))
-        if "plugin.yaml" in path or "/plugins/" in path:
+        # Plugin Developer: authoring a plugin — a plugin.yaml write must
+        # look like a manifest (not e.g. editing an unrelated config)
+        if "plugin.yaml" in path:
+            if "name:" in content or "hooks:" in content:
+                _unlock("plugin_developer", now)
+        elif "/plugins/" in path:
             _unlock("plugin_developer", now)
         if "register_hook" in content:
             hooks = set(re.findall(r'register_hook\(\s*["\']([\w]+)["\']', content))
@@ -1374,8 +1380,6 @@ def _check_counter_achievements(stats, now):
 
 def _post_llm_call(**kwargs):
     """Detect per-turn achievements (messages, models, platforms, commands)."""
-    global _last_turn_user_msg
-
     state = _load_state()
     stats = state.setdefault("stats", {})
     now = datetime.now(UTC).isoformat()
@@ -1395,7 +1399,6 @@ def _post_llm_call(**kwargs):
 
     # Track multi-lingual: non-ASCII alphabetic chars in user message
     if user_message:
-        _last_turn_user_msg = user_message
         if any(ord(c) > 0x7F for c in user_message if c.isalpha()):
             _unlock("multi_lingual", now)
 
@@ -1698,6 +1701,8 @@ def _handle_achievements(raw_args: str) -> str:
                 lines.append(_t("ui.stats_skills_created", locale, count=stats.get("skills_created", 0)))
             if stats.get("config_changes"):
                 lines.append(_t("ui.stats_config", locale, count=stats.get("config_changes", 0)))
+            if stats.get("parallel_spawns"):
+                lines.append(_t("ui.stats_delegated", locale, count=stats.get("parallel_spawns", 0)))
             platforms = stats.get("platforms", [])
             if isinstance(platforms, set):
                 platforms = sorted(platforms)
@@ -1814,7 +1819,6 @@ def _handle_achievement_detail(raw_args: str) -> str:
 # ── Language Command Handler ──────────────────────────────────────────
 
 LANGS = {"en": "English", "es": "Español", "fr": "Français", "pt": "Português"}
-NATIVE_NAMES = {"en": "English", "es": "Español", "fr": "Français", "pt": "Português"}
 LANG_ALIASES = {
     "en": ("en", "english"), "es": ("es", "spanish", "español", "espanol"),
     "fr": ("fr", "french", "français", "francais"),
@@ -1828,7 +1832,7 @@ def _handle_lang(raw_args: str) -> str:
     args = raw_args.strip().lower()
     if not args:
         cur = state.get("locale", "en")
-        return _t("ui.lang_set", cur, lang=LANGS.get(cur, cur), native=NATIVE_NAMES.get(cur, cur))
+        return _t("ui.lang_set", cur, lang=LANGS.get(cur, cur), native=LANGS.get(cur, cur))
 
     target = None
     for code, aliases in LANG_ALIASES.items():
@@ -1841,7 +1845,7 @@ def _handle_lang(raw_args: str) -> str:
 
     state["locale"] = target
     _save_state()
-    return _t("ui.lang_set", target, lang=LANGS.get(target, target), native=NATIVE_NAMES.get(target, target))
+    return _t("ui.lang_set", target, lang=LANGS.get(target, target), native=LANGS.get(target, target))
 
 
 def register(ctx) -> None:

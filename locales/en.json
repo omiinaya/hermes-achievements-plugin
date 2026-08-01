@@ -465,6 +465,7 @@
     "stats_config": "Config changes:             {count}",
     "next_title": "🎯 **Next Up** — closest to unlocking:",
     "next_empty": "No progress tracked yet — keep using Hermes!",
-    "help_next": "next up"
+    "help_next": "next up",
+    "stats_delegated": "Subagents spawned:          {count}"
   }
 }

@@ -465,6 +465,7 @@
     "stats_config": "Cambios de configuración:  {count}",
     "next_title": "🎯 **Próximos** — más cerca de desbloquear:",
     "next_empty": "Sin progreso registrado aún — ¡sigue usando Hermes!",
-    "help_next": "próximos"
+    "help_next": "próximos",
+    "stats_delegated": "Subagentes lanzados:        {count}"
   }
 }

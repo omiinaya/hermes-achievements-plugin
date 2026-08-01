@@ -123,6 +123,29 @@ class TestSessionScopedThresholds(HookTestBase):
             self.tool_call(t)
         self.assertTrue(self.unlocked("tool_collector"))
 
+    def test_complete_toolset_survives_unknown_tools(self):
+        # Using a tool outside _TOOL_CATEGORIES (e.g. `process`) must not
+        # brick the exact-equality check — superset comparison is required
+        self.tool_call("process", {}, session_id="sess-unk")  # unknown tool
+        for t in self.mod._ALL_TOOL_TYPES:
+            self.tool_call(t, {}, session_id="sess-unk")
+        self.assertTrue(self.unlocked("complete_toolset"))
+        self.assertTrue(self.unlocked("tool_diversity"))
+
+    def test_code_wizard_needs_10_executions(self):
+        self.tool_call("execute_code", {"code": "print(1)"})
+        self.assertFalse(self.unlocked("code_wizard"))
+        for _ in range(9):
+            self.tool_call("execute_code", {"code": "print(1)"})
+        self.assertTrue(self.unlocked("code_wizard"))
+
+    def test_session_detective_needs_10_searches(self):
+        self.tool_call("session_search", {"query": "x"})
+        self.assertFalse(self.unlocked("session_detective"))
+        for _ in range(9):
+            self.tool_call("session_search", {"query": "x"})
+        self.assertTrue(self.unlocked("session_detective"))
+
     def test_workflow_builder_needs_8_types(self):
         tools = ["terminal", "read_file", "write_file", "search_files",
                  "browser_navigate", "execute_code", "memory", "cronjob"]
@@ -386,6 +409,37 @@ class TestStatePersistence(HookTestBase):
         embed = payload["embeds"][0]
         self.assertEqual(embed["color"], self.mod._RARITY_COLORS["legendary"])
         self.assertIn("Completionist", embed["title"])
+
+    def test_discord_notification_uses_thread_id(self):
+        captured = {}
+
+        class FakeResp:
+            def __enter__(self): return self
+            def __exit__(self, *a): return False
+
+        def fake_urlopen(req, timeout=None):
+            captured["url"] = req.full_url
+            return FakeResp()
+
+        self.mod._load_env_var = lambda key, fallback="": {
+            "DISCORD_BOT_TOKEN": "test-token",
+            "DISCORD_HOME_CHANNEL": "111",
+            "DISCORD_HOME_CHANNEL_THREAD_ID": "222",
+        }.get(key, fallback)
+        # The gateway session env may set an origin channel; drop it so the
+        # home-thread target is the only one exercised
+        old_origin = os.environ.pop("HERMES_SESSION_CHAT_ID", None)
+        old = self.mod.urllib.request.urlopen
+        self.mod.urllib.request.urlopen = fake_urlopen
+        try:
+            self.mod._send_discord_notification_sync(self.mod.ACHIEVEMENT_DEFS["first_steps"])
+        finally:
+            self.mod.urllib.request.urlopen = old
+            if old_origin is not None:
+                os.environ["HERMES_SESSION_CHAT_ID"] = old_origin
+
+        # The thread ID is the channel ID in the Discord API
+        self.assertIn("/channels/222/messages", captured["url"])
 
 
 class TestSessionEndStreaks(HookTestBase):
