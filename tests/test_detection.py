@@ -453,6 +453,46 @@ class TestPerTurnSignals(HookTestBase):
         self.turn("/new")
         self.assertTrue(self.unlocked("slash_commander"))
 
+    def test_post_llm_call_empty_user_message(self):
+        # post_llm_call must tolerate missing/empty user_message
+        self.mod._post_llm_call(
+            user_message="", conversation_history=[], model="m1", platform="cli")
+        self.assertFalse(self.unlocked("first_steps"))
+
+
+class TestStreakEdgeCases(HookTestBase):
+    """on_session_end streak bookkeeping edge cases."""
+
+    def test_streak_increments_consecutive_days(self):
+        from datetime import date, timedelta
+        self.mod._on_session_end(session_id="s1")
+        st = self.stats()
+        self.assertEqual(st["current_streak"], 1)
+        # Backdate last_active to yesterday, then fire end again → 2
+        st["last_active_date"] = (date.today() - timedelta(days=1)).isoformat()  # noqa: DTZ011
+        self.mod._on_session_end(session_id="s2")
+        self.assertEqual(self.stats()["current_streak"], 2)
+
+    def test_streak_resets_after_gap(self):
+        from datetime import date, timedelta
+        self.mod._on_session_end(session_id="s1")
+        st = self.stats()
+        st["last_active_date"] = (date.today() - timedelta(days=3)).isoformat()  # noqa: DTZ011
+        self.mod._on_session_end(session_id="s2")
+        self.assertEqual(self.stats()["current_streak"], 1)
+
+    def test_streak_survives_invalid_date(self):
+        self.mod._on_session_end(session_id="s1")
+        st = self.stats()
+        st["last_active_date"] = "not-a-date"
+        self.mod._on_session_end(session_id="s2")
+        self.assertEqual(self.stats()["current_streak"], 1)
+
+    def test_streak_same_day_does_not_double(self):
+        self.mod._on_session_end(session_id="s1")
+        self.mod._on_session_end(session_id="s2")
+        self.assertEqual(self.stats()["current_streak"], 1)
+
 
 class TestStatePersistence(HookTestBase):
     """State round-trips through JSON without losing set fields."""
@@ -877,6 +917,35 @@ class TestCommandHandlers(HookTestBase):
         self.assertNotIn("First Steps", out2)  # Spanish name differs
         self.mod._handle_lang("en")
         self.assertEqual(self.mod._load_state()["locale"], "en")
+
+    def test_lang_invalid_code(self):
+        out = self.mod._handle_lang("xx")
+        self.assertIn("Unsupported language", out)  # ui.lang_invalid
+
+    def test_lang_show_current_without_args(self):
+        out = self.mod._handle_lang("")
+        self.assertIn("English", out)
+
+    def test_achievements_lang_passthrough(self):
+        out = self.mod._handle_achievements("lang es")
+        self.assertIn("Español", out)
+        self.assertEqual(self.mod._load_state()["locale"], "es")
+        self.mod._handle_lang("en")
+
+    def test_recent_empty(self):
+        out = self.mod._handle_achievements("recent")
+        self.assertIn("no achievements", out.lower() or "No achievements")
+
+    def test_set_progress_skips_unlocked(self):
+        self.mod._unlock("terminal_jockey")
+        self.mod._set_progress("terminal_jockey", 5, 25)
+        st = self.mod._load_state()["achievements"]["terminal_jockey"]
+        self.assertTrue(st["unlocked"])
+        self.assertNotIn("progress", st)  # no progress clobber after unlock
+
+    def test_t_with_none_locale(self):
+        out = self.mod._t("achievement.first_steps.name", None)
+        self.assertEqual(out, "First Steps")
 
 
 class TestReadmeSync(unittest.TestCase):
