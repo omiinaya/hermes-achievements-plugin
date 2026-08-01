@@ -28,3 +28,6 @@ state.json
 # Coverage
 .coverage
 htmlcov/
+
+# Stray artifacts
+tmp*/
