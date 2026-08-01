@@ -2038,6 +2038,23 @@ class TestReadmeSync(unittest.TestCase):
         )
         self.assertIn("Plugin healthy", result.stdout)
 
+    def test_health_check_gateway_contract_flag(self):
+        # --gateway validates the hook kwarg contract against the installed
+        # Hermes source. In CI (no Hermes source) it must skip gracefully
+        # with exit 0; on the deployment host it must pass fully.
+        import subprocess
+        import sys as _sys
+        script = os.path.join(PLUGIN_DIR, "scripts", "check_plugin.py")
+        result = subprocess.run([_sys.executable, script, "--gateway"],
+                                capture_output=True, text=True,
+                                cwd=PLUGIN_DIR, check=False)
+        self.assertEqual(
+            result.returncode, 0,
+            f"check_plugin.py --gateway failed:\n{result.stdout}\n{result.stderr}",
+        )
+        self.assertIn("Plugin healthy", result.stdout)
+        self.assertIn("Hook kwarg contract", result.stdout)
+
 
 class TestEveryAchievementUnlockable(HookTestBase):
     """Full-grind simulation: prove all 104 achievement defs can unlock.

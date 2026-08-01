@@ -8,6 +8,7 @@
 - **4 new achievements (100 → 104, all in Milestones):** Token Tyro 💧 (100K total tokens), Token Wizard 🧙 (1M), Token Whale 🐋 (10M), Speed Demon ⚡ (25 API responses under 2s). The `usage` shape is provider-normalized by the gateway; the handler also falls back to `prompt_tokens + completion_tokens` when `total_tokens` is absent.
 - **Stats view now shows `Tokens consumed: N`** (`ui.stats_tokens`, all 4 locales) — the first cost-oriented stat.
 - Full-grind simulation extended to drive `_post_api_request` (1050 requests, mixed usage shapes, alternating fast/slow durations) — the all-104-unlockable invariant now covers the new dimension end-to-end.
+- **Health check `--gateway` mode + hook kwarg contract check** — cross-verifies every `kwargs.get("...")` key the plugin reads against the kwargs the installed Hermes source actually passes to each hook. Catches the silent-no-op failure class: if a Hermes update renames a hook kwarg, achievements would quietly stop firing with green tests. Verified 16 keys across 7 hooks all delivered; the check is wired into `setup.sh --test` and covered by a CI test (skips gracefully where Hermes source is absent).
 
 ## [2.4.4] — 2026-07-31
 

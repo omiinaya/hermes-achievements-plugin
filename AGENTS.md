@@ -23,9 +23,11 @@ using Hermes. Pure Python stdlib, no external dependencies.
   carry it (pyproject.toml, plugin.yaml, setup.sh ×2) in one shot
 - `scripts/check_plugin.py` — health check: module loads, manifest↔register()
   hook agreement, exactly-104 defs, locale parity, no dead detection-map
-  references, live state.json reconciliation (--live), and real
-  PluginManager load (--manifest). Run after any swap:
-  `python3 scripts/check_plugin.py --live --manifest`
+  references, live state.json reconciliation (--live), real PluginManager
+  load (--manifest), and hook kwarg contract vs the installed Hermes
+  source (--gateway — catches silent no-op drift if Hermes renames a
+  hook kwarg). Run after any swap:
+  `python3 scripts/check_plugin.py --live --manifest --gateway`
 
 ## Detection architecture (13 hooks)
 
@@ -68,7 +70,7 @@ using Hermes. Pure Python stdlib, no external dependencies.
 ## Testing
 
 ```bash
-python3 -m pytest tests/ -q    # 225 tests, no deps beyond pytest
+python3 -m pytest tests/ -q    # 226 tests, no deps beyond pytest
 ```
 
 - `tests/test_detection.py::TestEveryAchievementUnlockable` — full-grind

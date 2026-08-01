@@ -120,6 +120,13 @@ if $RUN_TESTS; then
         err "Health check failed — installed files are inconsistent."
         exit 1
     fi
+    if (cd "$PLUGIN_DIR" && python3 scripts/check_plugin.py --gateway); then
+        ok "Gateway kwarg contract check passed (or skipped: no Hermes source)"
+    else
+        err "Gateway kwarg contract check failed — a hook kwarg the plugin "
+            "reads is no longer delivered by the installed Hermes."
+        exit 1
+    fi
 fi
 
 # ── Step 3: Validate environment ────────────────────────────────────────────

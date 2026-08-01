@@ -9,11 +9,17 @@ Verifies the full integrity chain of the plugin:
   5. Detection maps contain no dead references (IDs not in defs)
   6. Live state.json (if --live) reconciles: exactly-104 invariant,
      no stale entries, real unlocks preserved
+  7. Real PluginManager load (if --manifest)
+  8. Hook kwarg contract vs installed Hermes source (if --gateway):
+     every kwargs.get("...") key the plugin reads must be passed by the
+     gateway's actual dispatch calls — catches silent no-op drift when
+     Hermes renames a hook kwarg.
 
 Usage:
     python3 scripts/check_plugin.py            # check the repo checkout
     python3 scripts/check_plugin.py --live     # also check live Hermes state.json
     python3 scripts/check_plugin.py --manifest # verify via real PluginManager
+    python3 scripts/check_plugin.py --gateway  # verify kwarg contract vs Hermes source
 
 Exit code 0 = healthy, 1 = problems found.
 """
@@ -28,6 +34,21 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PLUGIN_FILE = os.path.join(ROOT, "__init__.py")
 PLUGIN_YAML = os.path.join(ROOT, "plugin.yaml")
 LOCALES_DIR = os.path.join(ROOT, "locales")
+
+# Files in the Hermes installation that dispatch plugin hooks.
+GATEWAY_SOURCE_CANDIDATES = [
+    "agent/conversation_loop.py",
+    "gateway/run.py",
+    "tools/approval.py",
+    "tools/delegate_tool.py",
+    "model_tools.py",
+    "agent/tool_executor.py",
+]
+HERMES_SOURCE_CANDIDATES = [
+    "/usr/local/lib/hermes-agent",
+    "/opt/hermes-agent",
+    os.path.expanduser("~/hermes-agent"),
+]
 
 FAILURES = []
 
@@ -86,12 +107,81 @@ def pyproject_version():
     return m.group(1) if m else None
 
 
+def _function_body(source, fn_name):
+    """Return the module-level def block for fn_name (next col-0 def boundary)."""
+    m = re.search(rf"^def {re.escape(fn_name)}\(", source, re.MULTILINE)
+    if not m:
+        return ""
+    nxt = re.search(r"\ndef [a-z_][a-z0-9_]*\(", source[m.end():])
+    end = m.end() + nxt.start() if nxt else len(source)
+    return source[m.start():end]
+
+
+def plugin_kwargs_per_hook(source):
+    """Map hook name → sorted kwargs.get('...') keys read by its handler."""
+    out = {}
+    for m in re.finditer(
+        r'register_hook\(\s*["\']([\w]+)["\']\s*,\s*([\w_]+)', source
+    ):
+        hook, fn = m.group(1), m.group(2)
+        body = _function_body(source, fn)
+        out[hook] = sorted(set(re.findall(r'kwargs\.get\("([a-z_]+)"', body)))
+    return out
+
+
+def _find_hermes_source():
+    for cand in HERMES_SOURCE_CANDIDATES:
+        if os.path.isdir(cand):
+            return cand
+    return None
+
+
+def gateway_kwargs_per_hook(hook, source_root):
+    """Scan Hermes source for kwargs passed to the hook's dispatch call.
+
+    For each site that references the hook name, walk back to the enclosing
+    invoke/emit call and collect `name=value` keyword assignments. Generous
+    on purpose: extra gateway kwargs are harmless; a missed real one would
+    only cause a false alarm, so we over-collect.
+    """
+    found = set()
+    for rel in GATEWAY_SOURCE_CANDIDATES:
+        path = os.path.join(source_root, rel)
+        if not os.path.exists(path):
+            continue
+        lines = _read(path).splitlines()
+        for i, ln in enumerate(lines):
+            if f'"{hook}"' not in ln:
+                continue
+            start = i
+            while start > 0 and start > i - 40:
+                s = lines[start]
+                if ("invoke_hook(" in s or "_fire_approval_hook(" in s
+                        or "_emit_post_tool_call_hook(" in s):
+                    break
+                start -= 1
+            j = start
+            buf = []
+            depth = 0
+            while j < len(lines) and j <= i + 30:
+                buf.append(lines[j])
+                depth += lines[j].count("(") - lines[j].count(")")
+                j += 1
+                if depth <= 0 and j > start + 1:
+                    break
+            text = "\n".join(buf)
+            found |= set(re.findall(r"^\s*([a-z_][a-z0-9_]*)\s*=", text, re.MULTILINE))
+    return found
+
+
 def main():
     parser = argparse.ArgumentParser(description="Achievements plugin health check")
     parser.add_argument("--live", action="store_true",
                         help="also check the live Hermes state.json")
     parser.add_argument("--manifest", action="store_true",
                         help="verify the manifest via the real PluginManager")
+    parser.add_argument("--gateway", action="store_true",
+                        help="verify hook kwarg contract vs installed Hermes source")
     args = parser.parse_args()
 
     print("── 1. Module loads ──")
@@ -233,6 +323,35 @@ def main():
         except Exception as exc:  # noqa: BLE001
             check("PluginManager load", False,
                   f"{exc} — run from an environment with Hermes installed")
+
+    if args.gateway:
+        print("── 8. Hook kwarg contract vs installed Hermes ──")
+        source_root = _find_hermes_source()
+        if source_root is None:
+            print("  [note] Hermes source not found — skipping (run on the "
+                  "deployment host: /usr/local/lib/hermes-agent)")
+        else:
+            reads = plugin_kwargs_per_hook(_read(PLUGIN_FILE))
+            total_read = 0
+            total_missing = 0
+            for hook in sorted(reads):
+                keys = reads[hook]
+                if not keys:
+                    continue  # handler counts without reading kwargs (fine)
+                total_read += len(keys)
+                passed = gateway_kwargs_per_hook(hook, source_root)
+                missing = [k for k in keys if k not in passed]
+                total_missing += len(missing)
+                check(
+                    f"{hook} kwargs passed ({len(keys)} keys)",
+                    not missing,
+                    "missing: " + ", ".join(missing) if missing else ", ".join(keys),
+                )
+            check(
+                "all read kwargs delivered by gateway",
+                total_missing == 0,
+                f"{total_read} keys checked across {len([h for h in reads if reads[h]])} hooks",
+            )
 
     print()
     if FAILURES:
