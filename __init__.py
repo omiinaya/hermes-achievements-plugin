@@ -94,6 +94,7 @@ def _send_discord_notification(ach_def):
                 headers={
                     "Authorization": f"Bot {token}",
                     "Content-Type": "application/json",
+                    "User-Agent": "DiscordBot/1.0 (achievements-plugin)",
                 },
                 method="POST",
             )
@@ -165,12 +166,15 @@ def _new_state():
 def _normalize_state():
     """Convert list fields back to sets for internal use."""
     stats = _state.setdefault("stats", {})
-    if isinstance(stats.get("platforms"), list):
-        stats["platforms"] = set(stats["platforms"])
-    if isinstance(stats.get("models_used"), list):
-        stats["models_used"] = set(stats["models_used"])
-    if isinstance(stats.get("slash_commands_used"), list):
-        stats["slash_commands_used"] = set(stats["slash_commands_used"])
+    for key in ("platforms", "models_used", "slash_commands_used"):
+        v = stats.get(key)
+        if isinstance(v, set):
+            continue
+        if isinstance(v, (list, tuple)):
+            stats[key] = set(v)
+        else:
+            # Corrupted/legacy scalar (e.g. int 0) — reset to empty set
+            stats[key] = set()
 
 
 def _init_achievements():
