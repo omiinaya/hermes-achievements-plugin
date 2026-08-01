@@ -509,6 +509,79 @@ class TestStatePersistence(HookTestBase):
         st = self.mod._load_state()["stats"]
         self.assertEqual(st["tools_used"]["terminal"], 1)
 
+    def test_corrupted_scalar_stats_normalized(self):
+        # A corrupted/legacy state with scalar stats must not crash hooks
+        state = self.mod._load_state()
+        state["stats"]["platforms"] = 0  # scalar instead of set
+        state["stats"]["models_used"] = None
+        state["stats"]["slash_commands_used"] = "oops"
+        state["stats"]["active_session"] = {"id": None, "calls": 0,
+                                            "tool_names": "not-a-set", "fast_streak": 0}
+        self.mod._state = None
+        st = self.mod._load_state()["stats"]
+        self.assertEqual(st["platforms"], set())
+        self.assertEqual(st["models_used"], set())
+        self.assertEqual(st["slash_commands_used"], set())
+        self.assertEqual(st["active_session"]["tool_names"], set())
+
+    def test_state_save_failure_is_swallowed(self):
+        # If the state dir can't be written, _save_state must not raise
+        self.tool_call("terminal", {}, session_id="sess-savefail")
+        # Point state path at an impossible location
+        old_path, old_bak = self.mod._STATE_PATH, self.mod._STATE_BAK_PATH
+        self.mod._STATE_PATH = "/proc/definitely/not/writable/state.json"
+        self.mod._STATE_BAK_PATH = "/proc/definitely/not/writable/state.json.bak"
+        try:
+            self.mod._save_state(force=True)  # must not raise
+        finally:
+            self.mod._STATE_PATH, self.mod._STATE_BAK_PATH = old_path, old_bak
+
+    def test_load_env_var_reads_dotenv_and_env(self):
+        # .env file wins over os.environ
+        os.environ["ACH_TEST_VAR"] = "from-env"
+        env_file = os.path.join(self._tmp, ".env")
+        with open(env_file, "w") as f:
+            f.write("# comment\n\nACH_TEST_VAR=from-dotenv\n")
+        try:
+            self.assertEqual(self.mod._load_env_var("ACH_TEST_VAR"), "from-dotenv")
+            self.assertEqual(self.mod._load_env_var("MISSING_VAR"), "")
+            self.assertEqual(self.mod._load_env_var("MISSING_VAR", "fallback"), "fallback")
+        finally:
+            os.environ.pop("ACH_TEST_VAR", None)
+
+    def test_notification_worker_never_crashes(self):
+        # A broken notification must be caught in the daemon thread
+        import threading
+        ach_def = self.mod.ACHIEVEMENT_DEFS["first_steps"]
+
+        def boom(ach):
+            raise RuntimeError("discord is down")
+
+        old = self.mod._send_discord_notification_sync
+        self.mod._send_discord_notification_sync = boom
+        threads_before = threading.active_count()
+        try:
+            self.mod._send_discord_notification(ach_def)  # must not raise
+        finally:
+            self.mod._send_discord_notification_sync = old
+        # Thread spawned; give it a moment to run & swallow the error
+        import time
+        time.sleep(0.05)
+        self.assertLessEqual(threading.active_count(), threads_before + 1)
+
+    def test_send_notification_sync_skips_without_token(self):
+        # No token configured → silent no-op, no HTTP attempt
+        self.mod._load_env_var = lambda key, fallback="": ""
+        old = self.mod.urllib.request.urlopen
+        calls = []
+        self.mod.urllib.request.urlopen = lambda *a, **k: calls.append(a)
+        try:
+            self.mod._send_discord_notification_sync(
+                self.mod.ACHIEVEMENT_DEFS["first_steps"])
+        finally:
+            self.mod.urllib.request.urlopen = old
+        self.assertEqual(calls, [])
+
     def test_discord_notification_uses_rarity_embed(self):
         import json as _json
         captured = {}

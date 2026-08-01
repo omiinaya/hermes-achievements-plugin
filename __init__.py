@@ -1879,6 +1879,8 @@ def _handle_achievements(raw_args: str) -> str:
                      overview=help_overview, latest=help_latest, detail=help_detail,
                      next_up=help_next))
     return "\n".join(lines)
+
+
 def _handle_achievement_detail(raw_args: str) -> str:
     a_id = raw_args.strip()
     if not a_id:
@@ -1925,6 +1927,8 @@ def _handle_achievement_detail(raw_args: str) -> str:
         status_line = _t("ui.detail_status_locked", locale)
 
     return f"{header}\n*{desc_str}*\n\n{rarity_line}\n{group_line}\n{status_line}"
+
+
 # ── Language Command Handler ──────────────────────────────────────────
 
 LANGS = {"en": "English", "es": "Español", "fr": "Français", "pt": "Português"}
