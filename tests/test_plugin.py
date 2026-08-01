@@ -360,6 +360,7 @@ class TestTranslationFunction(unittest.TestCase):
             "stats_approval_requests": {"count": 4},
             "stats_max_concurrent": {"count": 2},
             "stats_api_errors": {"count": 3},
+            "stats_users_seen": {"count": 4},
             "stats_session_resets": {"count": 3},
             "stats_platforms": {"platforms": "discord, telegram"},
             "stats_models": {"models": "gpt4", "more": ""},

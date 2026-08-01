@@ -1306,6 +1306,32 @@ class TestCommandHandlers(HookTestBase):
         self.assertIn("4", out)  # approval requests
         self.assertIn("3", out)  # peak concurrency + api errors
 
+    def test_achievements_stats_shows_users_seen(self):
+        self.mod._on_pre_gateway_dispatch(
+            event=self._gw_event("discord", "u1"), gateway=None, session_store=None,
+        )
+        self.mod._on_pre_gateway_dispatch(
+            event=self._gw_event("discord", "u2"), gateway=None, session_store=None,
+        )
+        out = self.mod._handle_achievements("stats")
+        self.assertIn("Distinct users seen:", out)
+        self.assertIn("2", out)
+
+    def _gw_event(self, platform, user_id):
+        class _Source:
+            pass
+        class _Event:
+            pass
+        src = _Source()
+        src.platform = platform
+        src.user_id = user_id
+        src.user_name = None
+        src.is_bot = False
+        ev = _Event()
+        ev.internal = False
+        ev.source = src
+        return ev
+
     def test_achievements_group_filter(self):
         out = self.mod._handle_achievements("getting_started")
         self.assertIn("Getting Started", out)

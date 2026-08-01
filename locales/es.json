@@ -474,6 +474,7 @@
     "stats_total_turns": "Turnos totales:             {count}",
     "stats_unique_tools": "Herramientas únicas:        {count}",
     "stats_unlocked": "Desbloqueados: {unlocked} / {total}  ({percent}%)",
+    "stats_users_seen": "Usuarios distintos vistos: {count}",
     "summary_hint": "Usa `/achievements <grupo>` para listas completas — ej. `/achievements tools_skills`",
     "usage_lang": "Uso: `/achievements lang <code>` — cambiar idioma (en/es/fr/pt)"
   }

@@ -2034,6 +2034,8 @@ def _handle_achievements(raw_args: str) -> str:
                 lines.append(_t("ui.stats_max_concurrent", locale, count=stats.get("max_concurrent_subagents", 0)))
             if stats.get("api_errors"):
                 lines.append(_t("ui.stats_api_errors", locale, count=stats.get("api_errors", 0)))
+            if stats.get("users_seen"):
+                lines.append(_t("ui.stats_users_seen", locale, count=len(stats.get("users_seen", set()))))
             if stats.get("session_resets"):
                 lines.append(_t("ui.stats_session_resets", locale, count=stats.get("session_resets", 0)))
             platforms = stats.get("platforms", [])
