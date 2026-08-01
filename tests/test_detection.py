@@ -9,7 +9,6 @@ passes, verifying achievements actually unlock.
 Run with:  python3 -m pytest tests/  -xvs
 """
 import importlib.util
-import json
 import os
 import shutil
 import sys
@@ -294,6 +293,96 @@ class TestStatePersistence(HookTestBase):
         threads_before = threading.active_count()
         self.mod._send_discord_notification(ach_def)
         self.assertLessEqual(threading.active_count(), threads_before + 1)
+
+
+class TestRemainingGaps(HookTestBase):
+    """Achievements that previously had no detection path at all."""
+
+    def test_cli_champion_at_500(self):
+        for i in range(500):
+            self.tool_call("terminal", {"command": f"echo {i}"}, session_id="sess-cli")
+        self.assertTrue(self.unlocked("shell_master"))
+        self.assertTrue(self.unlocked("cli_champion"))
+
+    def test_cron_master_and_overlord(self):
+        for i in range(5):
+            self.tool_call("cronjob", {"action": "create", "schedule": "every 2h"}, session_id="sess-c")
+        self.assertTrue(self.unlocked("cron_master"))
+        self.assertFalse(self.unlocked("cron_overlord"))
+        for i in range(10):
+            self.tool_call("cronjob", {"action": "create", "schedule": "every 2h"}, session_id="sess-c")
+        self.assertTrue(self.unlocked("cron_overlord"))
+        self.assertEqual(self.stats()["cron_jobs_created"], 15)
+
+    def test_session_surfer(self):
+        for _ in range(10):
+            self.turn("resume with --continue")
+        self.assertTrue(self.unlocked("session_surfer"))
+        self.assertTrue(self.unlocked("session_sage"))
+        self.assertEqual(self.stats()["session_resumes"], 10)
+
+
+class TestPluginRegistration(unittest.TestCase):
+    """register() wires all hooks and commands on a mock context."""
+
+    def setUp(self):
+        self._tmp = tempfile.mkdtemp(prefix="ach-reg-")
+        self.mod = _make_module(self._tmp)
+        os.environ.pop("HERMES_HOME", None)
+
+    def tearDown(self):
+        shutil.rmtree(self._tmp, ignore_errors=True)
+        os.environ.pop("HERMES_HOME", None)
+
+    def test_register_wires_hooks_and_commands(self):
+        class Ctx:
+            def __init__(self):
+                self.commands = []
+                self.hooks = []
+            def register_command(self, name, handler, description="", args_hint=""):
+                self.commands.append((name, handler))
+            def register_hook(self, name, callback):
+                self.hooks.append((name, callback))
+
+        ctx = Ctx()
+        self.mod.register(ctx)
+        hook_names = {n for n, _ in ctx.hooks}
+        self.assertEqual(hook_names,
+                         {"post_llm_call", "post_tool_call", "on_session_start", "on_session_end"})
+        cmd_names = {n for n, _ in ctx.commands}
+        self.assertEqual(cmd_names, {"achievements", "achievement"})
+        # Handlers are the real functions, not lambdas
+        self.assertIs(ctx.hooks[0][1], self.mod._post_llm_call)
+
+
+class TestReadmeSync(unittest.TestCase):
+    """README achievement tables match ACHIEVEMENT_DEFS (no drift)."""
+
+    def setUp(self):
+        self._tmp = tempfile.mkdtemp(prefix="ach-readme-")
+        self.mod = _make_module(self._tmp)
+        os.environ.pop("HERMES_HOME", None)
+
+    def tearDown(self):
+        shutil.rmtree(self._tmp, ignore_errors=True)
+        os.environ.pop("HERMES_HOME", None)
+
+    def test_all_defs_in_readme(self):
+        with open(os.path.join(PLUGIN_DIR, "README.md"), encoding="utf-8") as f:
+            readme = f.read()
+        for aid, adef in self.mod.ACHIEVEMENT_DEFS.items():
+            self.assertIn(adef["name"], readme,
+                          f"achievement '{adef['name']}' ({aid}) missing from README")
+
+    def test_render_script_matches_readme(self):
+        # Regenerate the table section in memory and compare with the file
+        import subprocess
+        import sys as _sys
+        script = os.path.join(PLUGIN_DIR, "scripts", "render_readme.py")
+        result = subprocess.run([_sys.executable, script], capture_output=True, text=True,
+                                cwd=PLUGIN_DIR, check=False)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("OK: 100 achievements", result.stdout)
 
 
 if __name__ == "__main__":

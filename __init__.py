@@ -18,9 +18,9 @@ import os
 import re
 import threading
 import time
+from datetime import datetime, timezone, date
 import urllib.request
 import urllib.error
-from datetime import datetime, timezone, date
 
 # ── Paths ────────────────────────────────────────────────────────────────
 
@@ -43,7 +43,7 @@ def _load_env_var(key, fallback=""):
                 k, _, v = line.partition("=")
                 if k.strip() == key:
                     return v.strip().strip("'\"").strip()
-    except (OSError, IOError):
+    except OSError:
         pass
     return os.environ.get(key, fallback)
 
@@ -269,7 +269,7 @@ def _load_locales():
                 lang = fname[:-5]
                 with open(os.path.join(_LOCALES_DIR, fname), encoding="utf-8") as f:
                     _locales_cache[lang] = json.load(f)
-    except (OSError, IOError):
+    except OSError:
         pass
     if "en" not in _locales_cache:
         _locales_cache["en"] = {}
@@ -864,7 +864,7 @@ NON_COMPLETIONIST_IDS = [aid for aid in ACHIEVEMENT_DEFS if aid != "completionis
 
 # Achievements that are unlocked by reaching tool usage thresholds
 _TOOL_THRESHOLDS = {
-    "terminal": [(25, "terminal_jockey"), (100, "shell_master")],
+    "terminal": [(25, "terminal_jockey"), (100, "shell_master"), (500, "cli_champion")],
     "web_search": [(25, "deep_diver")],
     "web_extract": [(25, "deep_diver")],
     "execute_code": [(50, "code_slinger"), (100, "code_architect")],
@@ -926,7 +926,7 @@ _TOOL_ACHIEVEMENTS = {
 
 _TOOL_CATEGORIES = {
     "terminal": "terminal", "web_search": "web", "web_extract": "web",
-    "web_scrape": "web", "browser_navigate": "browser", "browser_click": "browser",
+    "browser_navigate": "browser", "browser_click": "browser",
     "browser_snapshot": "browser", "browser_type": "browser",
     "vision_analyze": "vision",
     "execute_code": "code_exec", "delegate_task": "delegation",
@@ -1255,6 +1255,10 @@ def _check_tool_args(tool_name, args, stats, now):
                 if len(stats["hooks_used"]) >= 3:
                     _unlock("hook_master", now)
 
+    # Tool-argument counters feed the tiered counter achievements too
+    # (e.g. cron_jobs_created → Cron Master / Cron Overlord)
+    _check_counter_achievements(stats, now)
+
 
 def _count_user_commands(user_commands, stats, now):
     """Increment tiered counters from user command text."""
@@ -1273,6 +1277,8 @@ def _count_user_commands(user_commands, stats, now):
             stats["skills_installed"] = stats.get("skills_installed", 0) + 1
         if "--yolo" in cmd:
             stats["yolo_tasks"] = stats.get("yolo_tasks", 0) + 1
+        if re.search(r"/resume\b|--continue\b", cmd, re.IGNORECASE):
+            stats["session_resumes"] = stats.get("session_resumes", 0) + 1
     _check_counter_achievements(stats, now)
 
 
@@ -1316,6 +1322,20 @@ def _check_counter_achievements(stats, now):
         _unlock("yolo_champion", now)
     else:
         _set_progress("yolo_champion", yt, 25)
+    cj = stats.get("cron_jobs_created", 0)
+    if cj >= 5:
+        _unlock("cron_master", now)
+    else:
+        _set_progress("cron_master", cj, 5)
+    if cj >= 15:
+        _unlock("cron_overlord", now)
+    else:
+        _set_progress("cron_overlord", cj, 15)
+    sr = stats.get("session_resumes", 0)
+    if sr >= 10:
+        _unlock("session_surfer", now)
+    else:
+        _set_progress("session_surfer", sr, 10)
 
 
 # ── Hook: post_llm_call ─────────────────────────────────────────────────
@@ -1325,7 +1345,7 @@ def _check_counter_achievements(stats, now):
 
 def _post_llm_call(**kwargs):
     """Detect per-turn achievements (messages, models, platforms, commands)."""
-    global _last_turn_models, _last_turn_platforms, _last_turn_user_msg
+    global _last_turn_user_msg
 
     state = _load_state()
     stats = state.setdefault("stats", {})

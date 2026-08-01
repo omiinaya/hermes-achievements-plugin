@@ -10,7 +10,6 @@ Usage:  python3 scripts/render_readme.py
 """
 import ast
 import os
-import re
 import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -38,7 +37,7 @@ def load_defs():
                 continue
             try:
                 value = ast.literal_eval(node.value)
-            except Exception:
+            except Exception:  # noqa: BLE001 — skip non-literal assigns
                 continue
             if target.id == "ACHIEVEMENT_DEFS":
                 defs = value
@@ -79,7 +78,7 @@ def main():
     marker_end = "## Architecture"
     start = readme.index(marker_start)
     end = readme.index(marker_end)
-    new_section = f"{marker_start}\n\n" + render_groups(defs, groups, group_emojis)
+    new_section = f"{marker_start}\n\n" + render_groups(defs, groups, group_emojis) + "\n"
     readme = readme[:start] + new_section + readme[end:]
 
     with open(README, "w", encoding="utf-8") as f:

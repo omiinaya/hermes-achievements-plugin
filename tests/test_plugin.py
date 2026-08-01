@@ -89,13 +89,11 @@ def _parse_groups_and_rarities():
     groups_list = re.findall(r'"([^"]+)"', groups.group(1)) if groups else []
 
     rarities_m = re.search(r'RARITY_EMOJIS\s*=\s*\{(.*?)\}', content, re.DOTALL)
-    rarities_list = re.findall(r'"([^"]+)"', rarities_m.group(1)) if rarities_m else []
     # RARITY_EMOJIS keys are the rareness values; filter to get just the keys
     # Keys are before the colon
     rarities = []
     if rarities_m:
-        for pair in re.findall(r'"(\w+)"\s*:', rarities_m.group(1)):
-            rarities.append(pair)
+        rarities = list(re.findall(r'"(\w+)"\s*:', rarities_m.group(1)))
 
     return groups_list, rarities
 
@@ -344,7 +342,6 @@ class TestTranslationFunction(unittest.TestCase):
 
     def test_all_ui_strings_format(self):
         """All UI strings with {placeholders} should format without error."""
-        from string import Formatter
         # Keys that need specific format args
         formatters = {
             "stats_unlocked": {"unlocked": 0, "total": 100, "percent": 0},
@@ -411,7 +408,7 @@ class TestInstallScript(unittest.TestCase):
 class TestFileIntegrity(unittest.TestCase):
     """Validate all expected repo files exist and are non-empty."""
 
-    REQUIRED_FILES = [
+    REQUIRED_FILES: tuple[str, ...] = (
         "__init__.py",
         "plugin.yaml",
         "pyproject.toml",
@@ -424,7 +421,7 @@ class TestFileIntegrity(unittest.TestCase):
         "locales/es.json",
         "locales/fr.json",
         "locales/pt.json",
-    ]
+    )
 
     def test_all_files_exist(self):
         """All required files must exist and be non-empty."""
