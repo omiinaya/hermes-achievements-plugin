@@ -47,8 +47,6 @@ class HookTestBase(unittest.TestCase):
     def fresh(self):
         self.mod._state = None
         self.mod._locales_cache = {}
-        self.mod._last_turn_models = set()
-        self.mod._last_turn_platforms = set()
 
     def unlocked(self, ach_id):
         return self.mod._load_state()["achievements"].get(ach_id, {}).get("unlocked", False)
@@ -293,6 +291,18 @@ class TestStatePersistence(HookTestBase):
         threads_before = threading.active_count()
         self.mod._send_discord_notification(ach_def)
         self.assertLessEqual(threading.active_count(), threads_before + 1)
+
+    def test_model_platform_progress_survives_restart(self):
+        # Model/platform diversity is read from persisted stats, so a
+        # gateway restart must not regress progress toward the tiers
+        self.turn("hello", model="model-a", platform="discord")
+        self.turn("hello2", model="model-b", platform="discord")
+        self.mod._save_state(force=True)
+        self.mod._state = None  # simulate gateway restart
+        self.turn("hello3", model="model-a", platform="cli")
+        self.assertTrue(self.unlocked("model_hopper"))
+        self.assertTrue(self.unlocked("cross_platform"))
+        self.assertTrue(self.unlocked("gateway_guru"))
 
 
 class TestRemainingGaps(HookTestBase):

@@ -314,10 +314,8 @@ def _t(key, locale=None, **kwargs):
     return val
 
 
-# ── Per-turn tool tracking ──────────────────────────────────────────────
+# ── Per-turn tracking ────────────────────────────────────────────────────
 
-_last_turn_models = set()
-_last_turn_platforms = set()
 _last_turn_user_msg = ""
 
 
@@ -1356,15 +1354,12 @@ def _post_llm_call(**kwargs):
     model = kwargs.get("model", "")
     platform = kwargs.get("platform", "")
 
-    # Track model + platform (cumulative across sessions)
+    # Track model + platform (cumulative across sessions, persisted)
     if model and model not in ("unknown", ""):
-        _last_turn_models.add(model)
         stats.setdefault("models_used", set()).add(model)
     if platform and platform not in ("unknown", "none", ""):
-        _last_turn_platforms.add(platform)
         stats.setdefault("platforms", set()).add(platform)
     else:
-        _last_turn_platforms.add("cli")
         stats.setdefault("platforms", set()).add("cli")
 
     # Track multi-lingual: non-ASCII alphabetic chars in user message
@@ -1403,8 +1398,10 @@ def _post_llm_call(**kwargs):
                     _unlock(ach_id, now)
     _count_user_commands(user_commands, stats, now)
 
-    # ── Model Hopper: 2+ models (cumulative) ───────────────────
-    num_models = len(_last_turn_models)
+    # ── Model Hopper: 2+ models (cumulative, persisted) ────────
+    # Use stats["models_used"] (persisted to state.json) rather than the
+    # in-memory sets so progress survives gateway restarts.
+    num_models = len(stats.get("models_used", set()))
     if num_models >= 2:
         _unlock("model_hopper", now)
     if num_models >= 5:
@@ -1416,8 +1413,8 @@ def _post_llm_call(**kwargs):
     else:
         _set_progress("model_collector", num_models, 10)
 
-    # ── Cross-Platform: 2+ platforms (cumulative) ──────────────
-    num_platforms = len(_last_turn_platforms)
+    # ── Cross-Platform: 2+ platforms (cumulative, persisted) ──
+    num_platforms = len(stats.get("platforms", set()))
     if num_platforms >= 2:
         _unlock("cross_platform", now)
     if num_platforms >= 3:
@@ -1430,7 +1427,8 @@ def _post_llm_call(**kwargs):
         _set_progress("cross_platform_veteran", num_platforms, 5)
 
     # ── Gateway Guru: non-CLI platform ─────────────────────────
-    non_cli = {p for p in _last_turn_platforms if p not in ("cli", "unknown", "none", "")}
+    non_cli = {p for p in stats.get("platforms", set())
+               if p not in ("cli", "unknown", "none", "")}
     if non_cli:
         _unlock("gateway_guru", now)
 
