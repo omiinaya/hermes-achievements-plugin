@@ -997,6 +997,145 @@ class TestPreToolCall(HookTestBase):
         self.assertEqual(st["progress"]["target"], 5)
 
 
+class TestTransformTerminalOutput(HookTestBase):
+    """transform_terminal_output: raw output volume, env diversity, exit codes."""
+
+    def _fire(self, output="", env_type="local", returncode=0):
+        self.mod._transform_terminal_output(
+            command="ls", output=output, returncode=returncode,
+            task_id="t", env_type=env_type,
+        )
+
+    def test_never_transforms_output(self):
+        """Observer contract: the hook must return None, never a string."""
+        result = self.mod._transform_terminal_output(
+            command="ls", output="hello world", returncode=0,
+            task_id="t", env_type="local",
+        )
+        self.assertIsNone(result)
+
+    def test_small_output_no_unlock(self):
+        self._fire(output="x" * 100)
+        self.assertFalse(self.unlocked("verbose_output"))
+        self.assertFalse(self.unlocked("data_flood"))
+        self.assertEqual(self.stats().get("peak_terminal_output_bytes", 0), 100)
+
+    def test_verbose_output_at_100kb(self):
+        self._fire(output="x" * (100 * 1024))
+        self.assertTrue(self.unlocked("verbose_output"))
+        self.assertFalse(self.unlocked("data_flood"))
+
+    def test_data_flood_at_1mb(self):
+        self._fire(output="x" * (1024 * 1024))
+        self.assertTrue(self.unlocked("verbose_output"))
+        self.assertTrue(self.unlocked("data_flood"))
+
+    def test_peak_keeps_max(self):
+        self._fire(output="x" * 100)
+        self._fire(output="x" * 5000)
+        self.assertEqual(self.stats()["peak_terminal_output_bytes"], 5000)
+
+    def test_ghost_command_at_exit_127(self):
+        self._fire(returncode=0)
+        self.assertFalse(self.unlocked("ghost_command"))
+        self._fire(returncode=127)
+        self.assertTrue(self.unlocked("ghost_command"))
+
+    def test_other_exit_codes_no_unlock(self):
+        for code in (1, 2, 126, 255):
+            self._fire(returncode=code)
+        self.assertFalse(self.unlocked("ghost_command"))
+
+    def test_env_diversity_multi_env_at_2(self):
+        self._fire(env_type="local")
+        self.assertFalse(self.unlocked("multi_env"))
+        self._fire(env_type="docker")
+        self.assertTrue(self.unlocked("multi_env"))
+        self.assertFalse(self.unlocked("omnipresent"))
+
+    def test_env_diversity_omnipresent_at_5(self):
+        for env in ("local", "ssh", "docker", "singularity", "modal"):
+            self._fire(env_type=env)
+        self.assertTrue(self.unlocked("multi_env"))
+        self.assertTrue(self.unlocked("omnipresent"))
+
+    def test_repeat_env_not_counted_twice(self):
+        for _ in range(5):
+            self._fire(env_type="local")
+        self.assertFalse(self.unlocked("multi_env"))
+        self.assertEqual(len(self.stats().get("env_types", set())), 1)
+
+    def test_env_progress_tracks_current(self):
+        self._fire(env_type="local")
+        st = self.mod._load_state()["achievements"]["multi_env"]
+        self.assertEqual(st["progress"]["current"], 1)
+        self.assertEqual(st["progress"]["target"], 2)
+
+    def test_envs_persist_as_list(self):
+        """env_types set must be JSON-safe after save (sorted list)."""
+        self._fire(env_type="local")
+        self._fire(env_type="docker")
+        self.mod._save_state(force=True)
+        import json
+        with open(self.mod._STATE_PATH, encoding="utf-8") as f:
+            saved = json.load(f)
+        self.assertEqual(saved["stats"]["env_types"], ["docker", "local"])
+
+
+class TestTransformToolResult(HookTestBase):
+    """transform_tool_result: full result size / context bloat."""
+
+    def _fire(self, result="", tool="search_files"):
+        self.mod._transform_tool_result(
+            tool_name=tool, args={}, result=result,
+            task_id="t", session_id="s", tool_call_id="tc",
+            turn_id="turn", api_request_id="api-1", duration_ms=100,
+            status="ok", error_type=None, error_message=None,
+        )
+
+    def test_never_transforms_result(self):
+        """Observer contract: the hook must return None, never a string."""
+        result = self.mod._transform_tool_result(
+            tool_name="terminal", args={}, result="data",
+            task_id="t", session_id="s", tool_call_id="tc",
+            turn_id="turn", api_request_id="api-1", duration_ms=100,
+            status="ok", error_type=None, error_message=None,
+        )
+        self.assertIsNone(result)
+
+    def test_small_result_no_unlock(self):
+        self._fire(result="y" * 500)
+        self.assertFalse(self.unlocked("big_haul"))
+        self.assertFalse(self.unlocked("colossal_result"))
+        self.assertEqual(self.stats().get("peak_tool_result_bytes", 0), 500)
+
+    def test_big_haul_at_1mb(self):
+        self._fire(result="y" * (1024 * 1024))
+        self.assertTrue(self.unlocked("big_haul"))
+        self.assertFalse(self.unlocked("colossal_result"))
+
+    def test_colossal_result_at_10mb(self):
+        self._fire(result="y" * (10 * 1024 * 1024))
+        self.assertTrue(self.unlocked("big_haul"))
+        self.assertTrue(self.unlocked("colossal_result"))
+
+    def test_peak_keeps_max(self):
+        self._fire(result="y" * 100)
+        self._fire(result="y" * 9000)
+        self.assertEqual(self.stats()["peak_tool_result_bytes"], 9000)
+
+    def test_progress_tracks_current(self):
+        self._fire(result="y" * 100)
+        st = self.mod._load_state()["achievements"]["big_haul"]
+        self.assertEqual(st["progress"]["current"], 100)
+        self.assertEqual(st["progress"]["target"], 1024 * 1024)
+
+    def test_empty_result_noop(self):
+        self._fire(result="")
+        self.assertEqual(self.stats().get("peak_tool_result_bytes", 0), 0)
+        self.assertFalse(self.unlocked("big_haul"))
+
+
 class TestApprovalRequest(HookTestBase):
     """pre_approval_request: approval gates drive Under Scrutiny."""
 
@@ -1349,7 +1488,7 @@ class TestStreakEdgeCases(HookTestBase):
         self.mod._locales_cache = {}
         try:
             cache = self.mod._load_locales()
-            self.assertEqual(len(cache.get("en", {}).get("achievement", {})), 126)
+            self.assertEqual(len(cache.get("en", {}).get("achievement", {})), 133)
         finally:
             self.mod._LOCALES_DIR = old_dir
             self.mod._WHEEL_DATA_DIR = old_wheel
@@ -1953,6 +2092,7 @@ class TestPluginRegistration(unittest.TestCase):
         hook_names = {n for n, _ in ctx.hooks}
         self.assertEqual(hook_names,
                          {"pre_llm_call", "pre_tool_call",
+                          "transform_terminal_output", "transform_tool_result",
                           "post_llm_call", "post_api_request",
                           "pre_api_request",
                           "post_tool_call",
@@ -2418,6 +2558,29 @@ class TestCommandHandlers(HookTestBase):
         self.assertIn("Peak tools per response:", out)
         self.assertIn("9", out)
 
+    def test_stats_shows_peak_terminal_output(self):
+        st = self.mod._load_state()["stats"]
+        st["peak_terminal_output_bytes"] = 150 * 1024
+        out = self.mod._handle_achievements("stats")
+        self.assertIn("Biggest command output:", out)
+        self.assertIn("150.0 KiB", out)
+
+    def test_stats_shows_peak_tool_result(self):
+        st = self.mod._load_state()["stats"]
+        st["peak_tool_result_bytes"] = 2 * 1024 * 1024
+        out = self.mod._handle_achievements("stats")
+        self.assertIn("Biggest tool result:", out)
+        self.assertIn("2.0 MiB", out)
+
+    def test_stats_shows_env_types(self):
+        st = self.mod._load_state()["stats"]
+        st["env_types"] = {"local", "docker"}
+        out = self.mod._handle_achievements("stats")
+        self.assertIn("Environments used:", out)
+        self.assertIn("2", out)
+        self.assertIn("docker", out)
+        self.assertIn("local", out)
+
     def test_stats_new_dimensions_hidden_when_absent(self):
         out = self.mod._handle_achievements("stats")
         self.assertNotIn("Media messages:", out)
@@ -2427,6 +2590,9 @@ class TestCommandHandlers(HookTestBase):
         self.assertNotIn("Local endpoint calls:", out)
         self.assertNotIn("Conversations started:", out)
         self.assertNotIn("Peak tools per response:", out)
+        self.assertNotIn("Biggest command output:", out)
+        self.assertNotIn("Biggest tool result:", out)
+        self.assertNotIn("Environments used:", out)
 
     def test_stats_completionist_unlocked_line(self):
         # All achievements unlocked → completionist line appears
@@ -2541,7 +2707,7 @@ class TestReadmeSync(unittest.TestCase):
         result = subprocess.run([_sys.executable, script], capture_output=True, text=True,
                                 cwd=PLUGIN_DIR, check=False)
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertIn("OK: 126 achievements", result.stdout)
+        self.assertIn("OK: 133 achievements", result.stdout)
 
     def test_health_check_script_passes(self):
         # The health check must pass against the repo checkout (defs,
@@ -2577,7 +2743,7 @@ class TestReadmeSync(unittest.TestCase):
 
 
 class TestEveryAchievementUnlockable(HookTestBase):
-    """Full-grind simulation: prove all 126 achievement defs can unlock.
+    """Full-grind simulation: prove all 133 achievement defs can unlock.
 
     After several rounds of achievement swaps (v2.3.0, v2.4.0, v2.4.1),
     a def could sit in a detection map with an impossible condition (wrong
@@ -2809,6 +2975,42 @@ class TestEveryAchievementUnlockable(HookTestBase):
                     api_call_count=1 + (i % 14),
                 )
 
+            # ── Transform hooks: raw output volume, env diversity, exit 127,
+            # tool-result size. 2MB output → Verbose Output (100KB) + Data
+            # Flood (1MB). 5 env types → Multi-Environment + Omnipresent.
+            # Exit 127 → Ghost Command. 20MB result → Big Haul + Colossal
+            # Result. Extra small fires exercise the no-unlock paths.
+            mod._transform_terminal_output(
+                command="cat big.log", output="L" * (2 * 1024 * 1024),
+                returncode=0, task_id="t", env_type="local",
+            )
+            for i, env in enumerate(("ssh", "docker", "singularity", "modal",
+                                     "daytona")):
+                mod._transform_terminal_output(
+                    command="env", output="x", returncode=0,
+                    task_id="t", env_type=env,
+                )
+            mod._transform_terminal_output(
+                command="definitely-not-a-command", output="",
+                returncode=127, task_id="t", env_type="local",
+            )
+            mod._transform_terminal_output(
+                command="ok", output="tiny", returncode=0,
+                task_id="t", env_type="local",
+            )
+            mod._transform_tool_result(
+                tool_name="search_files", args={}, result="R" * (20 * 1024 * 1024),
+                task_id="t", session_id="s-main", tool_call_id="tc",
+                turn_id="turn", api_request_id="g-api-big", duration_ms=500,
+                status="ok", error_type=None, error_message=None,
+            )
+            mod._transform_tool_result(
+                tool_name="read_file", args={}, result="small",
+                task_id="t", session_id="s-main", tool_call_id="tc2",
+                turn_id="turn", api_request_id="g-api-small", duration_ms=500,
+                status="ok", error_type=None, error_message=None,
+            )
+
             # ── API errors, approvals, distinct users, media, reset ──
             for i in range(12):
                 mod._on_api_request_error(error_type="timeout", status_code=429)
@@ -2846,7 +3048,7 @@ class TestEveryAchievementUnlockable(HookTestBase):
             )
             mod._check_completionist()
 
-    def test_all_126_achievements_can_unlock(self):
+    def test_all_133_achievements_can_unlock(self):
         """Every def in ACHIEVEMENT_DEFS must unlock through real hooks."""
         self._grind()
         state = self.mod._load_state()
@@ -2860,7 +3062,7 @@ class TestEveryAchievementUnlockable(HookTestBase):
             f"{locked}",
         )
 
-    def test_completionist_unlocks_as_126th(self):
+    def test_completionist_unlocks_as_133rd(self):
         """Completionist requires every other achievement first."""
         self._grind()
         state = self.mod._load_state()
@@ -2870,7 +3072,7 @@ class TestEveryAchievementUnlockable(HookTestBase):
             1 for aid in self.mod.ACHIEVEMENT_DEFS
             if state["achievements"].get(aid, {}).get("unlocked")
         )
-        self.assertEqual(unlocked, 126)
+        self.assertEqual(unlocked, 133)
 
 
 if __name__ == "__main__":

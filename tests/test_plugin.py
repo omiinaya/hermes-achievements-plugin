@@ -104,16 +104,16 @@ def _parse_groups_and_rarities():
 
 
 class TestAchievementDefinitions(unittest.TestCase):
-    """Validate that all 126 achievement definitions are complete and valid."""
+    """Validate that all 133 achievement definitions are complete and valid."""
 
     def setUp(self):
         self.achievements = _parse_achievement_defs()
         self.groups, self.rarities = _parse_groups_and_rarities()
 
     def test_exact_count(self):
-        """There should be exactly 126 achievements."""
-        self.assertEqual(len(self.achievements), 126,
-                         f"Expected 126 achievements, got {len(self.achievements)}")
+        """There should be exactly 133 achievements."""
+        self.assertEqual(len(self.achievements), 133,
+                         f"Expected 133 achievements, got {len(self.achievements)}")
 
     def test_required_fields(self):
         """Every achievement must have id, name, description, emoji, rarity, group."""
@@ -151,8 +151,8 @@ class TestAchievementDefinitions(unittest.TestCase):
         expected = {
             "Getting Started": 16,
             "Tools & Skills": 28,
-            "Power User": 33,
-            "Expert": 24,
+            "Power User": 38,
+            "Expert": 26,
             "Milestones": 19,
             "Community": 6,
         }
@@ -369,6 +369,9 @@ class TestTranslationFunction(unittest.TestCase):
             "stats_peak_context": {"count": 67},
             "stats_peak_input": {"count": 250000},
             "stats_local_requests": {"count": 8},
+            "stats_peak_terminal_output": {"size": "146.5 KiB"},
+            "stats_peak_tool_result": {"size": "2.0 MiB"},
+            "stats_env_types": {"count": 2, "envs": "docker, local"},
             "stats_longest_message": {"count": 340},
             "stats_hooks_used": {"count": 4},
             "stats_platforms": {"platforms": "discord, telegram"},

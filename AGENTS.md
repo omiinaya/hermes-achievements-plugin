@@ -2,7 +2,7 @@
 
 ## What this is
 
-A Hermes Agent plugin that awards 126 Steam-style achievement badges for
+A Hermes Agent plugin that awards 133 Steam-style achievement badges for
 using Hermes. Pure Python stdlib, no external dependencies.
 
 ## Repo layout
@@ -22,19 +22,21 @@ using Hermes. Pure Python stdlib, no external dependencies.
 - `scripts/bump_version.py` — updates the version in all 4 places that
   carry it (pyproject.toml, plugin.yaml, setup.sh ×2) in one shot
 - `scripts/check_plugin.py` — health check: module loads, manifest↔register()
-  hook agreement, exactly-126 defs, locale parity, no dead detection-map
+  hook agreement, exactly-133 defs, locale parity, no dead detection-map
   references, live state.json reconciliation (--live), real PluginManager
   load (--manifest), and hook kwarg contract vs the installed Hermes
   source (--gateway — catches silent no-op drift if Hermes renames a
   hook kwarg). Run after any swap:
   `python3 scripts/check_plugin.py --live --manifest --gateway`
 
-## Detection architecture (16 hooks)
+## Detection architecture (18 hooks)
 
 | Hook | Fires | Owns |
 |------|-------|------|
 | `pre_tool_call` | once per tool call BEFORE execution (has `api_request_id` — the ID of the assistant response that emitted the call; every call from one response shares it) | single-response tool-batch counting (Double Time 2, Batch Artist 5, Parallel Barrage 10, Tool Torrent 20) — how many tools the model ran in one step, distinct from cumulative counts and delegate_task parallelism |
+| `transform_terminal_output` | per terminal command with the FULL raw output BEFORE the tool truncates it (has `output`, `returncode`, `env_type` local/ssh/docker/singularity/modal/daytona) | raw output volume (Verbose Output 100KB, Data Flood 1MB) — the only hook that sees what the model was NOT handed; env diversity (Multi-Environment 2, Omnipresent 5); exit code 127 (Ghost Command). TRANSFORM hook — observer returns None, never a string |
 | `pre_llm_call` | once per turn BEFORE the LLM is invoked (has `is_first_turn` — True only when run_conversation was handed no prior history) | fresh-conversation counting (Icebreaker 1, Conversation Habit 10, Serial Starter 50, Conversation Colossus 100) — the only signal that counts natural context starts |
+| `transform_tool_result` | per tool call with the FULL result string (has `result`, `api_request_id`, `error_message`) | result-size / context bloat (Big Haul 1MB, Colossal Result 10MB) — post_tool_call only gets status, never the content. TRANSFORM hook — observer returns None, never a string |
 | `post_tool_call` | every tool execution (has `tool_name`, `args`, `session_id`, `duration_ms`, `status` ok/cancelled/block/error, `error_type`) | per-tool counts, per-session tracking, argument-based achievements (cron chaining, parallel delegation, skill/plugin authoring), Quick Draw, tool-error counting (Trial and Error — 25 failed calls) |
 | `post_llm_call` | once per turn | cumulative message counts, model/platform diversity, user-command patterns, tiered counters, group/rarity completions, message verbosity (Wordsmith 300 words, Novelist 1500) |
 | `post_api_request` | once per successful provider API request (has `usage` token buckets, `api_duration` in seconds, `finish_reason`, `message_count`) | cumulative token milestones (Token Tyro/Wizard/Whale), fast-response counting (Speed Demon), `total_tokens` stat, per-request context depth (Deep Context 50 msgs, Context Colossus 100) |
@@ -52,7 +54,7 @@ using Hermes. Pure Python stdlib, no external dependencies.
 
 ## Key invariants
 
-- **Exactly 126 achievements** — `tests/test_plugin.py` enforces this.
+- **Exactly 133 achievements** — `tests/test_plugin.py` enforces this.
 - **All achievement IDs must be detectable** — every def needs a path in
   `_TOOL_ACHIEVEMENTS`, `_TOOL_THRESHOLDS`, `TERMINAL_PATTERNS`,
   `_check_tool_args()`, `_check_counter_achievements()`, or an explicit
@@ -73,12 +75,12 @@ using Hermes. Pure Python stdlib, no external dependencies.
 ## Testing
 
 ```bash
-python3 -m pytest tests/ -q    # 280 tests, no deps beyond pytest
+python3 -m pytest tests/ -q    # 302 tests, no deps beyond pytest
 ```
 
 - `tests/test_detection.py::TestEveryAchievementUnlockable` — full-grind
   simulation: drives every hook with escalating synthetic gateway data and
-  asserts **all 126 defs actually unlock**. This is the enforcement of the
+  asserts **all 133 defs actually unlock**. This is the enforcement of the
   "every def must be detectable" invariant — after any swap, a dead def
   (impossible threshold, typo'd key, missing path) fails the run with its
   ID listed. Keep the grind's tool/command data broad enough to cover

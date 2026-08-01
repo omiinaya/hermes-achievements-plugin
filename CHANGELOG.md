@@ -1,5 +1,52 @@
 # Changelog
 
+## [2.12.0] — 2026-08-01
+
+### Added
+
+- **17th plugin hook: `transform_terminal_output`** — fires per terminal
+  command with the FULL raw output *before* the terminal tool truncates it
+  (~50KiB head+tail default) — the only hook that sees what the model was
+  NOT handed. Also carries `env_type` (local/ssh/docker/singularity/modal/
+  daytona) and the numeric `returncode`. New dimensions (126 → 133):
+  - **Raw output volume** — Verbose Output 💦 (uncommon, Power User) on
+    one command producing 100KB+; Data Flood 🌋 (rare) at 1MB+.
+    `peak_terminal_output_bytes` stat surfaced in the stats view.
+  - **Execution-environment diversity** — Multi-Environment 🏝️ (uncommon)
+    on 2 distinct env types; Omnipresent 🌌 (epic) at 5. `env_types` set
+    stat (JSON-safe, sorted list on save).
+  - **Numeric exit codes** — Ghost Command 🚫 (rare, secret) on exit code
+    127 ("command not found") — a signal `post_tool_call`'s ok/error
+    status bucket cannot express.
+- **18th plugin hook: `transform_tool_result`** — fires per tool call with
+  the FULL result string (post_tool_call only gets status/error_type,
+  never the content). New dimension:
+  - **Tool-result size / context bloat** — Big Haul 📦 (rare, Expert) on
+    a single tool result ≥ 1MB; Colossal Result 🗄️ (epic) at 10MB+.
+    `peak_tool_result_bytes` stat surfaced in the stats view.
+- **Observer-only transform contract** — both transform hooks always
+  return `None`, so the plugin never alters command output or tool
+  results (tested explicitly). `transform_llm_output` was deliberately
+  NOT registered: its kwargs (`response_text`/`session_id`/`model`/
+  `platform`) are a strict subset of what `post_llm_call` already
+  observes — registering it would add no new dimension.
+- New `TestTransformTerminalOutput` suite (12 tests: observer contract,
+  output thresholds, peak-max, exit-127, env diversity, repeat-env
+  dedup, progress, JSON-safe persistence) and `TestTransformToolResult`
+  suite (7 tests: observer contract, size thresholds, peak-max, progress,
+  empty no-op). Grind extended with 2MB output, 5 env types, exit 127,
+  and 20MB tool result. Gateway scan now covers `tools/terminal_tool.py`.
+- 3 new `ui.*` stats keys (`stats_peak_terminal_output`,
+  `stats_peak_tool_result`, `stats_env_types`) with a `_format_bytes`
+  human-readable helper — all 4 locales, real es/fr/pt translations.
+
+### Changed
+
+- Power User group: 33 → 38 achievements; Expert: 24 → 26. Group headers
+  and the group-counts test updated. Compact group views keep every
+  group (largest: Power User, 38) under Discord's 2000-char cap.
+- Tests: 280 → 302; all green.
+
 ## [2.11.0] — 2026-08-01
 
 ### Added

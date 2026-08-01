@@ -161,6 +161,41 @@ NEW = {
         "fr": {"name": "Torrent d'Outils", "description": "Émettez 20 appels d'outil en une seule réponse"},
         "pt": {"name": "Torrente de Ferramentas", "description": "Emita 20 chamadas de ferramenta em uma única resposta"},
     },
+    "verbose_output": {
+        "es": {"name": "Salida Verbosa", "description": "Produce 100KB+ de salida de un solo comando de terminal"},
+        "fr": {"name": "Sortie Verbouse", "description": "Produisez 100KB+ de sortie d'une seule commande terminale"},
+        "pt": {"name": "Saída Verbosa", "description": "Produza 100KB+ de saída de um único comando de terminal"},
+    },
+    "data_flood": {
+        "es": {"name": "Inundación de Datos", "description": "Produce 1MB+ de salida de un solo comando de terminal"},
+        "fr": {"name": "Déluge de Données", "description": "Produisez 1MB+ de sortie d'une seule commande terminale"},
+        "pt": {"name": "Enchente de Dados", "description": "Produza 1MB+ de saída de um único comando de terminal"},
+    },
+    "multi_env": {
+        "es": {"name": "Multi-Entorno", "description": "Ejecuta comandos de terminal en 2 entornos de ejecución diferentes"},
+        "fr": {"name": "Multi-Environnement", "description": "Exécutez des commandes terminales dans 2 environnements d'exécution différents"},
+        "pt": {"name": "Multi-Ambiente", "description": "Execute comandos de terminal em 2 ambientes de execução diferentes"},
+    },
+    "omnipresent": {
+        "es": {"name": "Omnipresente", "description": "Ejecuta comandos de terminal en 5 entornos de ejecución diferentes"},
+        "fr": {"name": "Omniprésent", "description": "Exécutez des commandes terminales dans 5 environnements d'exécution différents"},
+        "pt": {"name": "Onipresente", "description": "Execute comandos de terminal em 5 ambientes de execução diferentes"},
+    },
+    "ghost_command": {
+        "es": {"name": "Comando Fantasma", "description": "Consigue el código de salida 127 (comando no encontrado) en un comando de terminal"},
+        "fr": {"name": "Commande Fantôme", "description": "Obtenez le code de sortie 127 (commande introuvable) sur une commande terminale"},
+        "pt": {"name": "Comando Fantasma", "description": "Obtenha o código de saída 127 (comando não encontrado) em um comando de terminal"},
+    },
+    "big_haul": {
+        "es": {"name": "Gran Botín", "description": "Recibe un resultado de 1MB+ de una sola llamada de herramienta"},
+        "fr": {"name": "Grosse Prise", "description": "Recevez un résultat de 1MB+ d'un seul appel d'outil"},
+        "pt": {"name": "Grande Pegada", "description": "Receba um resultado de 1MB+ de uma única chamada de ferramenta"},
+    },
+    "colossal_result": {
+        "es": {"name": "Resultado Colosal", "description": "Recibe un resultado de 10MB+ de una sola llamada de herramienta"},
+        "fr": {"name": "Résultat Colossal", "description": "Recevez un résultat de 10MB+ d'un seul appel d'outil"},
+        "pt": {"name": "Resultado Colossal", "description": "Receba um resultado de 10MB+ de uma única chamada de ferramenta"},
+    },
 }
 
 

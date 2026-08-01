@@ -277,6 +277,9 @@ def _new_state():
             "total_sessions": 0,
             "conversations_started": 0,
             "peak_tools_per_response": 0,
+            "peak_terminal_output_bytes": 0,
+            "peak_tool_result_bytes": 0,
+            "env_types": set(),
             # Live per-session tracking (reset whenever session_id changes)
             "active_session": {
                 "id": None,
@@ -294,7 +297,7 @@ def _new_state():
 def _normalize_state():
     """Convert list fields back to sets for internal use."""
     stats = _state.setdefault("stats", {})
-    for key in ("platforms", "models_used", "providers_used", "slash_commands_used", "hooks_used", "users_seen"):
+    for key in ("platforms", "models_used", "providers_used", "slash_commands_used", "hooks_used", "users_seen", "env_types"):
         v = stats.get(key)
         if isinstance(v, set):
             continue
@@ -407,7 +410,7 @@ def _t(key, locale=None, **kwargs):
 # (per-turn tracking state lives in stats.active_session; no module globals)
 
 
-# ── Achievement Definitions (100 total) ──────────────────────────────────
+# ── Achievement Definitions (133 total) ──────────────────────────────────
 
 ACHIEVEMENT_DEFS = {
     # ═══════════════════════════════════════════════════════════════════════
@@ -636,7 +639,7 @@ ACHIEVEMENT_DEFS = {
     },
 
     # ═══════════════════════════════════════════════════════════════════════
-    # ⚡ POWER USER  (33)
+    # ⚡ POWER USER  (38)
     # ═══════════════════════════════════════════════════════════════════════
     "cron_commander": {
         "id": "cron_commander", "name": "Cron Commander", "emoji": "⏰",
@@ -748,6 +751,16 @@ ACHIEVEMENT_DEFS = {
         "description": "Send one API request with 500K+ input tokens",
         "rarity": "legendary", "group": "Expert",
     },
+    "big_haul": {
+        "id": "big_haul", "name": "Big Haul", "emoji": "📦",
+        "description": "Receive a 1MB+ result from a single tool call",
+        "rarity": "rare", "group": "Expert",
+    },
+    "colossal_result": {
+        "id": "colossal_result", "name": "Colossal Result", "emoji": "🗄️",
+        "description": "Receive a 10MB+ result from a single tool call",
+        "rarity": "epic", "group": "Expert",
+    },
     "workflow_builder": {
         "id": "workflow_builder", "name": "Workflow Builder", "emoji": "🏗️",
         "description": "Use 8 different tool types in a single session",
@@ -836,9 +849,35 @@ ACHIEVEMENT_DEFS = {
         "description": "Make 25 API requests to local/self-hosted endpoints",
         "rarity": "rare", "group": "Power User",
     },
+    "verbose_output": {
+        "id": "verbose_output", "name": "Verbose Output", "emoji": "💦",
+        "description": "Produce 100KB+ of output from a single terminal command",
+        "rarity": "uncommon", "group": "Power User",
+    },
+    "data_flood": {
+        "id": "data_flood", "name": "Data Flood", "emoji": "🌋",
+        "description": "Produce 1MB+ of output from a single terminal command",
+        "rarity": "rare", "group": "Power User",
+    },
+    "multi_env": {
+        "id": "multi_env", "name": "Multi-Environment", "emoji": "🏝️",
+        "description": "Run terminal commands in 2 different execution environments",
+        "rarity": "uncommon", "group": "Power User",
+    },
+    "omnipresent": {
+        "id": "omnipresent", "name": "Omnipresent", "emoji": "🌌",
+        "description": "Run terminal commands in 5 different execution environments",
+        "rarity": "epic", "group": "Power User",
+    },
+    "ghost_command": {
+        "id": "ghost_command", "name": "Ghost Command", "emoji": "🚫",
+        "description": "Hit exit code 127 (command not found) on a terminal command",
+        "rarity": "rare", "group": "Power User",
+        "secret": True,
+    },
 
     # ═══════════════════════════════════════════════════════════════════════
-    # 👑 EXPERT  (19)
+    # 👑 EXPERT  (26)
     # ═══════════════════════════════════════════════════════════════════════
     "the_90_turn_club": {
         "id": "the_90_turn_club", "name": "The 90-Turn Club", "emoji": "🤖",
@@ -1195,6 +1234,32 @@ _LOCAL_SUFFIXES = (".local", ".internal", ".lan", ".home.arpa")
 
 # Number of requests to local endpoints for the Self-Hosted tier
 _SELF_HOSTED_REQUESTS = 25
+
+# Raw-output volume thresholds (output from transform_terminal_output): the
+# hook receives the FULL command output BEFORE the terminal tool truncates
+# it, so these measure what the model was handed vs. what the command
+# actually produced — a dimension post_tool_call cannot see (it only gets
+# the truncated result).
+_VERBOSE_OUTPUT_BYTES = 100 * 1024        # 100 KiB
+_DATA_FLOOD_BYTES = 1024 * 1024           # 1 MiB
+
+# Tool-result size thresholds (result from transform_tool_result): the hook
+# delivers the full result string for ANY tool (post_tool_call only gets
+# status/error_type, never the result content) — measuring context bloat.
+_BIG_HAUL_BYTES = 1024 * 1024             # 1 MiB
+_COLOSSAL_RESULT_BYTES = 10 * 1024 * 1024 # 10 MiB
+
+# Execution-environment diversity (env_type from transform_terminal_output):
+# "local" | "ssh" | "docker" | "singularity" | "modal" | "daytona".
+_ENV_THRESHOLDS = [
+    (2, "multi_env"),
+    (5, "omnipresent"),
+]
+
+# Exit-code milestone (returncode from transform_terminal_output): 127 is
+# the classic "command not found" code — a distinct, recognizable signal
+# that post_tool_call's status/error_type bucket cannot express.
+_GHOST_COMMAND_EXIT_CODE = 127
 
 # Single-session tool call thresholds
 _SESSION_CALL_THRESHOLDS = [
@@ -1746,6 +1811,90 @@ def _pre_llm_call(**kwargs):
             _set_progress(ach_id, cs, threshold)
             break
     _save_state()
+
+
+# ── Hook: transform_terminal_output ─────────────────────────────────────
+# Fires per terminal command with the FULL raw output BEFORE the terminal
+# tool truncates it (default ~50KiB head+tail). This is the only hook that
+# sees what the model was NOT handed — output volume the command actually
+# produced. Also carries env_type (local/ssh/docker/singularity/modal/
+# daytona) and the numeric returncode (post_tool_call only buckets status
+# ok/error — it cannot express exit code 127 "command not found").
+# IMPORTANT: this is a TRANSFORM hook — returning a string would REPLACE
+# the output. We are observers: always return None.
+
+def _transform_terminal_output(**kwargs):
+    """Observe raw pre-truncation output, env diversity, and exit codes."""
+    output = kwargs.get("output") or ""
+    env_type = kwargs.get("env_type") or "local"
+    returncode = kwargs.get("returncode")
+
+    state = _load_state()
+    stats = state.setdefault("stats", {})
+    now = datetime.now(UTC).isoformat()
+
+    # Raw output volume (bytes of the pre-truncation string)
+    size = len(output.encode("utf-8", errors="ignore"))
+    stats["peak_terminal_output_bytes"] = max(
+        stats.get("peak_terminal_output_bytes", 0), size
+    )
+    if size >= _DATA_FLOOD_BYTES:
+        _unlock("data_flood", now)
+        _unlock("verbose_output", now)
+    elif size >= _VERBOSE_OUTPUT_BYTES:
+        _unlock("verbose_output", now)
+    else:
+        _set_progress("verbose_output", size, _VERBOSE_OUTPUT_BYTES)
+
+    # Environment diversity (distinct execution environments)
+    envs = stats.setdefault("env_types", set())
+    if isinstance(envs, list):
+        envs = set(envs)
+        stats["env_types"] = envs
+    if env_type and env_type not in envs:
+        envs.add(env_type)
+    for threshold, ach_id in _ENV_THRESHOLDS:
+        if len(envs) >= threshold:
+            _unlock(ach_id, now)
+        else:
+            _set_progress(ach_id, len(envs), threshold)
+            break
+
+    # Numeric exit code — 127 is the classic "command not found"
+    if returncode is not None and int(returncode) == _GHOST_COMMAND_EXIT_CODE:
+        _unlock("ghost_command", now)
+
+    _save_state()
+    return None  # observer only — never transform output
+
+
+# ── Hook: transform_tool_result ─────────────────────────────────────────
+# Fires per tool call with the FULL result string (post_tool_call only gets
+# status/error_type — never the content). Measuring result size reveals
+# context bloat: how much data a single tool pushed into the conversation.
+# Also a TRANSFORM hook — observers must return None.
+
+def _transform_tool_result(**kwargs):
+    """Observe full tool-result size (context bloat)."""
+    result = kwargs.get("result") or ""
+    state = _load_state()
+    stats = state.setdefault("stats", {})
+    now = datetime.now(UTC).isoformat()
+
+    size = len(result.encode("utf-8", errors="ignore"))
+    stats["peak_tool_result_bytes"] = max(
+        stats.get("peak_tool_result_bytes", 0), size
+    )
+    if size >= _COLOSSAL_RESULT_BYTES:
+        _unlock("colossal_result", now)
+        _unlock("big_haul", now)
+    elif size >= _BIG_HAUL_BYTES:
+        _unlock("big_haul", now)
+    else:
+        _set_progress("big_haul", size, _BIG_HAUL_BYTES)
+
+    _save_state()
+    return None  # observer only — never transform result
 
 
 # ── Hook: post_llm_call ─────────────────────────────────────────────────
@@ -2476,6 +2625,20 @@ def _next_up_hint(state) -> str:
               current=cur, target=tgt, percent=pct_int)
 
 
+def _format_bytes(n: int) -> str:
+    """Human-readable byte size (e.g. 1.5 MiB)."""
+    n = int(n or 0)
+    if n < 1024:
+        return f"{n} B"
+    units = ("KiB", "MiB", "GiB", "TiB")
+    size = float(n)
+    for unit in units:
+        size /= 1024.0
+        if size < 1024.0 or unit == units[-1]:
+            return f"{size:.1f} {unit}"
+    return f"{n} B"
+
+
 def _handle_achievements(raw_args: str) -> str:
     args = raw_args.strip().lower()
     state = _load_state()
@@ -2574,6 +2737,18 @@ def _handle_achievements(raw_args: str) -> str:
                 lines.append(_t("ui.stats_peak_input", locale, count=stats.get("peak_input_tokens", 0)))
             if stats.get("local_requests"):
                 lines.append(_t("ui.stats_local_requests", locale, count=stats.get("local_requests", 0)))
+            if stats.get("peak_terminal_output_bytes"):
+                lines.append(_t("ui.stats_peak_terminal_output", locale,
+                                size=_format_bytes(stats.get("peak_terminal_output_bytes", 0))))
+            if stats.get("peak_tool_result_bytes"):
+                lines.append(_t("ui.stats_peak_tool_result", locale,
+                                size=_format_bytes(stats.get("peak_tool_result_bytes", 0))))
+            env_types = stats.get("env_types", set())
+            if isinstance(env_types, set):
+                env_types = sorted(env_types)
+            if env_types:
+                lines.append(_t("ui.stats_env_types", locale,
+                                count=len(env_types), envs=", ".join(env_types)))
             if stats.get("longest_message_words"):
                 lines.append(_t("ui.stats_longest_message", locale, count=stats.get("longest_message_words", 0)))
             hooks_used = stats.get("hooks_used", set())
@@ -2761,6 +2936,12 @@ def register(ctx) -> None:
     ctx.register_hook("pre_llm_call", _pre_llm_call)
     # Detection: pre_tool_call counts single-response tool batching
     ctx.register_hook("pre_tool_call", _pre_tool_call)
+    # Observation: raw pre-truncation terminal output, env diversity, exit codes
+    # (TRANSFORM hook — _transform_terminal_output always returns None)
+    ctx.register_hook("transform_terminal_output", _transform_terminal_output)
+    # Observation: full tool-result size / context bloat
+    # (TRANSFORM hook — _transform_tool_result always returns None)
+    ctx.register_hook("transform_tool_result", _transform_tool_result)
     # Detection: post_llm_call has conversation_history → tool calls
     ctx.register_hook("post_llm_call", _post_llm_call)
     ctx.register_hook("post_api_request", _post_api_request)

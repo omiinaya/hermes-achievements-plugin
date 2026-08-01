@@ -17,6 +17,10 @@
       "name": "Artista de Lotes",
       "description": "Emite 5 llamadas de herramienta en una sola respuesta"
     },
+    "big_haul": {
+      "name": "Gran Botín",
+      "description": "Recibe un resultado de 1MB+ de una sola llamada de herramienta"
+    },
     "cautious": {
       "name": "Cauteloso",
       "description": "Rechaza una solicitud de aprobación"
@@ -52,6 +56,10 @@
     "code_wizard": {
       "name": "Mago del Código",
       "description": "Ejecuta 10 bloques de código con execute_code"
+    },
+    "colossal_result": {
+      "name": "Resultado Colosal",
+      "description": "Recibe un resultado de 10MB+ de una sola llamada de herramienta"
     },
     "complete_community": {
       "name": "Comunidad Completa",
@@ -133,6 +141,10 @@
       "name": "Veterano Multiplataforma",
       "description": "Chatea con Hermes desde 5+ plataformas distintas"
     },
+    "data_flood": {
+      "name": "Inundación de Datos",
+      "description": "Produce 1MB+ de salida de un solo comando de terminal"
+    },
     "deep_context": {
       "name": "Contexto Profundo",
       "description": "Haz una solicitud de API con 50+ mensajes en contexto"
@@ -192,6 +204,10 @@
     "gateway_networker": {
       "name": "Red de Pasarelas",
       "description": "Conéctate a 3 plataformas de mensajería distintas"
+    },
+    "ghost_command": {
+      "name": "Comando Fantasma",
+      "description": "Consigue el código de salida 127 (comando no encontrado) en un comando de terminal"
     },
     "ghost_in_shell": {
       "name": "Fantasma en la Máquina",
@@ -257,6 +273,10 @@
       "name": "Maestro Mensual",
       "description": "Usa Hermes 30 días seguidos"
     },
+    "multi_env": {
+      "name": "Multi-Entorno",
+      "description": "Ejecuta comandos de terminal en 2 entornos de ejecución diferentes"
+    },
     "multi_lingual": {
       "name": "Multilingüe",
       "description": "Comunícate con Hermes en un idioma que no sea inglés"
@@ -272,6 +292,10 @@
     "novelist": {
       "name": "Novelista",
       "description": "Envía un único mensaje de 1500+ palabras"
+    },
+    "omnipresent": {
+      "name": "Omnipresente",
+      "description": "Ejecuta comandos de terminal en 5 entornos de ejecución diferentes"
     },
     "orchestrator": {
       "name": "Orquestador",
@@ -477,6 +501,10 @@
       "name": "Bajo Escrutinio",
       "description": "Provoca 10 solicitudes de aprobación"
     },
+    "verbose_output": {
+      "name": "Salida Verbosa",
+      "description": "Produce 100KB+ de salida de un solo comando de terminal"
+    },
     "visionary": {
       "name": "Visionario",
       "description": "Analiza una imagen con Hermes"
@@ -576,6 +604,9 @@
     "stats_peak_context": "Contexto más profundo:    {count} msgs",
     "stats_peak_input": "Pico de tokens de entrada: {count}",
     "stats_local_requests": "Llamadas a endpoint local: {count}",
+    "stats_peak_terminal_output": "Mayor salida de comando:  {size}",
+    "stats_peak_tool_result": "Mayor resultado de tool:  {size}",
+    "stats_env_types": "Entornos usados:          {count} ({envs})",
     "stats_longest_message": "Mensaje más largo:        {count} palabras",
     "stats_hooks_used": "Hooks de plugin creados: {count}",
     "stats_session_tools": "Esta sesión:              {calls} llamadas · {tools} tipos",

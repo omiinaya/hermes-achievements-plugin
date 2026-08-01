@@ -17,6 +17,10 @@
       "name": "Batch Artist",
       "description": "Emit 5 tool calls in a single response"
     },
+    "big_haul": {
+      "name": "Big Haul",
+      "description": "Receive a 1MB+ result from a single tool call"
+    },
     "cautious": {
       "name": "Cautious",
       "description": "Deny an approval request"
@@ -52,6 +56,10 @@
     "code_wizard": {
       "name": "Code Wizard",
       "description": "Execute 10 code blocks with execute_code"
+    },
+    "colossal_result": {
+      "name": "Colossal Result",
+      "description": "Receive a 10MB+ result from a single tool call"
     },
     "complete_community": {
       "name": "Community Complete",
@@ -133,6 +141,10 @@
       "name": "Cross-Platform Veteran",
       "description": "Chat with Hermes from 5+ different platforms"
     },
+    "data_flood": {
+      "name": "Data Flood",
+      "description": "Produce 1MB+ of output from a single terminal command"
+    },
     "deep_context": {
       "name": "Deep Context",
       "description": "Make one API request with 50+ messages in context"
@@ -192,6 +204,10 @@
     "gateway_networker": {
       "name": "Gateway Networker",
       "description": "Connect to 3 different messaging platforms"
+    },
+    "ghost_command": {
+      "name": "Ghost Command",
+      "description": "Hit exit code 127 (command not found) on a terminal command"
     },
     "ghost_in_shell": {
       "name": "Ghost in the Shell",
@@ -257,6 +273,10 @@
       "name": "Monthly Master",
       "description": "Use Hermes 30 days in a row"
     },
+    "multi_env": {
+      "name": "Multi-Environment",
+      "description": "Run terminal commands in 2 different execution environments"
+    },
     "multi_lingual": {
       "name": "Multi-Lingual",
       "description": "Communicate with Hermes in a language other than English"
@@ -272,6 +292,10 @@
     "novelist": {
       "name": "Novelist",
       "description": "Send a single message of 1500+ words"
+    },
+    "omnipresent": {
+      "name": "Omnipresent",
+      "description": "Run terminal commands in 5 different execution environments"
     },
     "orchestrator": {
       "name": "Orchestrator",
@@ -477,6 +501,10 @@
       "name": "Under Scrutiny",
       "description": "Trigger 10 approval requests"
     },
+    "verbose_output": {
+      "name": "Verbose Output",
+      "description": "Produce 100KB+ of output from a single terminal command"
+    },
     "visionary": {
       "name": "Visionary",
       "description": "Analyze an image with Hermes"
@@ -577,6 +605,9 @@
     "stats_peak_context": "Deepest context:          {count} msgs",
     "stats_peak_input": "Peak input tokens:        {count}",
     "stats_local_requests": "Local endpoint calls:     {count}",
+    "stats_peak_terminal_output": "Biggest command output:   {size}",
+    "stats_peak_tool_result": "Biggest tool result:      {size}",
+    "stats_env_types": "Environments used:        {count} ({envs})",
     "stats_longest_message": "Longest message:           {count} words",
     "stats_hooks_used": "Plugin hooks authored:   {count}",
     "stats_session_tools": "This session:             {calls} calls · {tools} tool types",
