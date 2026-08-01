@@ -51,6 +51,36 @@ When an achievement unlocks, a notification is posted to:
 - Your Hermes **home channel** (configured via `DISCORD_HOME_CHANNEL`)
 - The **channel where you're chatting** (if different from home)
 
+Notifications are rarity-colored Discord embeds (gray → gold) posted asynchronously — they never block the agent loop.
+
+### Example output
+
+```
+/achievements
+
+**🎮 Hermes Achievements**
+*Achievements unlock automatically as you use Hermes*
+
+**🔥 Recently Unlocked:**
+  ✅ **First Steps** — Send your first message to Hermes
+  ✅ **Web Walker** — Search the web using Hermes
+
+🚀 **Getting Started** (3/11) ██░░░░░░░░
+🛠️ **Tools & Skills** (3/28) █░░░░░░░░░
+⚡ **Power User** (0/20) ░░░░░░░░░░
+👑 **Expert** (0/15) ░░░░░░░░░░
+🎯 **Milestones** (0/15) ░░░░░░░░░░
+🤝 **Community** (0/11) ░░░░░░░░░░
+
+/achievements next
+
+🎯 **Next Up** — closest to unlocking:
+
+🟩 **Jack of All Trades** — ██████░░░░ 3/5 (60%)
+🟦 **Cron Master** — ████░░░░░░ 2/5 (40%)
+🟦 **Workflow Builder** — ███░░░░░░░ 3/8 (37%)
+```
+
 ### Multi-Language Support (i18n) 🌐
 
 The plugin supports 4 languages:
