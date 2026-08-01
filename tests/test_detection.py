@@ -547,6 +547,26 @@ class TestSessionFinalize(HookTestBase):
         self.mod._on_session_finalize(session_id="s", platform="gateway")
         self.assertFalse(os.path.exists(self.mod._STATE_PATH))
 
+    def test_finalize_swallows_save_and_flush_errors(self):
+        # Even if _save_state and _flush_notification_queue raise, finalize
+        # must return without crashing shutdown
+        old_save = self.mod._save_state
+        old_flush = self.mod._flush_notification_queue
+
+        def boom_save(force=False):
+            raise RuntimeError("state write failed")
+
+        def boom_flush():
+            raise RuntimeError("notify failed")
+
+        self.mod._save_state = boom_save
+        self.mod._flush_notification_queue = boom_flush
+        try:
+            self.mod._on_session_finalize(session_id="s", platform="gateway")
+        finally:
+            self.mod._save_state = old_save
+            self.mod._flush_notification_queue = old_flush
+
 
 class TestSubagentStart(HookTestBase):
     """subagent_start: true concurrency tracking drives Conductor."""
