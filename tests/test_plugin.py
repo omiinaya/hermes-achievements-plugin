@@ -367,7 +367,7 @@ class TestTranslationFunction(unittest.TestCase):
             "detail_status_format": {"status_icon": "⬜", "emoji": "👣", "name": "Test",
                                       "description": "Test desc", "rarity_line": "",
                                       "group_line": "", "status_line": ""},
-            "help_footer": {"all": "a", "filter": "b", "overview": "c", "latest": "d", "detail": "e"},
+            "help_footer": {"all": "a", "filter": "b", "overview": "c", "latest": "d", "detail": "e", "next_up": "f"},
             "lang_set": {"lang": "es", "native": "Español"},
             "lang_invalid": {"code": "xx"},
             "notification_format": {"emoji": "⬜", "icon": "👣", "name": "Test",

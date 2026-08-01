@@ -40,6 +40,7 @@ No external Python dependencies — the plugin uses only the standard library.
 ```
 /achievements              View all achievements and progress
 /achievements stats        Overall stats and unlock percentage
+/achievements next         Closest achievements to unlocking
 /achievements recent       Recently unlocked achievements
 /achievements <group>      Filter by group name
 /achievement <id>          Detail view with progress bar

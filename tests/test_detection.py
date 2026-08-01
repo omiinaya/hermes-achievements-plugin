@@ -439,6 +439,19 @@ class TestCommandHandlers(HookTestBase):
         self.assertIn("First Steps", out)
         self.assertNotIn("Ghost in the Shell", out)
 
+    def test_achievements_next_up(self):
+        # 9/10 terminal commands → Terminal Jockey should be next up
+        for _ in range(9):
+            self.tool_call("terminal", {"command": "echo x"}, session_id="sess-next")
+        out = self.mod._handle_achievements("next")
+        self.assertIn("Next Up", out)
+        self.assertIn("Terminal Jockey", out)
+        self.assertIn("9/25", out)
+
+    def test_achievements_next_empty(self):
+        out = self.mod._handle_achievements("next")
+        self.assertIn("No progress", out)
+
     def test_achievement_detail(self):
         out = self.mod._handle_achievement_detail("first_steps")
         self.assertIn("First Steps", out)

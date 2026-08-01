@@ -436,7 +436,7 @@
     "all_subtitle": "*Los logros se desbloquean automáticamente mientras usas Hermes*",
     "recent_unlocked_section": "**🔥 Desbloqueados Recientemente:**",
     "group_header": "{emoji} **{group}** ({unlocked}/{total})",
-    "help_footer": "---\n`/achievements` — {all}\n`/achievements <group>` — {filter}\n`/achievements stats` — {overview}\n`/achievements recent` — {latest}\n`/achievement <id>` — {detail}",
+    "help_footer": "---\n`/achievements` — {all}\n`/achievements <group>` — {filter}\n`/achievements stats` — {overview}\n`/achievements next` — {next_up}\n`/achievements recent` — {latest}\n`/achievement <id>` — {detail}",
     "help_all": "ver todos",
     "help_filter": "filtrar por grupo",
     "help_overview": "resumen",
@@ -462,6 +462,9 @@
     "stats_session_tools": "Esta sesión:              {calls} llamadas · {tools} tipos",
     "stats_cron": "Trabajos cron creados:      {count}",
     "stats_skills_created": "Habilidades creadas:       {count}",
-    "stats_config": "Cambios de configuración:  {count}"
+    "stats_config": "Cambios de configuración:  {count}",
+    "next_title": "🎯 **Próximos** — más cerca de desbloquear:",
+    "next_empty": "Sin progreso registrado aún — ¡sigue usando Hermes!",
+    "help_next": "próximos"
   }
 }

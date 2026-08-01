@@ -436,7 +436,7 @@
     "all_subtitle": "*Achievements unlock automatically as you use Hermes*",
     "recent_unlocked_section": "**🔥 Recently Unlocked:**",
     "group_header": "{emoji} **{group}** ({unlocked}/{total})",
-    "help_footer": "---\n`/achievements` — {all}\n`/achievements <group>` — {filter}\n`/achievements stats` — {overview}\n`/achievements recent` — {latest}\n`/achievement <id>` — {detail}",
+    "help_footer": "---\n`/achievements` — {all}\n`/achievements <group>` — {filter}\n`/achievements stats` — {overview}\n`/achievements next` — {next_up}\n`/achievements recent` — {latest}\n`/achievement <id>` — {detail}",
     "help_all": "view all",
     "help_filter": "filter by group",
     "help_overview": "overview",
@@ -462,6 +462,9 @@
     "stats_session_tools": "This session:             {calls} calls · {tools} tool types",
     "stats_cron": "Cron jobs created:          {count}",
     "stats_skills_created": "Skills created:             {count}",
-    "stats_config": "Config changes:             {count}"
+    "stats_config": "Config changes:             {count}",
+    "next_title": "🎯 **Next Up** — closest to unlocking:",
+    "next_empty": "No progress tracked yet — keep using Hermes!",
+    "help_next": "next up"
   }
 }

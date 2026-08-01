@@ -1600,6 +1600,40 @@ def _format_badge(a_id, a_def, state):
     return _t("ui.badge_format", locale, icon=icon, name=name_str, description=desc_str, progress=prog_str)
 
 
+def _handle_next_up(state) -> str:
+    """Show the achievements closest to unlocking (by progress %)."""
+    locale = state.get("locale", "en")
+    ach_state = state.get("achievements", {})
+    candidates = []
+    for aid, adef in ACHIEVEMENT_DEFS.items():
+        s = ach_state.get(aid, {})
+        if s.get("unlocked"):
+            continue
+        prog = s.get("progress")
+        if not prog or not prog.get("target"):
+            continue
+        cur = prog.get("current", 0)
+        tgt = prog.get("target", 1)
+        pct = cur / tgt
+        if pct >= 1.0:  # meets threshold but unlock check hasn't fired yet
+            continue
+        candidates.append((pct, aid, cur, tgt))
+    if not candidates:
+        return _t("ui.next_empty", locale)
+    candidates.sort(reverse=True)
+    lines = [_t("ui.next_title", locale) + "\n"]
+    for pct, aid, cur, tgt in candidates[:3]:
+        a_def = ACHIEVEMENT_DEFS[aid]
+        rarity_e = RARITY_EMOJIS.get(a_def.get("rarity", "common"), "⬜")
+        name = _t(f"achievement.{aid}.name", locale)
+        bar = _progress_bar(cur, tgt)
+        pct_int = int(pct * 100)
+        lines.append(
+            f"{rarity_e} **{name}** — {bar} {cur}/{tgt} ({pct_int}%)"
+        )
+    return "\n".join(lines)
+
+
 def _handle_achievements(raw_args: str) -> str:
     args = raw_args.strip().lower()
     state = _load_state()
@@ -1611,6 +1645,9 @@ def _handle_achievements(raw_args: str) -> str:
 
     if args == "lang" or args.startswith("lang "):
         return _handle_lang(args[5:] if args.startswith("lang ") else "")
+
+    if args == "next":
+        return _handle_next_up(state)
 
     if args == "recent":
         if not newly and not unlocked_ids:
@@ -1723,8 +1760,10 @@ def _handle_achievements(raw_args: str) -> str:
     help_overview = _t("ui.help_overview", locale)
     help_latest = _t("ui.help_latest", locale)
     help_detail = _t("ui.help_detail", locale)
+    help_next = _t("ui.help_next", locale)
     lines.append(_t("ui.help_footer", locale, all=help_all, filter=help_filter,
-                     overview=help_overview, latest=help_latest, detail=help_detail))
+                     overview=help_overview, latest=help_latest, detail=help_detail,
+                     next_up=help_next))
     return "\n".join(lines)
 def _handle_achievement_detail(raw_args: str) -> str:
     a_id = raw_args.strip()
@@ -1809,7 +1848,7 @@ def register(ctx) -> None:
     """Plugin entry point — registers slash commands and hooks."""
     ctx.register_command("achievements", handler=_handle_achievements,
         description="View Hermes achievement progress and stats.",
-        args_hint="[recent|stats|<group>|lang <code>]")
+        args_hint="[recent|next|stats|<group>|lang <code>]")
     ctx.register_command("achievement", handler=_handle_achievement_detail,
         description="Show details for a specific achievement.",
         args_hint="<achievement-id>")

@@ -436,7 +436,7 @@
     "all_subtitle": "*As conquistas são desbloqueadas automaticamente conforme você usa o Hermes*",
     "recent_unlocked_section": "**🔥 Desbloqueadas Recentemente:**",
     "group_header": "{emoji} **{group}** ({unlocked}/{total})",
-    "help_footer": "---\n`/achievements` — {all}\n`/achievements <grupo>` — {filter}\n`/achievements stats` — {overview}\n`/achievements recent` — {latest}\n`/achievement <id>` — {detail}",
+    "help_footer": "---\n`/achievements` — {all}\n`/achievements <group>` — {filter}\n`/achievements stats` — {overview}\n`/achievements next` — {next_up}\n`/achievements recent` — {latest}\n`/achievement <id>` — {detail}",
     "help_all": "ver todas",
     "help_filter": "filtrar por grupo",
     "help_overview": "resumo",
@@ -462,6 +462,9 @@
     "stats_session_tools": "Esta sessão:               {calls} chamadas · {tools} tipos",
     "stats_cron": "Trabalhos cron criados:     {count}",
     "stats_skills_created": "Habilidades criadas:       {count}",
-    "stats_config": "Alterações de configuração: {count}"
+    "stats_config": "Alterações de configuração: {count}",
+    "next_title": "🎯 **A seguir** — mais próximos de desbloquear:",
+    "next_empty": "Sem progresso registrado ainda — continue usando o Hermes!",
+    "help_next": "a seguir"
   }
 }
