@@ -93,6 +93,10 @@
       "name": "Bricoleur de Config",
       "description": "Modifier un paramètre de configuration Hermes"
     },
+    "context_colossus": {
+      "name": "Contexte Colossal",
+      "description": "Faites une requête API avec 100+ messages en contexte"
+    },
     "cron_commander": {
       "name": "Commandant Cron",
       "description": "Planifier ta première tâche cron"
@@ -112,6 +116,10 @@
     "cross_platform_veteran": {
       "name": "Vétéran Multi-Plateforme",
       "description": "Discuter avec Hermes depuis 5+ plateformes différentes"
+    },
+    "deep_context": {
+      "name": "Contexte Profond",
+      "description": "Faites une requête API avec 50+ messages en contexte"
     },
     "deep_dive": {
       "name": "Plongée Profonde",
@@ -233,6 +241,10 @@
       "name": "Oiseau de Nuit",
       "description": "Utiliser Hermes après minuit (heure locale)"
     },
+    "novelist": {
+      "name": "Romancier",
+      "description": "Envoyez un seul message de 1500+ mots"
+    },
     "orchestrator": {
       "name": "Orchestrateur",
       "description": "Utilisez un sous-agent avec le rôle d'orchestrateur"
@@ -312,6 +324,10 @@
     "shell_master": {
       "name": "Maître du Shell",
       "description": "Exécuter 100 commandes terminal"
+    },
+    "show_and_tell": {
+      "name": "Montre et Raconte",
+      "description": "Envoyez une image ou une pièce jointe à Hermes"
     },
     "skill_apprentice": {
       "name": "Apprenti Compétence",
@@ -417,6 +433,10 @@
       "name": "Visionnaire",
       "description": "Analyser une image avec Hermes"
     },
+    "visual_storyteller": {
+      "name": "Conteur Visuel",
+      "description": "Envoyez 25 images ou pièces jointes"
+    },
     "web_walker": {
       "name": "Arpenteur du Web",
       "description": "Effectuer une recherche web via Hermes"
@@ -424,6 +444,10 @@
     "week_warrior": {
       "name": "Guerrier de la Semaine",
       "description": "Utiliser Hermes 7 jours d'affilée"
+    },
+    "wordsmith": {
+      "name": "Forgeron de Mots",
+      "description": "Envoyez un seul message de 300+ mots"
     },
     "workflow_builder": {
       "name": "Architecte de Workflows",
@@ -497,6 +521,9 @@
     "stats_models": "Modèles :                 {models}{more}",
     "stats_platforms": "Plateformes :             {platforms}",
     "stats_session_resets": "Réinitialisations:        {count}",
+    "stats_media": "Messages média:           {count}",
+    "stats_peak_context": "Contexte le plus profond: {count} msgs",
+    "stats_longest_message": "Message le plus long:     {count} mots",
     "stats_hooks_used": "Hooks de plugin écrits :  {count}",
     "stats_session_tools": "Cette session :            {calls} appels · {tools} types",
     "stats_sessions": "Sessions:                 {count}",

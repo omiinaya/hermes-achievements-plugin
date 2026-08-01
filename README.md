@@ -6,7 +6,7 @@
 [![CI](https://github.com/omiinaya/hermes-achievements-plugin/actions/workflows/test.yml/badge.svg)](https://github.com/omiinaya/hermes-achievements-plugin/actions/workflows/test.yml)
 [![Coverage](https://img.shields.io/badge/coverage-99%25-brightgreen.svg)](https://github.com/omiinaya/hermes-achievements-plugin/actions/workflows/test.yml)
 
-**108 Steam-style achievement badges** for [Hermes Agent](https://hermes-agent.nousresearch.com). Unlock achievements as you use Hermes — run commands, search the web, schedule cron jobs, create skills, and explore the platform. Achievements are tracked silently and delivered to your Discord home channel the moment they unlock.
+**114 Steam-style achievement badges** for [Hermes Agent](https://hermes-agent.nousresearch.com). Unlock achievements as you use Hermes — run commands, search the web, schedule cron jobs, create skills, and explore the platform. Achievements are tracked silently and delivered to your Discord home channel the moment they unlock.
 
 ## Quick Start
 
@@ -128,12 +128,13 @@ unlock them, Steam-style. Currently secret: `Fresh Start`, `Cautious`,
 
 ## Achievement Groups
 
-### 🚀 Getting Started (11)
+### 🚀 Getting Started (12)
 
 | Icon | Name | Description | Rarity |
 |------|------|-------------|--------|
 | 👣 | First Steps | Send your first message to Hermes | Common |
 | 🔧 | Config Tinkerer | Change a Hermes configuration setting | Common |
+| 🖼️ | Show and Tell | Send an image or media attachment to Hermes | Common |
 | 🏥 | Clean Bill of Health | Run `hermes doctor` to check system health | Common |
 | 🎭 | Model Hopper | Switch to a different AI model | Common |
 | 🗣️ | Chatty | Send 25 messages to Hermes | Common |
@@ -177,12 +178,14 @@ unlock them, Steam-style. Currently secret: `Fresh Start`, `Cautious`,
 | 🛠️🛠️ | Complete Toolset | Use every available Hermes tool type at least once | Epic |
 | 👥 | Army Commander | Spawn 25 subagents with delegate_task | Epic |
 
-### ⚡ Power User (24)
+### ⚡ Power User (27)
 
 | Icon | Name | Description | Rarity |
 |------|------|-------------|--------|
 | 🔄 | Session Sage | Resume a past session with --continue or /resume | Uncommon |
 | 🏄 | Session Surfer | Resume 10 different sessions | Uncommon |
+| 🌊 | Deep Context | Make one API request with 50+ messages in context | Uncommon |
+| ✍️ | Wordsmith | Send a single message of 300+ words | Uncommon |
 | ⏰ | Cron Commander | Schedule your first cron job | Rare |
 | 🔌 | MCP Master | Add an MCP server connection | Rare |
 | 👥 | Agent Swarm | Spawn a subagent with delegate_task | Rare |
@@ -197,6 +200,7 @@ unlock them, Steam-style. Currently secret: `Fresh Start`, `Cautious`,
 | 🎻 | Conductor | Run 3 subagents simultaneously (peak concurrency) | Rare |
 | 🎼 | Orchestrator | Use an orchestrator-role subagent | Rare |
 | 🪂 | Trust Fall | Approve a command permanently with 'always' | Rare |
+| 🎬 | Visual Storyteller | Send 25 images or media attachments | Rare |
 | 🔐 | YOLO Mode | Run with --yolo flag or disable approval prompts | Epic |
 | 🔐 | YOLO Champion | Complete 25 tasks without approval prompts | Epic |
 | 🌉 | Gateway Networker | Connect to 3 different messaging platforms | Epic |
@@ -206,13 +210,14 @@ unlock them, Steam-style. Currently secret: `Fresh Start`, `Cautious`,
 | 🤖 | Marathon Session | Reach 200 tool calls in a single session | Legendary |
 | 🧩 | Plugin Developer | Create your own Hermes plugin | Legendary |
 
-### 👑 Expert (20)
+### 👑 Expert (22)
 
 | Icon | Name | Description | Rarity |
 |------|------|-------------|--------|
 | 🤿 | Deep Dive | Let Hermes work 10 steps in a single turn | Uncommon |
 | 🌍 | Multi-Lingual | Communicate with Hermes in a language other than English | Uncommon |
 | 📚 | Doc Diver | Read the Hermes documentation | Uncommon |
+| 📖 | Novelist | Send a single message of 1500+ words | Rare |
 | 🌉 | Gateway Guru | Connect Hermes to a messaging platform gateway | Rare |
 | 🧩 | Plugin Power | Install and enable a Hermes plugin | Rare |
 | 🔧 | Config Guru | Modify 15 different configuration settings | Rare |
@@ -220,6 +225,7 @@ unlock them, Steam-style. Currently secret: `Fresh Start`, `Cautious`,
 | ⚙️ | Environment Tuner | Configure custom environment variables for a cron job | Rare |
 | 🔍 | Under Scrutiny | Trigger 10 approval requests | Rare |
 | 🔬 | Trial and Error | Persist through 25 tool calls that errored | Rare |
+| 🏛️ | Context Colossus | Make one API request with 100+ messages in context | Epic |
 | 🤖 | The 90-Turn Club | Reach 90 tool calls in a single session (default max_turns) | Epic |
 | 📡 | Cross-Platform Operative | Chat with Hermes from 2+ different platforms | Epic |
 | 🔌 | MCP Wizard | Write a custom MCP server configuration | Epic |
@@ -316,7 +322,7 @@ State data is stored at `~/.hermes/achievements/state.json` (user-local, not par
 vim ~/.hermes/plugins/achievements/__init__.py
 
 # Run the test suite (static + functional) — includes the full-grind
-# simulation that proves all 108 achievements can unlock
+# simulation that proves all 114 achievements can unlock
 python3 -m pytest tests/ -q
 
 # Run the one-shot health check (defs, locales, manifest↔register hooks,

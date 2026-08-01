@@ -2,7 +2,7 @@
 
 ## What this is
 
-A Hermes Agent plugin that awards 108 Steam-style achievement badges for
+A Hermes Agent plugin that awards 114 Steam-style achievement badges for
 using Hermes. Pure Python stdlib, no external dependencies.
 
 ## Repo layout
@@ -22,7 +22,7 @@ using Hermes. Pure Python stdlib, no external dependencies.
 - `scripts/bump_version.py` — updates the version in all 4 places that
   carry it (pyproject.toml, plugin.yaml, setup.sh ×2) in one shot
 - `scripts/check_plugin.py` — health check: module loads, manifest↔register()
-  hook agreement, exactly-105 defs, locale parity, no dead detection-map
+  hook agreement, exactly-114 defs, locale parity, no dead detection-map
   references, live state.json reconciliation (--live), real PluginManager
   load (--manifest), and hook kwarg contract vs the installed Hermes
   source (--gateway — catches silent no-op drift if Hermes renames a
@@ -34,8 +34,8 @@ using Hermes. Pure Python stdlib, no external dependencies.
 | Hook | Fires | Owns |
 |------|-------|------|
 | `post_tool_call` | every tool execution (has `tool_name`, `args`, `session_id`, `duration_ms`, `status` ok/cancelled/block/error, `error_type`) | per-tool counts, per-session tracking, argument-based achievements (cron chaining, parallel delegation, skill/plugin authoring), Quick Draw, tool-error counting (Trial and Error — 25 failed calls) |
-| `post_llm_call` | once per turn | cumulative message counts, model/platform diversity, user-command patterns, tiered counters, group/rarity completions |
-| `post_api_request` | once per successful provider API request (has `usage` token buckets, `api_duration` in seconds, `finish_reason`) | cumulative token milestones (Token Tyro/Wizard/Whale), fast-response counting (Speed Demon), `total_tokens` stat |
+| `post_llm_call` | once per turn | cumulative message counts, model/platform diversity, user-command patterns, tiered counters, group/rarity completions, message verbosity (Wordsmith 300 words, Novelist 1500) |
+| `post_api_request` | once per successful provider API request (has `usage` token buckets, `api_duration` in seconds, `finish_reason`, `message_count`) | cumulative token milestones (Token Tyro/Wizard/Whale), fast-response counting (Speed Demon), `total_tokens` stat, per-request context depth (Deep Context 50 msgs, Context Colossus 100) |
 | `on_session_start` | new session created | `total_sessions` counter |
 | `on_session_end` | end of run_conversation | daily streaks, completions re-check |
 | `subagent_stop` | once per delegate_task child (has `child_role`, `child_status`, `duration_ms`) | Army Commander (counts children, not calls), Orchestrator, Resilient |
@@ -45,11 +45,11 @@ using Hermes. Pure Python stdlib, no external dependencies.
 | `on_session_reset` | gateway swaps session key (`/new`, `/reset`) | Fresh Start, session-resets counter |
 | `on_session_finalize` | agent shutdown / session reset-policy expiry | force-flush debounced state save + synchronously deliver queued notifications (nothing lost on exit) |
 | `api_request_error` | LLM provider call fails (has `error_type`, `status_code`, `retry_count`) | API-error resilience (Indestructible) |
-| `pre_gateway_dispatch` | once per incoming user-originated message (has `event`, `gateway`, `session_store`) | distinct-sender counting (Social Butterfly 3 users, Party Host 10) — the ONLY hook that sees other users' messages |
+| `pre_gateway_dispatch` | once per incoming user-originated message (has `event`, `gateway`, `session_store`; event carries `media_urls`/`media_types`/`message_type`) | distinct-sender counting (Social Butterfly 3 users, Party Host 10), media-message counting (Show and Tell 1, Visual Storyteller 25) — the ONLY hook that sees other users' messages |
 
 ## Key invariants
 
-- **Exactly 108 achievements** — `tests/test_plugin.py` enforces this.
+- **Exactly 114 achievements** — `tests/test_plugin.py` enforces this.
 - **All achievement IDs must be detectable** — every def needs a path in
   `_TOOL_ACHIEVEMENTS`, `_TOOL_THRESHOLDS`, `TERMINAL_PATTERNS`,
   `_check_tool_args()`, `_check_counter_achievements()`, or an explicit
@@ -75,7 +75,7 @@ python3 -m pytest tests/ -q    # 227 tests, no deps beyond pytest
 
 - `tests/test_detection.py::TestEveryAchievementUnlockable` — full-grind
   simulation: drives every hook with escalating synthetic gateway data and
-  asserts **all 108 defs actually unlock**. This is the enforcement of the
+  asserts **all 114 defs actually unlock**. This is the enforcement of the
   "every def must be detectable" invariant — after any swap, a dead def
   (impossible threshold, typo'd key, missing path) fails the run with its
   ID listed. Keep the grind's tool/command data broad enough to cover

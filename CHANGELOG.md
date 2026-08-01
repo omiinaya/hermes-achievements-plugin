@@ -1,5 +1,63 @@
 # Changelog
 
+## [2.8.0] — 2026-08-01
+
+### Added
+
+- **Media dimension (108 → 110)** — `pre_gateway_dispatch`'s `MessageEvent`
+  carries `media_urls` (local file paths for the vision tool), `media_types`,
+  and `message_type` (PHOTO/VIDEO/AUDIO/DOCUMENT/…), but the plugin only ever
+  read the sender identity. Now every user-originated message with any media
+  signal counts:
+  - **Show and Tell 🖼️** (common, Getting Started) — send an image or media
+    attachment to Hermes
+  - **Visual Storyteller 🎬** (rare, Power User) — send 25 media messages
+  - `media_messages` counter persisted + surfaced in the stats view
+    (`ui.stats_media`, all 4 locales).
+  - Detection is signal-OR: non-empty `media_urls` OR `media_types` OR a
+    non-TEXT/COMMAND `message_type` — so inline images that keep
+    `message_type="text"` still count.
+- **Context-depth dimension (110 → 112)** — `post_api_request` delivers
+  `message_count` (the number of messages sent in that single API request =
+  system prompt + full conversation history + tool results). The plugin
+  tracked cumulative turns and tokens but never *how much context the model
+  chewed through in one shot*:
+  - **Deep Context 🌊** (uncommon, Power User) — one API request with 50+
+    messages in context
+  - **Context Colossus 🏛️** (epic, Expert) — one API request with 100+
+    messages in context
+  - `peak_context_messages` stat (max, not last) surfaced in the stats view
+    (`ui.stats_peak_context`, all 4 locales). Crossing the 100 threshold also
+    unlocks the 50 one.
+- **Message-verbosity dimension (112 → 114)** — `post_llm_call` delivers the
+  raw `user_message`, which the plugin only scanned for non-ASCII letters.
+  Word count is a distinct usage pattern — a detailed spec in one message vs
+  drip-feeding context:
+  - **Wordsmith ✍️** (uncommon, Power User) — send a single message of 300+
+    words
+  - **Novelist 📖** (rare, Expert) — send a single message of 1500+ words
+  - `longest_message_words` stat (max, not last) surfaced in the stats view
+    (`ui.stats_longest_message`, all 4 locales). Crossing 1500 also unlocks
+    the 300 one.
+- New `TestPostApiRequest` suite (context-depth edge cases: threshold,
+  max-keeping, missing/zero `message_count`), media tests in
+  `TestPreGatewayDispatch` (signal-OR detection, text-doesn't-count,
+  progress), verbosity tests in `TestPerTurnSignals` (max-keeping, empty
+  message), and 4 new stats-view tests. Full-grind simulation now escalates
+  `message_count` to 139, fires 30 media events, and posts a 1600-word
+  message — the all-114-unlockable invariant covers all three new dimensions
+  end-to-end.
+- All 6 new achievements translated across es/fr/pt (`update_locales.py`
+  entries: Muestra y Cuenta / Montre et Raconte / Mostre e Conte, …).
+
+### Changed
+
+- Hook kwarg contract check now verifies 20 keys across 7 hooks —
+  `message_count` on `post_api_request` is confirmed delivered by the
+  installed Hermes source.
+- `render_readme.py` no longer warns on a non-108 count (the exact-count
+  assertion lives in tests; the script renders the defs as source of truth).
+
 ## [2.7.0] — 2026-08-01
 
 ### Added

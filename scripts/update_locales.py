@@ -71,6 +71,36 @@ NEW = {
         "fr": {"name": "Hôte de Fête", "description": "Recevez des messages de 10 utilisateurs différents"},
         "pt": {"name": "Anfitrião de Festa", "description": "Receba mensagens de 10 usuários diferentes"},
     },
+    "show_and_tell": {
+        "es": {"name": "Muestra y Cuenta", "description": "Envía una imagen o adjunto multimedia a Hermes"},
+        "fr": {"name": "Montre et Raconte", "description": "Envoyez une image ou une pièce jointe à Hermes"},
+        "pt": {"name": "Mostre e Conte", "description": "Envie uma imagem ou anexo de mídia ao Hermes"},
+    },
+    "visual_storyteller": {
+        "es": {"name": "Narrador Visual", "description": "Envía 25 imágenes o adjuntos multimedia"},
+        "fr": {"name": "Conteur Visuel", "description": "Envoyez 25 images ou pièces jointes"},
+        "pt": {"name": "Contador Visual", "description": "Envie 25 imagens ou anexos de mídia"},
+    },
+    "deep_context": {
+        "es": {"name": "Contexto Profundo", "description": "Haz una solicitud de API con 50+ mensajes en contexto"},
+        "fr": {"name": "Contexte Profond", "description": "Faites une requête API avec 50+ messages en contexte"},
+        "pt": {"name": "Contexto Profundo", "description": "Faça uma solicitação de API com 50+ mensagens no contexto"},
+    },
+    "context_colossus": {
+        "es": {"name": "Contexto Colosal", "description": "Haz una solicitud de API con 100+ mensajes en contexto"},
+        "fr": {"name": "Contexte Colossal", "description": "Faites une requête API avec 100+ messages en contexte"},
+        "pt": {"name": "Contexto Colossal", "description": "Faça uma solicitação de API com 100+ mensagens no contexto"},
+    },
+    "wordsmith": {
+        "es": {"name": "Orfebre de Palabras", "description": "Envía un único mensaje de 300+ palabras"},
+        "fr": {"name": "Forgeron de Mots", "description": "Envoyez un seul message de 300+ mots"},
+        "pt": {"name": "Artesão de Palavras", "description": "Envie uma única mensagem com 300+ palavras"},
+    },
+    "novelist": {
+        "es": {"name": "Novelista", "description": "Envía un único mensaje de 1500+ palabras"},
+        "fr": {"name": "Romancier", "description": "Envoyez un seul message de 1500+ mots"},
+        "pt": {"name": "Romancista", "description": "Envie uma única mensagem com 1500+ palavras"},
+    },
 }
 
 

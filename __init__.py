@@ -421,6 +421,11 @@ ACHIEVEMENT_DEFS = {
         "description": "Change a Hermes configuration setting",
         "rarity": "common", "group": "Getting Started",
     },
+    "show_and_tell": {
+        "id": "show_and_tell", "name": "Show and Tell", "emoji": "🖼️",
+        "description": "Send an image or media attachment to Hermes",
+        "rarity": "common", "group": "Getting Started",
+    },
     "doctor_visit": {
         "id": "doctor_visit", "name": "Clean Bill of Health", "emoji": "🏥",
         "description": "Run `hermes doctor` to check system health",
@@ -701,6 +706,16 @@ ACHIEVEMENT_DEFS = {
         "description": "Let Hermes work 10 steps in a single turn",
         "rarity": "uncommon", "group": "Expert",
     },
+    "context_colossus": {
+        "id": "context_colossus", "name": "Context Colossus", "emoji": "🏛️",
+        "description": "Make one API request with 100+ messages in context",
+        "rarity": "epic", "group": "Expert",
+    },
+    "novelist": {
+        "id": "novelist", "name": "Novelist", "emoji": "📖",
+        "description": "Send a single message of 1500+ words",
+        "rarity": "rare", "group": "Expert",
+    },
     "workflow_builder": {
         "id": "workflow_builder", "name": "Workflow Builder", "emoji": "🏗️",
         "description": "Use 8 different tool types in a single session",
@@ -743,6 +758,21 @@ ACHIEVEMENT_DEFS = {
         "description": "Approve a command permanently with 'always'",
         "rarity": "rare", "group": "Power User",
         "secret": True,
+    },
+    "visual_storyteller": {
+        "id": "visual_storyteller", "name": "Visual Storyteller", "emoji": "🎬",
+        "description": "Send 25 images or media attachments",
+        "rarity": "rare", "group": "Power User",
+    },
+    "deep_context": {
+        "id": "deep_context", "name": "Deep Context", "emoji": "🌊",
+        "description": "Make one API request with 50+ messages in context",
+        "rarity": "uncommon", "group": "Power User",
+    },
+    "wordsmith": {
+        "id": "wordsmith", "name": "Wordsmith", "emoji": "✍️",
+        "description": "Send a single message of 300+ words",
+        "rarity": "uncommon", "group": "Power User",
     },
 
     # ═══════════════════════════════════════════════════════════════════════
@@ -1043,6 +1073,22 @@ _FAST_RESPONSE_COUNT = 25
 
 # A turn with ≥ this many provider calls is a deep autonomous run.
 _DEEP_DIVE_STEPS = 10
+
+# Media-message thresholds (from pre_gateway_dispatch event media fields)
+_MEDIA_THRESHOLDS = [
+    (1, "show_and_tell"),
+    (25, "visual_storyteller"),
+]
+
+# Per-request context depth (message_count from post_api_request): a single
+# API request carrying ≥ this many messages means a long conversation
+# history was sent to the model in one shot.
+_DEEP_CONTEXT_MESSAGES = 50
+_CONTEXT_COLOSSUS_MESSAGES = 100
+
+# Single-message verbosity (word count of user_message from post_llm_call)
+_WORDSMITH_WORDS = 300
+_NOVELIST_WORDS = 1500
 
 # Single-session tool call thresholds
 _SESSION_CALL_THRESHOLDS = [
@@ -1557,6 +1603,22 @@ def _post_llm_call(**kwargs):
     if user_message and any(ord(c) > 0x7F for c in user_message if c.isalpha()):
         _unlock("multi_lingual", now)
 
+    # ── Message verbosity: word count of the user's message ────
+    # A long single message means the user wrote a detailed spec instead
+    # of drip-feeding context — a distinct dimension from message counts.
+    if isinstance(user_message, str) and user_message.strip():
+        word_count = len(user_message.split())
+        stats["longest_message_words"] = max(
+            stats.get("longest_message_words", 0), word_count
+        )
+        if word_count >= _NOVELIST_WORDS:
+            _unlock("novelist", now)
+            _unlock("wordsmith", now)
+        elif word_count >= _WORDSMITH_WORDS:
+            _unlock("wordsmith", now)
+        else:
+            _set_progress("wordsmith", word_count, _WORDSMITH_WORDS)
+
     # Extract the current turn's user content for command detection
     user_commands = []
     slash_cmds_this_turn = set()
@@ -1685,6 +1747,24 @@ def _post_api_request(**kwargs):
     call_count = kwargs.get("api_call_count")
     if isinstance(call_count, (int, float)) and call_count >= _DEEP_DIVE_STEPS:
         _unlock("deep_dive", now)
+
+    # ── Context depth: messages in this single API request ─────
+    # message_count = len(api_messages) — the full conversation history
+    # (system prompt + turns + tool results) sent to the model in ONE
+    # request. A high value means the model had to chew through a long
+    # context at once — distinct from cumulative turn counts.
+    message_count = kwargs.get("message_count")
+    if isinstance(message_count, (int, float)) and message_count > 0:
+        stats["peak_context_messages"] = max(
+            stats.get("peak_context_messages", 0), int(message_count)
+        )
+        if message_count >= _CONTEXT_COLOSSUS_MESSAGES:
+            _unlock("context_colossus", now)
+            _unlock("deep_context", now)
+        elif message_count >= _DEEP_CONTEXT_MESSAGES:
+            _unlock("deep_context", now)
+        else:
+            _set_progress("deep_context", int(message_count), _DEEP_CONTEXT_MESSAGES)
 
     usage = kwargs.get("usage")
     total_tokens = 0
@@ -2004,6 +2084,31 @@ def _on_pre_gateway_dispatch(**kwargs):
     else:
         _set_progress("party_host", n, 10)
 
+    # ── Media messages (Show and Tell / Visual Storyteller) ─────
+    # The MessageEvent carries media_urls (local file paths for the vision
+    # tool) and media_types; message_type can be PHOTO/VIDEO/AUDIO/DOCUMENT
+    # etc. instead of TEXT. Any of these signals counts as a media message —
+    # a genuinely distinct usage dimension (sending files/images, not text).
+    has_media = False
+    media_urls = getattr(event, "media_urls", None) or []
+    media_types = getattr(event, "media_types", None) or []
+    if media_urls or media_types:
+        has_media = True
+    else:
+        msg_type = getattr(event, "message_type", None)
+        if msg_type is not None:
+            type_val = str(getattr(msg_type, "value", msg_type)).lower()
+            if type_val not in ("", "text", "command"):
+                has_media = True
+    if has_media:
+        stats["media_messages"] = stats.get("media_messages", 0) + 1
+        media_count = stats["media_messages"]
+        for threshold, ach_id in _MEDIA_THRESHOLDS:
+            if media_count >= threshold:
+                _unlock(ach_id, now)
+            else:
+                _set_progress(ach_id, media_count, threshold)
+
     _check_group_completions()
     _check_completionist()
     _save_state()
@@ -2205,6 +2310,12 @@ def _handle_achievements(raw_args: str) -> str:
                 lines.append(_t("ui.stats_users_seen", locale, count=len(stats.get("users_seen", set()))))
             if stats.get("session_resets"):
                 lines.append(_t("ui.stats_session_resets", locale, count=stats.get("session_resets", 0)))
+            if stats.get("media_messages"):
+                lines.append(_t("ui.stats_media", locale, count=stats.get("media_messages", 0)))
+            if stats.get("peak_context_messages"):
+                lines.append(_t("ui.stats_peak_context", locale, count=stats.get("peak_context_messages", 0)))
+            if stats.get("longest_message_words"):
+                lines.append(_t("ui.stats_longest_message", locale, count=stats.get("longest_message_words", 0)))
             hooks_used = stats.get("hooks_used", set())
             if hooks_used:
                 lines.append(_t("ui.stats_hooks_used", locale, count=len(hooks_used)))

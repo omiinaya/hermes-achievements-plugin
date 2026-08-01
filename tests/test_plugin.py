@@ -104,16 +104,16 @@ def _parse_groups_and_rarities():
 
 
 class TestAchievementDefinitions(unittest.TestCase):
-    """Validate that all 108 achievement definitions are complete and valid."""
+    """Validate that all 114 achievement definitions are complete and valid."""
 
     def setUp(self):
         self.achievements = _parse_achievement_defs()
         self.groups, self.rarities = _parse_groups_and_rarities()
 
     def test_exact_count(self):
-        """There should be exactly 108 achievements."""
-        self.assertEqual(len(self.achievements), 108,
-                         f"Expected 108 achievements, got {len(self.achievements)}")
+        """There should be exactly 114 achievements."""
+        self.assertEqual(len(self.achievements), 114,
+                         f"Expected 114 achievements, got {len(self.achievements)}")
 
     def test_required_fields(self):
         """Every achievement must have id, name, description, emoji, rarity, group."""
@@ -149,10 +149,10 @@ class TestAchievementDefinitions(unittest.TestCase):
         from collections import Counter
         counts = Counter(a["group"] for a in self.achievements)
         expected = {
-            "Getting Started": 11,
+            "Getting Started": 12,
             "Tools & Skills": 28,
-            "Power User": 24,
-            "Expert": 20,
+            "Power User": 27,
+            "Expert": 22,
             "Milestones": 19,
             "Community": 6,
         }
@@ -363,6 +363,9 @@ class TestTranslationFunction(unittest.TestCase):
             "stats_api_errors": {"count": 3},
             "stats_users_seen": {"count": 4},
             "stats_session_resets": {"count": 3},
+            "stats_media": {"count": 12},
+            "stats_peak_context": {"count": 67},
+            "stats_longest_message": {"count": 340},
             "stats_hooks_used": {"count": 4},
             "stats_platforms": {"platforms": "discord, telegram"},
             "stats_models": {"models": "gpt4", "more": ""},

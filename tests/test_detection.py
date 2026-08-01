@@ -694,6 +694,72 @@ class TestApiRequestError(HookTestBase):
         self.assertEqual(self.stats()["api_errors"], 1)
 
 
+class TestPostApiRequest(HookTestBase):
+    """post_api_request: tokens, fast responses, providers, context depth."""
+
+    def test_deep_context_at_50_messages(self):
+        self.mod._post_api_request(
+            usage={"total_tokens": 1000}, api_duration=3.0,
+            model="m1", provider="p1", api_call_count=1,
+            message_count=50,
+        )
+        self.assertTrue(self.unlocked("deep_context"))
+        self.assertFalse(self.unlocked("context_colossus"))
+        self.assertEqual(self.stats()["peak_context_messages"], 50)
+
+    def test_context_colossus_at_100_messages(self):
+        self.mod._post_api_request(
+            usage={"total_tokens": 1000}, api_duration=3.0,
+            model="m1", provider="p1", api_call_count=1,
+            message_count=100,
+        )
+        self.assertTrue(self.unlocked("deep_context"))
+        self.assertTrue(self.unlocked("context_colossus"))
+        self.assertEqual(self.stats()["peak_context_messages"], 100)
+
+    def test_deep_context_progress_before_threshold(self):
+        self.mod._post_api_request(
+            usage={"total_tokens": 1000}, api_duration=3.0,
+            model="m1", provider="p1", api_call_count=1,
+            message_count=20,
+        )
+        self.assertFalse(self.unlocked("deep_context"))
+        st = self.mod._load_state()["achievements"]["deep_context"]
+        self.assertEqual(st["progress"]["current"], 20)
+        self.assertEqual(st["progress"]["target"], 50)
+
+    def test_peak_context_keeps_max(self):
+        self.mod._post_api_request(
+            usage={}, api_duration=3.0, model="m1", provider="p1",
+            api_call_count=1, message_count=30,
+        )
+        self.mod._post_api_request(
+            usage={}, api_duration=3.0, model="m1", provider="p1",
+            api_call_count=1, message_count=80,
+        )
+        self.mod._post_api_request(
+            usage={}, api_duration=3.0, model="m1", provider="p1",
+            api_call_count=1, message_count=10,
+        )
+        self.assertEqual(self.stats()["peak_context_messages"], 80)
+
+    def test_missing_message_count_is_noop(self):
+        self.mod._post_api_request(
+            usage={"total_tokens": 1000}, api_duration=3.0,
+            model="m1", provider="p1", api_call_count=1,
+        )
+        self.assertFalse(self.unlocked("deep_context"))
+        self.assertNotIn("peak_context_messages", self.stats())
+
+    def test_zero_message_count_ignored(self):
+        self.mod._post_api_request(
+            usage={"total_tokens": 1000}, api_duration=3.0,
+            model="m1", provider="p1", api_call_count=1,
+            message_count=0,
+        )
+        self.assertFalse(self.unlocked("deep_context"))
+
+
 class TestApprovalRequest(HookTestBase):
     """pre_approval_request: approval gates drive Under Scrutiny."""
 
@@ -742,7 +808,8 @@ class TestApprovalRequest(HookTestBase):
 class TestPreGatewayDispatch(HookTestBase):
     """pre_gateway_dispatch: distinct senders drive Social Butterfly."""
 
-    def _event(self, platform, user_id, user_name=None, is_bot=False, internal=False):
+    def _event(self, platform, user_id, user_name=None, is_bot=False, internal=False,
+               media=False):
         class _Source:
             pass
 
@@ -757,6 +824,9 @@ class TestPreGatewayDispatch(HookTestBase):
         ev = _Event()
         ev.internal = internal
         ev.source = src
+        ev.media_urls = ["/tmp/pic.jpg"] if media else []
+        ev.media_types = ["image/jpeg"] if media else []
+        ev.message_type = "photo" if media else "text"
         return ev
 
     def test_three_users_unlock_social_butterfly(self):
@@ -827,6 +897,59 @@ class TestPreGatewayDispatch(HookTestBase):
         )
         self.assertEqual(len(self.stats().get("users_seen", set())), 0)
 
+    # ── Media messages (Show and Tell / Visual Storyteller) ──
+
+    def test_first_media_message_unlocks_show_and_tell(self):
+        self.mod._on_pre_gateway_dispatch(
+            event=self._event("discord", "user-a", media=True),
+            gateway=None, session_store=None,
+        )
+        self.assertTrue(self.unlocked("show_and_tell"))
+        self.assertFalse(self.unlocked("visual_storyteller"))
+        self.assertEqual(self.stats()["media_messages"], 1)
+
+    def test_twenty_five_media_messages_unlock_visual_storyteller(self):
+        for _ in range(25):
+            self.mod._on_pre_gateway_dispatch(
+                event=self._event("discord", "user-a", media=True),
+                gateway=None, session_store=None,
+            )
+        self.assertTrue(self.unlocked("show_and_tell"))
+        self.assertTrue(self.unlocked("visual_storyteller"))
+        self.assertEqual(self.stats()["media_messages"], 25)
+
+    def test_media_progress_before_threshold(self):
+        for _ in range(5):
+            self.mod._on_pre_gateway_dispatch(
+                event=self._event("discord", "user-a", media=True),
+                gateway=None, session_store=None,
+            )
+        self.assertFalse(self.unlocked("visual_storyteller"))
+        st = self.mod._load_state()["achievements"]["visual_storyteller"]
+        self.assertEqual(st["progress"]["current"], 5)
+        self.assertEqual(st["progress"]["target"], 25)
+
+    def test_text_messages_do_not_count_as_media(self):
+        for _ in range(10):
+            self.mod._on_pre_gateway_dispatch(
+                event=self._event("discord", "user-a"),
+                gateway=None, session_store=None,
+            )
+        self.assertFalse(self.unlocked("show_and_tell"))
+        self.assertNotIn("media_messages", self.stats())
+
+    def test_media_urls_alone_counts_without_message_type(self):
+        # A gateway event may carry media_urls while message_type stays
+        # "text" (e.g. inline images) — media_urls must still trigger it.
+        ev = self._event("discord", "user-a")
+        ev.media_urls = ["/tmp/vid.mp4"]
+        ev.media_types = []
+        ev.message_type = "text"
+        self.mod._on_pre_gateway_dispatch(
+            event=ev, gateway=None, session_store=None,
+        )
+        self.assertTrue(self.unlocked("show_and_tell"))
+
 
 class TestPerTurnSignals(HookTestBase):
     """Message-derived achievements."""
@@ -884,6 +1007,39 @@ class TestPerTurnSignals(HookTestBase):
         self.mod._post_tool_call(args={}, session_id="s", duration_ms=10)
         st = self.stats()
         self.assertEqual(st.get("total_tool_calls", 0), 0)
+
+    # ── Message verbosity (Wordsmith / Novelist) ──
+
+    def test_wordsmith_at_300_words(self):
+        self.turn("word " * 300)
+        self.assertTrue(self.unlocked("wordsmith"))
+        self.assertFalse(self.unlocked("novelist"))
+        self.assertEqual(self.stats()["longest_message_words"], 300)
+
+    def test_novelist_at_1500_words(self):
+        self.turn("word " * 1500)
+        self.assertTrue(self.unlocked("wordsmith"))
+        self.assertTrue(self.unlocked("novelist"))
+        self.assertEqual(self.stats()["longest_message_words"], 1500)
+
+    def test_wordsmith_progress_before_threshold(self):
+        self.turn("word " * 100)
+        self.assertFalse(self.unlocked("wordsmith"))
+        st = self.mod._load_state()["achievements"]["wordsmith"]
+        self.assertEqual(st["progress"]["current"], 100)
+        self.assertEqual(st["progress"]["target"], 300)
+
+    def test_longest_message_keeps_max_not_last(self):
+        self.turn("word " * 100)
+        self.turn("word " * 450)
+        self.turn("word " * 200)
+        self.assertEqual(self.stats()["longest_message_words"], 450)
+        self.assertTrue(self.unlocked("wordsmith"))
+
+    def test_empty_message_no_verbosity_stat(self):
+        self.mod._post_llm_call(
+            user_message="", conversation_history=[], model="m1", platform="cli")
+        self.assertNotIn("longest_message_words", self.stats())
 
     def test_tool_call_with_non_dict_args(self):
         # args not a dict must not crash _check_tool_args
@@ -956,7 +1112,7 @@ class TestStreakEdgeCases(HookTestBase):
         self.mod._locales_cache = {}
         try:
             cache = self.mod._load_locales()
-            self.assertEqual(len(cache.get("en", {}).get("achievement", {})), 108)
+            self.assertEqual(len(cache.get("en", {}).get("achievement", {})), 114)
         finally:
             self.mod._LOCALES_DIR = old_dir
             self.mod._WHEEL_DATA_DIR = old_wheel
@@ -1578,7 +1734,7 @@ class TestCommandHandlers(HookTestBase):
         for g in self.mod.GROUPS:
             self.assertIn(g, out)
         self.assertIn("Hermes Achievements", out)
-        self.assertIn("0/11", out)  # Getting Started progress summary
+        self.assertIn("0/12", out)  # Getting Started progress summary
 
     def test_achievements_unknown_args_fall_through_to_default(self):
         # Unrecognized args must fall through to the default view, not crash
@@ -1965,6 +2121,33 @@ class TestCommandHandlers(HookTestBase):
         self.assertIn("Tokens consumed:", out)
         self.assertIn("1234567", out)
 
+    def test_stats_shows_media_messages(self):
+        st = self.mod._load_state()["stats"]
+        st["media_messages"] = 12
+        out = self.mod._handle_achievements("stats")
+        self.assertIn("Media messages:", out)
+        self.assertIn("12", out)
+
+    def test_stats_shows_peak_context(self):
+        st = self.mod._load_state()["stats"]
+        st["peak_context_messages"] = 67
+        out = self.mod._handle_achievements("stats")
+        self.assertIn("Deepest context:", out)
+        self.assertIn("67", out)
+
+    def test_stats_shows_longest_message(self):
+        st = self.mod._load_state()["stats"]
+        st["longest_message_words"] = 340
+        out = self.mod._handle_achievements("stats")
+        self.assertIn("Longest message:", out)
+        self.assertIn("340", out)
+
+    def test_stats_new_dimensions_hidden_when_absent(self):
+        out = self.mod._handle_achievements("stats")
+        self.assertNotIn("Media messages:", out)
+        self.assertNotIn("Deepest context:", out)
+        self.assertNotIn("Longest message:", out)
+
     def test_stats_completionist_unlocked_line(self):
         # All achievements unlocked → completionist line appears
         for aid in self.mod.ACHIEVEMENT_DEFS:
@@ -2076,7 +2259,7 @@ class TestReadmeSync(unittest.TestCase):
         result = subprocess.run([_sys.executable, script], capture_output=True, text=True,
                                 cwd=PLUGIN_DIR, check=False)
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertIn("OK: 108 achievements", result.stdout)
+        self.assertIn("OK: 114 achievements", result.stdout)
 
     def test_health_check_script_passes(self):
         # The health check must pass against the repo checkout (defs,
@@ -2112,7 +2295,7 @@ class TestReadmeSync(unittest.TestCase):
 
 
 class TestEveryAchievementUnlockable(HookTestBase):
-    """Full-grind simulation: prove all 108 achievement defs can unlock.
+    """Full-grind simulation: prove all 114 achievement defs can unlock.
 
     After several rounds of achievement swaps (v2.3.0, v2.4.0, v2.4.1),
     a def could sit in a detection map with an impossible condition (wrong
@@ -2128,7 +2311,7 @@ class TestEveryAchievementUnlockable(HookTestBase):
         os.environ.pop("DISCORD_BOT_TOKEN", None)
         os.environ.pop("DISCORD_HOME_CHANNEL", None)
 
-    def _gateway_event(self, platform, user_id):
+    def _gateway_event(self, platform, user_id, media=False):
         class _Source:
             pass
 
@@ -2143,6 +2326,9 @@ class TestEveryAchievementUnlockable(HookTestBase):
         ev = _Event()
         ev.internal = False
         ev.source = src
+        ev.media_urls = ["/tmp/pic.jpg"] if media else []
+        ev.media_types = ["image/jpeg"] if media else []
+        ev.message_type = "photo" if media else "text"
         return ev
 
     def _grind(self):
@@ -2278,6 +2464,8 @@ class TestEveryAchievementUnlockable(HookTestBase):
             # total_tokens path and the prompt+completion fallback. Cycle
             # 8 providers → Provider Hopper (2) + Provider Collector (5).
             # api_call_count escalates to 14 → Deep Dive (≥10 in one turn).
+            # message_count escalates past 50 and 100 → Deep Context +
+            # Context Colossus (single-request context depth).
             providers = [f"provider-{i}" for i in range(8)]
             for i in range(1050):
                 if i % 3 == 0:
@@ -2290,9 +2478,10 @@ class TestEveryAchievementUnlockable(HookTestBase):
                     model=models[i % len(models)],
                     provider=providers[i % len(providers)],
                     api_call_count=1 + (i % 14),
+                    message_count=20 + (i % 120),
                 )
 
-            # ── API errors, approvals, distinct users, session reset ──
+            # ── API errors, approvals, distinct users, media, reset ──
             for i in range(12):
                 mod._on_api_request_error(error_type="timeout", status_code=429)
             for i in range(12):
@@ -2304,8 +2493,22 @@ class TestEveryAchievementUnlockable(HookTestBase):
                     event=self._gateway_event("discord", f"g-user-{i}"),
                     gateway=None, session_store=None,
                 )
+            # 30 media messages → Show and Tell (1) + Visual Storyteller (25)
+            for i in range(30):
+                mod._on_pre_gateway_dispatch(
+                    event=self._gateway_event("discord", "g-user-0", media=True),
+                    gateway=None, session_store=None,
+                )
             mod._on_session_reset(session_id="g-new")
             mod._on_session_finalize()
+
+            # Long user message (1600 words) → Wordsmith (300) + Novelist (1500)
+            long_msg = ("word " * 1600).strip()
+            mod._post_llm_call(
+                user_message=long_msg,
+                conversation_history=[{"role": "user", "content": long_msg}],
+                model="model-0", platform="cli",
+            )
 
             # Final turn: re-checks group/rarity completions + completionist
             mod._post_llm_call(
@@ -2315,7 +2518,7 @@ class TestEveryAchievementUnlockable(HookTestBase):
             )
             mod._check_completionist()
 
-    def test_all_108_achievements_can_unlock(self):
+    def test_all_114_achievements_can_unlock(self):
         """Every def in ACHIEVEMENT_DEFS must unlock through real hooks."""
         self._grind()
         state = self.mod._load_state()
@@ -2329,7 +2532,7 @@ class TestEveryAchievementUnlockable(HookTestBase):
             f"{locked}",
         )
 
-    def test_completionist_unlocks_as_108th(self):
+    def test_completionist_unlocks_as_114th(self):
         """Completionist requires every other achievement first."""
         self._grind()
         state = self.mod._load_state()
@@ -2339,7 +2542,7 @@ class TestEveryAchievementUnlockable(HookTestBase):
             1 for aid in self.mod.ACHIEVEMENT_DEFS
             if state["achievements"].get(aid, {}).get("unlocked")
         )
-        self.assertEqual(unlocked, 108)
+        self.assertEqual(unlocked, 114)
 
 
 if __name__ == "__main__":

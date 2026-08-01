@@ -93,6 +93,10 @@
       "name": "Curioso da Configuração",
       "description": "Alterar uma configuração do Hermes"
     },
+    "context_colossus": {
+      "name": "Contexto Colossal",
+      "description": "Faça uma solicitação de API com 100+ mensagens no contexto"
+    },
     "cron_commander": {
       "name": "Comandante Cron",
       "description": "Agendar sua primeira tarefa cron"
@@ -112,6 +116,10 @@
     "cross_platform_veteran": {
       "name": "Veterano Multiplataforma",
       "description": "Conversar com o Hermes de 5+ plataformas diferentes"
+    },
+    "deep_context": {
+      "name": "Contexto Profundo",
+      "description": "Faça uma solicitação de API com 50+ mensagens no contexto"
     },
     "deep_dive": {
       "name": "Mergulho Profundo",
@@ -233,6 +241,10 @@
       "name": "Coruja Noturna",
       "description": "Usar o Hermes depois da meia-noite (horário local)"
     },
+    "novelist": {
+      "name": "Romancista",
+      "description": "Envie uma única mensagem com 1500+ palavras"
+    },
     "orchestrator": {
       "name": "Orquestrador",
       "description": "Use um subagente com função de orquestrador"
@@ -312,6 +324,10 @@
     "shell_master": {
       "name": "Mestre do Shell",
       "description": "Executar 100 comandos no terminal"
+    },
+    "show_and_tell": {
+      "name": "Mostre e Conte",
+      "description": "Envie uma imagem ou anexo de mídia ao Hermes"
     },
     "skill_apprentice": {
       "name": "Aprendiz de Habilidades",
@@ -417,6 +433,10 @@
       "name": "Visionário",
       "description": "Analisar uma imagem com o Hermes"
     },
+    "visual_storyteller": {
+      "name": "Contador Visual",
+      "description": "Envie 25 imagens ou anexos de mídia"
+    },
     "web_walker": {
       "name": "Andarilho da Web",
       "description": "Pesquisar na web usando o Hermes"
@@ -424,6 +444,10 @@
     "week_warrior": {
       "name": "Guerreiro Semanal",
       "description": "Usar o Hermes por 7 dias consecutivos"
+    },
+    "wordsmith": {
+      "name": "Artesão de Palavras",
+      "description": "Envie uma única mensagem com 300+ palavras"
     },
     "workflow_builder": {
       "name": "Construtor de Workflows",
@@ -497,6 +521,9 @@
     "stats_models": "Modelos:                   {models}{more}",
     "stats_platforms": "Plataformas:               {platforms}",
     "stats_session_resets": "Reinicializações:         {count}",
+    "stats_media": "Mensagens de mídia:       {count}",
+    "stats_peak_context": "Contexto mais profundo:   {count} msgs",
+    "stats_longest_message": "Mensagem mais longa:      {count} palavras",
     "stats_hooks_used": "Hooks de plugin criados:  {count}",
     "stats_session_tools": "Esta sessão:               {calls} chamadas · {tools} tipos",
     "stats_sessions": "Sessions:                 {count}",

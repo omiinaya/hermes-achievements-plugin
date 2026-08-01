@@ -93,6 +93,10 @@
       "name": "Ajustador de Configuración",
       "description": "Cambia una opción de configuración de Hermes"
     },
+    "context_colossus": {
+      "name": "Contexto Colosal",
+      "description": "Haz una solicitud de API con 100+ mensajes en contexto"
+    },
     "cron_commander": {
       "name": "Comandante Cron",
       "description": "Programa tu primer trabajo cron"
@@ -112,6 +116,10 @@
     "cross_platform_veteran": {
       "name": "Veterano Multiplataforma",
       "description": "Chatea con Hermes desde 5+ plataformas distintas"
+    },
+    "deep_context": {
+      "name": "Contexto Profundo",
+      "description": "Haz una solicitud de API con 50+ mensajes en contexto"
     },
     "deep_dive": {
       "name": "Buceo Profundo",
@@ -233,6 +241,10 @@
       "name": "Búho Nocturno",
       "description": "Usa Hermes después de medianoche (hora local)"
     },
+    "novelist": {
+      "name": "Novelista",
+      "description": "Envía un único mensaje de 1500+ palabras"
+    },
     "orchestrator": {
       "name": "Orquestador",
       "description": "Usa un subagente con rol de orquestador"
@@ -312,6 +324,10 @@
     "shell_master": {
       "name": "Maestro del Shell",
       "description": "Ejecuta 100 comandos de terminal"
+    },
+    "show_and_tell": {
+      "name": "Muestra y Cuenta",
+      "description": "Envía una imagen o adjunto multimedia a Hermes"
     },
     "skill_apprentice": {
       "name": "Aprendiz de Habilidades",
@@ -417,6 +433,10 @@
       "name": "Visionario",
       "description": "Analiza una imagen con Hermes"
     },
+    "visual_storyteller": {
+      "name": "Narrador Visual",
+      "description": "Envía 25 imágenes o adjuntos multimedia"
+    },
     "web_walker": {
       "name": "Caminante Web",
       "description": "Busca en la web usando Hermes"
@@ -424,6 +444,10 @@
     "week_warrior": {
       "name": "Guerrero Semanal",
       "description": "Usa Hermes 7 días seguidos"
+    },
+    "wordsmith": {
+      "name": "Orfebre de Palabras",
+      "description": "Envía un único mensaje de 300+ palabras"
     },
     "workflow_builder": {
       "name": "Constructor de Flujos",
@@ -497,6 +521,9 @@
     "stats_models": "Modelos:                    {models}{more}",
     "stats_platforms": "Plataformas:                {platforms}",
     "stats_session_resets": "Reinicios de sesión:      {count}",
+    "stats_media": "Mensajes multimedia:      {count}",
+    "stats_peak_context": "Contexto más profundo:    {count} msgs",
+    "stats_longest_message": "Mensaje más largo:        {count} palabras",
     "stats_hooks_used": "Hooks de plugin creados: {count}",
     "stats_session_tools": "Esta sesión:              {calls} llamadas · {tools} tipos",
     "stats_sessions": "Sessions:                 {count}",

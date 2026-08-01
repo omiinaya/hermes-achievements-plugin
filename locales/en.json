@@ -93,6 +93,10 @@
       "name": "Config Tinkerer",
       "description": "Change a Hermes configuration setting"
     },
+    "context_colossus": {
+      "name": "Context Colossus",
+      "description": "Make one API request with 100+ messages in context"
+    },
     "cron_commander": {
       "name": "Cron Commander",
       "description": "Schedule your first cron job"
@@ -112,6 +116,10 @@
     "cross_platform_veteran": {
       "name": "Cross-Platform Veteran",
       "description": "Chat with Hermes from 5+ different platforms"
+    },
+    "deep_context": {
+      "name": "Deep Context",
+      "description": "Make one API request with 50+ messages in context"
     },
     "deep_dive": {
       "name": "Deep Dive",
@@ -233,6 +241,10 @@
       "name": "Night Owl",
       "description": "Use Hermes after midnight (local time)"
     },
+    "novelist": {
+      "name": "Novelist",
+      "description": "Send a single message of 1500+ words"
+    },
     "orchestrator": {
       "name": "Orchestrator",
       "description": "Use an orchestrator-role subagent"
@@ -312,6 +324,10 @@
     "shell_master": {
       "name": "Shell Master",
       "description": "Run 100 terminal commands"
+    },
+    "show_and_tell": {
+      "name": "Show and Tell",
+      "description": "Send an image or media attachment to Hermes"
     },
     "skill_apprentice": {
       "name": "Skill Apprentice",
@@ -417,6 +433,10 @@
       "name": "Visionary",
       "description": "Analyze an image with Hermes"
     },
+    "visual_storyteller": {
+      "name": "Visual Storyteller",
+      "description": "Send 25 images or media attachments"
+    },
     "web_walker": {
       "name": "Web Walker",
       "description": "Search the web using Hermes"
@@ -424,6 +444,10 @@
     "week_warrior": {
       "name": "Week Warrior",
       "description": "Use Hermes 7 days in a row"
+    },
+    "wordsmith": {
+      "name": "Wordsmith",
+      "description": "Send a single message of 300+ words"
     },
     "workflow_builder": {
       "name": "Workflow Builder",
@@ -498,6 +522,9 @@
     "stats_platforms": "Platforms:                {platforms}",
     "stats_providers": "Providers:                {providers}{more}",
     "stats_session_resets": "Session resets:           {count}",
+    "stats_media": "Media messages:           {count}",
+    "stats_peak_context": "Deepest context:          {count} msgs",
+    "stats_longest_message": "Longest message:           {count} words",
     "stats_hooks_used": "Plugin hooks authored:   {count}",
     "stats_session_tools": "This session:             {calls} calls · {tools} tool types",
     "stats_sessions": "Sessions:                 {count}",
