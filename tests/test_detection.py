@@ -185,6 +185,37 @@ class TestArgumentBased(HookTestBase):
         self.assertTrue(self.unlocked("skill_artisan"))
         self.assertFalse(self.unlocked("skill_virtuoso"))
 
+    def test_completionist_requires_all_others(self):
+        # Unlock every non-completionist achievement except one
+        others = [aid for aid in self.mod.NON_COMPLETIONIST_IDS]
+        last = others.pop()
+        for aid in others:
+            self.mod._unlock(aid)
+        self.mod._check_completionist()
+        self.assertFalse(self.unlocked("completionist"))
+        # Unlock the final one → completionist fires
+        self.mod._unlock(last)
+        self.mod._check_completionist()
+        self.assertTrue(self.unlocked("completionist"))
+
+    def test_group_completion_unlocks(self):
+        # Unlock all Getting Started achievements → complete_getting_started
+        gs_ids = [aid for aid, adef in self.mod.ACHIEVEMENT_DEFS.items()
+                  if adef["group"] == "Getting Started"]
+        for aid in gs_ids:
+            self.mod._unlock(aid)
+        self.mod._check_group_completions()
+        self.assertTrue(self.unlocked("complete_getting_started"))
+
+    def test_rarity_collection_unlocks(self):
+        # Unlock all Rare achievements → complete_rare
+        rare_ids = [aid for aid, adef in self.mod.ACHIEVEMENT_DEFS.items()
+                    if adef["rarity"] == "rare"]
+        for aid in rare_ids:
+            self.mod._unlock(aid)
+        self.mod._check_group_completions()
+        self.assertTrue(self.unlocked("complete_rare"))
+
     def test_plugin_developer(self):
         self.tool_call("write_file", {"path": "/home/x/plugins/myplugin/plugin.yaml", "content": "name: myplugin"})
         self.assertTrue(self.unlocked("plugin_developer"))
