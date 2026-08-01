@@ -323,6 +323,23 @@ class TestCounterAchievements(HookTestBase):
             self.turn("hermes run --yolo task")
         self.assertTrue(self.unlocked("yolo_champion"))
 
+    def test_skill_virtuoso_at_15_creations(self):
+        for _ in range(15):
+            self.tool_call("skill_manage", {"action": "create", "name": "x"})
+        self.assertTrue(self.unlocked("skill_virtuoso"))
+        self.assertTrue(self.unlocked("skill_artisan"))
+
+    def test_skill_master_at_15_installs(self):
+        for _ in range(15):
+            self.turn("hermes skills install web-search")
+        self.assertTrue(self.unlocked("skill_master"))
+        self.assertTrue(self.unlocked("skill_apprentice"))
+
+    def test_threshold_check_empty_counts_noop(self):
+        self.mod._check_tool_usage_thresholds({}, "2026-01-01T00:00:00")
+        # No crash; nothing unlocked
+        self.assertFalse(self.unlocked("terminal_jockey"))
+
 
 class TestQuickDraw(HookTestBase):
     """5 consecutive fast tool calls unlock Quick Draw."""
