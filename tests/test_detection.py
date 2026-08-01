@@ -304,6 +304,21 @@ class TestStatePersistence(HookTestBase):
         self.assertTrue(self.unlocked("cross_platform"))
         self.assertTrue(self.unlocked("gateway_guru"))
 
+    def test_backup_created_on_save(self):
+        self.tool_call("terminal", {}, session_id="sess-bak")
+        self.mod._save_state(force=True)
+        self.assertTrue(os.path.exists(self.mod._STATE_BAK_PATH))
+
+    def test_corrupted_state_recovers_from_backup(self):
+        self.tool_call("terminal", {}, session_id="sess-rec")
+        self.mod._save_state(force=True)
+        # Corrupt the primary state file; backup must be used on next load
+        with open(self.mod._STATE_PATH, "w") as f:
+            f.write("{corrupted json!!!")
+        self.mod._state = None
+        st = self.mod._load_state()["stats"]
+        self.assertEqual(st["tools_used"]["terminal"], 1)
+
 
 class TestRemainingGaps(HookTestBase):
     """Achievements that previously had no detection path at all."""

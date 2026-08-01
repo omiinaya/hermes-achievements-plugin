@@ -16,6 +16,7 @@ moment they unlock — not appended to the next assistant response.
 import json
 import os
 import re
+import shutil
 import threading
 import time
 from datetime import datetime, timezone, date
@@ -26,6 +27,7 @@ import urllib.error
 
 _HERMES_HOME = os.environ.get("HERMES_HOME", os.path.expanduser("~/.hermes"))
 _STATE_PATH = os.path.join(_HERMES_HOME, "achievements", "state.json")
+_STATE_BAK_PATH = _STATE_PATH + ".bak"
 
 # ── Env helpers ───────────────────────────────────────────────────────────
 
@@ -150,6 +152,12 @@ def _save_state(force=False):
                 return sorted(v) if isinstance(v, set) else v
             state_copy = json.loads(json.dumps(_state, default=_convert))
             state_copy["last_updated"] = datetime.now(timezone.utc).isoformat()
+            # Keep a rolling backup so a crash mid-write never loses progress
+            try:
+                if os.path.exists(_STATE_PATH):
+                    shutil.copy2(_STATE_PATH, _STATE_BAK_PATH)
+            except OSError:
+                pass
             with open(_STATE_PATH, "w") as f:
                 json.dump(state_copy, f, indent=2, default=str)
             _last_save_ts = now
@@ -170,7 +178,14 @@ def _load_state():
                 with open(_STATE_PATH) as f:
                     _state = json.load(f)
             except (json.JSONDecodeError, OSError):
+                # Corrupted state — try the rolling backup before resetting
                 _state = None
+                if os.path.exists(_STATE_BAK_PATH):
+                    try:
+                        with open(_STATE_BAK_PATH) as f:
+                            _state = json.load(f)
+                    except (json.JSONDecodeError, OSError):
+                        _state = None
         if _state is None:
             _state = _new_state()
         _normalize_state()
