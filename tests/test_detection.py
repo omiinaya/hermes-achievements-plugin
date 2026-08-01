@@ -3263,6 +3263,23 @@ class TestCommandHandlers(HookTestBase):
         hint = self.mod._next_up_hint(self.mod._load_state())
         self.assertEqual(hint, "")
 
+    def test_next_up_hint_and_view_agree_on_pct_ties(self):
+        # Two achievements at identical progress: the one-line hint and
+        # the top of the full next-up view must name the SAME achievement
+        # (stable sort keeps ACHIEVEMENT_DEFS order on ties — the hint
+        # used to pick def-first while the view broke ties by aid string,
+        # a latent divergence this refactor removed).
+        self.mod._set_progress("terminal_jockey", 5, 25)  # 20%
+        self.mod._set_progress("config_guru", 3, 15)      # 20%
+        hint = self.mod._next_up_hint(self.mod._load_state())
+        out = self.mod._handle_achievements("next")
+        # terminal_jockey is defined before config_guru → stable-tie winner
+        self.assertIn("Terminal Jockey", hint)
+        self.assertNotIn("Config Guru", hint)
+        # The full view lists both (both are top-3 at 20%), but the
+        # stable-tie winner must appear FIRST — same ordering as the hint.
+        self.assertLess(out.index("Terminal Jockey"), out.index("Config Guru"))
+
     def test_stats_shows_tier_progress_counters(self):
         # Cron/skills/config counters surface in the stats view
         st = self.mod._load_state()["stats"]

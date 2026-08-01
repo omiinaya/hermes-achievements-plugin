@@ -2900,9 +2900,11 @@ def _format_badge(a_id, a_def, state, compact=False) -> str:
     return _t("ui.badge_format", locale, icon=icon, name=name_str, description=desc_str, progress=prog_str)
 
 
-def _handle_next_up(state) -> str:
-    """Show the achievements closest to unlocking (by progress %)."""
-    locale = state.get("locale", "en")
+def _next_up_candidates(state):
+    """(pct, aid, cur, tgt) for every locked, non-secret achievement that
+    has progress, sorted by pct descending (stable — ties keep
+    ACHIEVEMENT_DEFS order, so the one-line hint and the full next-up
+    view can never disagree about the top candidate). Shared by both."""
     ach_state = state.get("achievements", {})
     candidates = []
     for aid, a_def in ACHIEVEMENT_DEFS.items():
@@ -2921,9 +2923,16 @@ def _handle_next_up(state) -> str:
         if pct >= 1.0:  # meets threshold but unlock check hasn't fired yet
             continue
         candidates.append((pct, aid, cur, tgt))
+    candidates.sort(key=lambda c: c[0], reverse=True)
+    return candidates
+
+
+def _handle_next_up(state) -> str:
+    """Show the achievements closest to unlocking (by progress %)."""
+    locale = state.get("locale", "en")
+    candidates = _next_up_candidates(state)
     if not candidates:
         return _t("ui.next_empty", locale)
-    candidates.sort(reverse=True)
     lines = [_t("ui.next_title", locale) + "\n"]
     for pct, aid, cur, tgt in candidates[:3]:
         a_def = ACHIEVEMENT_DEFS[aid]
@@ -2940,28 +2949,10 @@ def _handle_next_up(state) -> str:
 def _next_up_hint(state) -> str:
     """One-line teaser of the closest-to-unlock achievement (default view)."""
     locale = state.get("locale", "en")
-    ach_state = state.get("achievements", {})
-    best = None
-    for aid, a_def in ACHIEVEMENT_DEFS.items():
-        s = ach_state.get(aid, {})
-        if s.get("unlocked"):
-            continue
-        if a_def.get("secret", False) or a_def.get("hidden", False):
-            continue
-        prog = s.get("progress")
-        if not prog or not prog.get("target"):
-            continue
-        cur = prog.get("current", 0)
-        tgt = prog.get("target", 1)
-        pct = cur / tgt
-        if pct >= 1.0:
-            continue
-        if best is None or pct > best[0]:
-            best = (pct, aid, cur, tgt)
-    if best is None:
+    candidates = _next_up_candidates(state)
+    if not candidates:
         return ""
-    pct, aid, cur, tgt = best
-    a_def = ACHIEVEMENT_DEFS[aid]
+    pct, aid, cur, tgt = candidates[0]
     name = _t(f"achievement.{aid}.name", locale)
     bar = _progress_bar(cur, tgt)
     pct_int = int(pct * 100)

@@ -1,5 +1,23 @@
 # Changelog
 
+## [2.18.4] — 2026-08-01
+
+### Changed
+
+- **`_handle_next_up` / `_next_up_hint` DRY'd** — the one-line teaser and
+  the full next-up view previously ran two near-identical candidate loops
+  that could disagree: on a progress-percentage TIE the hint picked the
+  achievement defined first, while the view broke ties by internal id
+  string. Both now share `_next_up_candidates()` with a stable sort
+  (ties keep `ACHIEVEMENT_DEFS` order), so the hint and the top of the
+  view always name the same achievement. Behavior is unchanged for
+  non-tied progress.
+
+### Tests
+
+- New `test_next_up_hint_and_view_agree_on_pct_ties` — two achievements
+  at identical progress must surface in the same order in both views.
+
 ## [2.18.3] — 2026-08-01
 
 ### Fixed
