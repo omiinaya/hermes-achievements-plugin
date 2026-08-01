@@ -1312,6 +1312,21 @@ class TestCommandHandlers(HookTestBase):
         out = self.mod._handle_lang("xx")
         self.assertIn("Unsupported language", out)  # ui.lang_invalid
 
+    def test_group_view_badge_shows_progress(self):
+        # A locked achievement with progress renders a bar in group view
+        self.mod._set_progress("terminal_jockey", 20, 25)
+        out = self.mod._handle_achievements("tools_skills")
+        self.assertIn("Terminal Jockey", out)
+        self.assertIn("80%", out)
+
+    def test_stats_models_shows_more_suffix(self):
+        # More than 3 models → "and N more" suffix
+        st = self.mod._load_state()["stats"]
+        st["models_used"] = {"m1", "m2", "m3", "m4", "m5"}
+        out = self.mod._handle_achievements("stats")
+        self.assertIn("m1", out)
+        self.assertIn("more", out.lower())
+
     def test_lang_show_current_without_args(self):
         out = self.mod._handle_lang("")
         self.assertIn("English", out)
