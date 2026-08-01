@@ -13,6 +13,10 @@
       "name": "Comandante del Ejército",
       "description": "Invoca 25 subagentes con delegate_task"
     },
+    "backseat_driver": {
+      "name": "Copiloto Pesado",
+      "description": "Interrumpe 5 llamadas de tool mientras se ejecutan"
+    },
     "batch_artist": {
       "name": "Artista de Lotes",
       "description": "Emite 5 llamadas de herramienta en una sola respuesta"
@@ -20,6 +24,10 @@
     "big_haul": {
       "name": "Gran Botín",
       "description": "Recibe un resultado de 1MB+ de una sola llamada de herramienta"
+    },
+    "brick_wall": {
+      "name": "Muro de Ladrillos",
+      "description": "Encuentra 10 llamadas de tool bloqueadas por política"
     },
     "cautious": {
       "name": "Cauteloso",
@@ -113,6 +121,10 @@
       "name": "Monstruo de Contexto",
       "description": "Envía una solicitud de API con 200K+ tokens de entrada"
     },
+    "control_freak": {
+      "name": "Controlador",
+      "description": "Interrumpe 15 llamadas de tool — te gusta llevar el mando"
+    },
     "conversation_colossus": {
       "name": "Coloso de la Conversación",
       "description": "Inicia 100 conversaciones"
@@ -148,6 +160,10 @@
     "data_flood": {
       "name": "Inundación de Datos",
       "description": "Produce 1MB+ de salida de un solo comando de terminal"
+    },
+    "dead_end": {
+      "name": "Callejón Sin Salida",
+      "description": "Encuentra una llamada de tool bloqueada por política antes de ejecutarse"
     },
     "deep_context": {
       "name": "Contexto Profundo",
@@ -240,6 +256,10 @@
     "local_first": {
       "name": "Local Primero",
       "description": "Ejecuta Hermes contra un endpoint de modelo local"
+    },
+    "manual_override": {
+      "name": "Anulación Manual",
+      "description": "Interrumpe una llamada de tool en ejecución — toma el control manual"
     },
     "marathon": {
       "name": "Maratón",
@@ -634,6 +654,8 @@
     "stats_longest_response": "Respuesta más larga del modelo: {count} palabras",
     "stats_truncations": "Respuestas truncadas:     {count}",
     "stats_longest_subagent": "Subagente más largo:       {duration}",
+    "stats_interrupts": "Llamadas de tool interrumpidas: {count}",
+    "stats_blocks": "Llamadas de tool bloqueadas:     {count}",
     "stats_longest_message": "Mensaje más largo:        {count} palabras",
     "stats_hooks_used": "Hooks de plugin creados: {count}",
     "stats_session_tools": "Esta sesión:              {calls} llamadas · {tools} tipos",

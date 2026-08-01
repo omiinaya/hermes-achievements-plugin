@@ -1273,6 +1273,76 @@ class TestSubagentRuntime(HookTestBase):
         self.assertEqual(self.stats().get("longest_subagent_ms", 0), 0)
 
 
+class TestToolInterrupts(HookTestBase):
+    """post_tool_call status=\"cancelled\": user pressed stop mid-tool."""
+
+    def _interrupt(self):
+        self.mod._post_tool_call(
+            tool_name="terminal", args={}, session_id="s-int",
+            duration_ms=200, status="cancelled",
+            error_type="keyboard_interrupt",
+        )
+
+    def test_ok_status_does_not_count_interrupt(self):
+        self.mod._post_tool_call(
+            tool_name="terminal", args={}, session_id="s-int",
+            duration_ms=200, status="ok",
+        )
+        self.assertEqual(self.stats().get("tool_interrupts", 0), 0)
+        self.assertFalse(self.unlocked("manual_override"))
+
+    def test_first_interrupt_unlocks_manual_override(self):
+        self._interrupt()
+        self.assertTrue(self.unlocked("manual_override"))
+        self.assertFalse(self.unlocked("backseat_driver"))
+        self.assertEqual(self.stats()["tool_interrupts"], 1)
+
+    def test_five_interrupts_unlock_backseat_driver(self):
+        for _ in range(5):
+            self._interrupt()
+        self.assertTrue(self.unlocked("manual_override"))
+        self.assertTrue(self.unlocked("backseat_driver"))
+        self.assertFalse(self.unlocked("control_freak"))
+
+    def test_fifteen_interrupts_unlock_control_freak(self):
+        for _ in range(15):
+            self._interrupt()
+        self.assertTrue(self.unlocked("control_freak"))
+        self.assertEqual(self.stats()["tool_interrupts"], 15)
+
+
+class TestToolBlocks(HookTestBase):
+    """post_tool_call status=\"blocked\": policy denied the tool pre-run."""
+
+    def _block(self):
+        self.mod._post_tool_call(
+            tool_name="write_file", args={}, session_id="s-blk",
+            duration_ms=0, status="blocked",
+            error_type="guardrail_block",
+        )
+
+    def test_error_status_does_not_count_block(self):
+        self.mod._post_tool_call(
+            tool_name="write_file", args={}, session_id="s-blk",
+            duration_ms=0, status="error", error_type="boom",
+        )
+        self.assertEqual(self.stats().get("tool_blocks", 0), 0)
+        self.assertFalse(self.unlocked("dead_end"))
+
+    def test_first_block_unlocks_dead_end(self):
+        self._block()
+        self.assertTrue(self.unlocked("dead_end"))
+        self.assertFalse(self.unlocked("brick_wall"))
+        self.assertEqual(self.stats()["tool_blocks"], 1)
+
+    def test_ten_blocks_unlock_brick_wall(self):
+        for _ in range(10):
+            self._block()
+        self.assertTrue(self.unlocked("dead_end"))
+        self.assertTrue(self.unlocked("brick_wall"))
+        self.assertEqual(self.stats()["tool_blocks"], 10)
+
+
 class TestApprovalRequest(HookTestBase):
     """pre_approval_request: approval gates drive Under Scrutiny."""
 
@@ -1625,7 +1695,7 @@ class TestStreakEdgeCases(HookTestBase):
         self.mod._locales_cache = {}
         try:
             cache = self.mod._load_locales()
-            self.assertEqual(len(cache.get("en", {}).get("achievement", {})), 139)
+            self.assertEqual(len(cache.get("en", {}).get("achievement", {})), 144)
         finally:
             self.mod._LOCALES_DIR = old_dir
             self.mod._WHEEL_DATA_DIR = old_wheel
@@ -2732,6 +2802,27 @@ class TestCommandHandlers(HookTestBase):
         self.assertIn("Truncated responses:", out)
         self.assertIn("4", out)
 
+    def test_stats_shows_interrupts(self):
+        st = self.mod._load_state()["stats"]
+        st["tool_interrupts"] = 3
+        out = self.mod._handle_achievements("stats")
+        self.assertIn("Tool calls interrupted:", out)
+        self.assertIn("3", out)
+
+    def test_stats_shows_blocks(self):
+        st = self.mod._load_state()["stats"]
+        st["tool_blocks"] = 2
+        out = self.mod._handle_achievements("stats")
+        self.assertIn("Tool calls blocked:", out)
+        self.assertIn("2", out)
+
+    def test_stats_hidden_when_absent(self):
+        # New status stats must not render at zero — same rule as every
+        # other stat line (only non-zero activity surfaces).
+        out = self.mod._handle_achievements("stats")
+        self.assertNotIn("Tool calls interrupted:", out)
+        self.assertNotIn("Tool calls blocked:", out)
+
     def test_stats_shows_longest_subagent(self):
         st = self.mod._load_state()["stats"]
         st["longest_subagent_ms"] = 12 * 60 * 1000 + 30 * 1000
@@ -2868,7 +2959,7 @@ class TestReadmeSync(unittest.TestCase):
         result = subprocess.run([_sys.executable, script], capture_output=True, text=True,
                                 cwd=PLUGIN_DIR, check=False)
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertIn("OK: 139 achievements", result.stdout)
+        self.assertIn("OK: 144 achievements", result.stdout)
 
     def test_health_check_script_passes(self):
         # The health check must pass against the repo checkout (defs,
@@ -2904,7 +2995,7 @@ class TestReadmeSync(unittest.TestCase):
 
 
 class TestEveryAchievementUnlockable(HookTestBase):
-    """Full-grind simulation: prove all 139 achievement defs can unlock.
+    """Full-grind simulation: prove all 144 achievement defs can unlock.
 
     After several rounds of achievement swaps (v2.3.0, v2.4.0, v2.4.1),
     a def could sit in a detection map with an impossible condition (wrong
@@ -3110,6 +3201,27 @@ class TestEveryAchievementUnlockable(HookTestBase):
                     duration_ms=500, status="error",
                 )
 
+            # ── Tool interrupts: 15 user interrupts → Manual Override (1) +
+            # Backseat Driver (5) + Control Freak (15). The gateway emits
+            # status="cancelled" with error_type keyboard_interrupt when the
+            # user presses stop while a tool runs.
+            for i in range(15):
+                mod._post_tool_call(
+                    tool_name="terminal", args={}, session_id="s-main",
+                    duration_ms=200, status="cancelled",
+                    error_type="keyboard_interrupt",
+                )
+
+            # ── Tool blocks: 10 policy blocks → Dead End (1) + Brick Wall (10).
+            # status="blocked" fires when scope/plugin/guardrail policy denies
+            # a tool BEFORE execution.
+            for i in range(10):
+                mod._post_tool_call(
+                    tool_name="write_file", args={}, session_id="s-main",
+                    duration_ms=0, status="blocked",
+                    error_type="guardrail_block",
+                )
+
             # ── API requests: token milestones + fast responses + providers ──
             # 12K tokens × 1050 requests = 12.6M → crosses all three token
             # thresholds. Alternate 0.5s (fast) / 9.0s (slow) → 525 fast
@@ -3225,7 +3337,7 @@ class TestEveryAchievementUnlockable(HookTestBase):
             )
             mod._check_completionist()
 
-    def test_all_139_achievements_can_unlock(self):
+    def test_all_144_achievements_can_unlock(self):
         """Every def in ACHIEVEMENT_DEFS must unlock through real hooks."""
         self._grind()
         state = self.mod._load_state()
@@ -3239,7 +3351,7 @@ class TestEveryAchievementUnlockable(HookTestBase):
             f"{locked}",
         )
 
-    def test_completionist_unlocks_as_139th(self):
+    def test_completionist_unlocks_as_144th(self):
         """Completionist requires every other achievement first."""
         self._grind()
         state = self.mod._load_state()
@@ -3249,7 +3361,7 @@ class TestEveryAchievementUnlockable(HookTestBase):
             1 for aid in self.mod.ACHIEVEMENT_DEFS
             if state["achievements"].get(aid, {}).get("unlocked")
         )
-        self.assertEqual(unlocked, 139)
+        self.assertEqual(unlocked, 144)
 
 
 if __name__ == "__main__":

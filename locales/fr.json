@@ -13,6 +13,10 @@
       "name": "Général en Chef",
       "description": "Invoquer 25 sous-agents avec delegate_task"
     },
+    "backseat_driver": {
+      "name": "Passager Envahissant",
+      "description": "Interrompez 5 appels d'outil pendant leur exécution"
+    },
     "batch_artist": {
       "name": "Artiste du Lot",
       "description": "Émettez 5 appels d'outil en une seule réponse"
@@ -20,6 +24,10 @@
     "big_haul": {
       "name": "Grosse Prise",
       "description": "Recevez un résultat de 1MB+ d'un seul appel d'outil"
+    },
+    "brick_wall": {
+      "name": "Mur de Briques",
+      "description": "Touchez 10 appels d'outil bloqués par la politique"
     },
     "cautious": {
       "name": "Prudent",
@@ -113,6 +121,10 @@
       "name": "Monstre de Contexte",
       "description": "Envoyez une requête API avec 200K+ tokens d'entrée"
     },
+    "control_freak": {
+      "name": "Maniaque du Contrôle",
+      "description": "Interrompez 15 appels d'outil — vous aimez être aux commandes"
+    },
     "conversation_colossus": {
       "name": "Colosse de la Conversation",
       "description": "Démarrez 100 conversations"
@@ -148,6 +160,10 @@
     "data_flood": {
       "name": "Déluge de Données",
       "description": "Produisez 1MB+ de sortie d'une seule commande terminale"
+    },
+    "dead_end": {
+      "name": "Impasse",
+      "description": "Touchez un appel d'outil bloqué par la politique avant son exécution"
     },
     "deep_context": {
       "name": "Contexte Profond",
@@ -240,6 +256,10 @@
     "local_first": {
       "name": "Local d'Abord",
       "description": "Exécutez Hermes sur un endpoint de modèle local"
+    },
+    "manual_override": {
+      "name": "Contrôle Manuel",
+      "description": "Interrompez un appel d'outil en cours — prenez le contrôle manuel"
     },
     "marathon": {
       "name": "Marathon",
@@ -634,6 +654,8 @@
     "stats_longest_response": "Plus longue réponse modèle: {count} mots",
     "stats_truncations": "Réponses tronquées:       {count}",
     "stats_longest_subagent": "Sous-agent le plus long:   {duration}",
+    "stats_interrupts": "Appels d'outil interrompus :     {count}",
+    "stats_blocks": "Appels d'outil bloqués :          {count}",
     "stats_longest_message": "Message le plus long:     {count} mots",
     "stats_hooks_used": "Hooks de plugin écrits :  {count}",
     "stats_session_tools": "Cette session :            {calls} appels · {tools} types",

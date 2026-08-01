@@ -13,6 +13,10 @@
       "name": "Army Commander",
       "description": "Spawn 25 subagents with delegate_task"
     },
+    "backseat_driver": {
+      "name": "Backseat Driver",
+      "description": "Interrupt 5 tool calls while they run"
+    },
     "batch_artist": {
       "name": "Batch Artist",
       "description": "Emit 5 tool calls in a single response"
@@ -20,6 +24,10 @@
     "big_haul": {
       "name": "Big Haul",
       "description": "Receive a 1MB+ result from a single tool call"
+    },
+    "brick_wall": {
+      "name": "Brick Wall",
+      "description": "Hit 10 tool calls blocked by policy"
     },
     "cautious": {
       "name": "Cautious",
@@ -113,6 +121,10 @@
       "name": "Context Monster",
       "description": "Send one API request with 200K+ input tokens"
     },
+    "control_freak": {
+      "name": "Control Freak",
+      "description": "Interrupt 15 tool calls — you like to be in charge"
+    },
     "conversation_colossus": {
       "name": "Conversation Colossus",
       "description": "Start 100 conversations"
@@ -148,6 +160,10 @@
     "data_flood": {
       "name": "Data Flood",
       "description": "Produce 1MB+ of output from a single terminal command"
+    },
+    "dead_end": {
+      "name": "Dead End",
+      "description": "Hit a tool call blocked by policy before it ran"
     },
     "deep_context": {
       "name": "Deep Context",
@@ -240,6 +256,10 @@
     "local_first": {
       "name": "Local First",
       "description": "Run Hermes against a local/self-hosted model endpoint"
+    },
+    "manual_override": {
+      "name": "Manual Override",
+      "description": "Interrupt a running tool call — take manual control"
     },
     "marathon": {
       "name": "Marathon",
@@ -635,6 +655,8 @@
     "stats_longest_response": "Longest model response:   {count} words",
     "stats_truncations": "Truncated responses:      {count}",
     "stats_longest_subagent": "Longest subagent:          {duration}",
+    "stats_interrupts": "Tool calls interrupted:     {count}",
+    "stats_blocks": "Tool calls blocked:         {count}",
     "stats_longest_message": "Longest message:           {count} words",
     "stats_hooks_used": "Plugin hooks authored:   {count}",
     "stats_session_tools": "This session:             {calls} calls · {tools} tool types",

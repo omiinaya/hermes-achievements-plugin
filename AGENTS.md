@@ -2,7 +2,7 @@
 
 ## What this is
 
-A Hermes Agent plugin that awards 139 Steam-style achievement badges for
+A Hermes Agent plugin that awards 144 Steam-style achievement badges for
 using Hermes. Pure Python stdlib, no external dependencies.
 
 ## Repo layout
@@ -22,7 +22,7 @@ using Hermes. Pure Python stdlib, no external dependencies.
 - `scripts/bump_version.py` — updates the version in all 4 places that
   carry it (pyproject.toml, plugin.yaml, setup.sh ×2) in one shot
 - `scripts/check_plugin.py` — health check: module loads, manifest↔register()
-  hook agreement, exactly-139 defs, locale parity, no dead detection-map
+  hook agreement, exactly-144 defs, locale parity, no dead detection-map
   references, live state.json reconciliation (--live), real PluginManager
   load (--manifest), and hook kwarg contract vs the installed Hermes
   source (--gateway — catches silent no-op drift if Hermes renames a
@@ -37,7 +37,7 @@ using Hermes. Pure Python stdlib, no external dependencies.
 | `transform_terminal_output` | per terminal command with the FULL raw output BEFORE the tool truncates it (has `output`, `returncode`, `env_type` local/ssh/docker/singularity/modal/daytona) | raw output volume (Verbose Output 100KB, Data Flood 1MB) — the only hook that sees what the model was NOT handed; env diversity (Multi-Environment 2, Omnipresent 5); exit code 127 (Ghost Command). TRANSFORM hook — observer returns None, never a string |
 | `pre_llm_call` | once per turn BEFORE the LLM is invoked (has `is_first_turn` — True only when run_conversation was handed no prior history) | fresh-conversation counting (Icebreaker 1, Conversation Habit 10, Serial Starter 50, Conversation Colossus 100) — the only signal that counts natural context starts |
 | `transform_tool_result` | per tool call with the FULL result string (has `result`, `api_request_id`, `error_message`) | result-size / context bloat (Big Haul 1MB, Colossal Result 10MB) — post_tool_call only gets status, never the content. TRANSFORM hook — observer returns None, never a string |
-| `post_tool_call` | every tool execution (has `tool_name`, `args`, `session_id`, `duration_ms`, `status` ok/cancelled/block/error, `error_type`) | per-tool counts, per-session tracking, argument-based achievements (cron chaining, parallel delegation, skill/plugin authoring), Quick Draw, tool-error counting (Trial and Error — 25 failed calls) |
+| `post_tool_call` | every tool execution (has `tool_name`, `args`, `session_id`, `duration_ms`, `status` ok/cancelled/blocked/error, `error_type`) | per-tool counts, per-session tracking, argument-based achievements (cron chaining, parallel delegation, skill/plugin authoring), Quick Draw, tool-status counting (Trial and Error — 25 failed calls; Manual Override 1 / Backseat Driver 5 / Control Freak 15 — user interrupts, `status="cancelled"` with `error_type` keyboard_interrupt, the user pressing stop mid-tool; Dead End 1 / Brick Wall 10 — policy blocks, `status="blocked"` when scope/plugin/guardrail policy denies the tool BEFORE it runs). Distinct from approvals (consent prompts the user answers) — an interrupt is active user control, a block is environmental policy |
 | `post_llm_call` | once per turn (has `assistant_response` — the model's own output text) | cumulative message counts, model/platform diversity, user-command patterns, tiered counters, group/rarity completions, message verbosity (Wordsmith 300 words, Novelist 1500), model-response verbosity (Essayist 1000 words, Novel Author 5000 — a mirror dimension measuring what the MODEL wrote, distinct from user input) |
 | `post_api_request` | once per successful provider API request (has `usage` token buckets, `api_duration` in seconds, `finish_reason`, `message_count`) | cumulative token milestones (Token Tyro/Wizard/Whale), fast-response counting (Speed Demon), `total_tokens` stat, per-request context depth (Deep Context 50 msgs, Context Colossus 100), output-cap truncation (Cut Short 1, Token Wall 25 — `finish_reason="length"` means the model hit its max output tokens and was cut off, a signal usage buckets cannot express) |
 | `pre_api_request` | once per provider API request BEFORE it's sent (has `base_url`, `approx_input_tokens`, `api_mode`, `max_tokens`) | local/self-hosted endpoint detection (Local First, Self-Hosted 25), single-request input-token spikes (Context Monster 200K, Token Tsunami 500K) |
@@ -54,7 +54,7 @@ using Hermes. Pure Python stdlib, no external dependencies.
 
 ## Key invariants
 
-- **Exactly 139 achievements** — `tests/test_plugin.py` enforces this.
+- **Exactly 144 achievements** — `tests/test_plugin.py` enforces this.
 - **All achievement IDs must be detectable** — every def needs a path in
   `_TOOL_ACHIEVEMENTS`, `_TOOL_THRESHOLDS`, `TERMINAL_PATTERNS`,
   `_check_tool_args()`, `_check_counter_achievements()`, or an explicit
@@ -75,13 +75,13 @@ using Hermes. Pure Python stdlib, no external dependencies.
 ## Testing
 
 ```bash
-python3 -m pytest tests/ -q    # 322 tests, no deps beyond pytest
+python3 -m pytest tests/ -q    # 332 tests, no deps beyond pytest
 ruff check .                   # CI lint gate — must pass before push
 ```
 
 - `tests/test_detection.py::TestEveryAchievementUnlockable` — full-grind
   simulation: drives every hook with escalating synthetic gateway data and
-  asserts **all 139 defs actually unlock**. This is the enforcement of the
+  asserts **all 144 defs actually unlock**. This is the enforcement of the
   "every def must be detectable" invariant — after any swap, a dead def
   (impossible threshold, typo'd key, missing path) fails the run with its
   ID listed. Keep the grind's tool/command data broad enough to cover

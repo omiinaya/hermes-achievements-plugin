@@ -226,6 +226,31 @@ NEW = {
         "fr": {"name": "Marathon", "description": "Exécutez un sous-agent qui prend 60+ minutes"},
         "pt": {"name": "Maratona", "description": "Execute um subagente que leva 60+ minutos"},
     },
+    "manual_override": {
+        "es": {"name": "Anulación Manual", "description": "Interrumpe una llamada de tool en ejecución — toma el control manual"},
+        "fr": {"name": "Contrôle Manuel", "description": "Interrompez un appel d'outil en cours — prenez le contrôle manuel"},
+        "pt": {"name": "Anulação Manual", "description": "Interrompa uma chamada de ferramenta em execução — assuma o controle manual"},
+    },
+    "backseat_driver": {
+        "es": {"name": "Copiloto Pesado", "description": "Interrumpe 5 llamadas de tool mientras se ejecutan"},
+        "fr": {"name": "Passager Envahissant", "description": "Interrompez 5 appels d'outil pendant leur exécution"},
+        "pt": {"name": "Copiloto Intrometido", "description": "Interrompa 5 chamadas de ferramenta durante a execução"},
+    },
+    "control_freak": {
+        "es": {"name": "Controlador", "description": "Interrumpe 15 llamadas de tool — te gusta llevar el mando"},
+        "fr": {"name": "Maniaque du Contrôle", "description": "Interrompez 15 appels d'outil — vous aimez être aux commandes"},
+        "pt": {"name": "Maníaco por Controle", "description": "Interrompa 15 chamadas de ferramenta — você gosta de estar no comando"},
+    },
+    "dead_end": {
+        "es": {"name": "Callejón Sin Salida", "description": "Encuentra una llamada de tool bloqueada por política antes de ejecutarse"},
+        "fr": {"name": "Impasse", "description": "Touchez un appel d'outil bloqué par la politique avant son exécution"},
+        "pt": {"name": "Beco Sem Saída", "description": "Encontre uma chamada de ferramenta bloqueada por política antes da execução"},
+    },
+    "brick_wall": {
+        "es": {"name": "Muro de Ladrillos", "description": "Encuentra 10 llamadas de tool bloqueadas por política"},
+        "fr": {"name": "Mur de Briques", "description": "Touchez 10 appels d'outil bloqués par la politique"},
+        "pt": {"name": "Muro de Tijolos", "description": "Encontre 10 chamadas de ferramenta bloqueadas por política"},
+    },
 }
 
 

@@ -283,6 +283,8 @@ def _new_state():
             "longest_response_words": 0,
             "truncated_responses": 0,
             "longest_subagent_ms": 0,
+            "tool_interrupts": 0,
+            "tool_blocks": 0,
             # Live per-session tracking (reset whenever session_id changes)
             "active_session": {
                 "id": None,
@@ -910,7 +912,7 @@ ACHIEVEMENT_DEFS = {
     },
 
     # ═══════════════════════════════════════════════════════════════════════
-    # 👑 EXPERT  (28)
+    # 👑 EXPERT  (33)
     # ═══════════════════════════════════════════════════════════════════════
     "the_90_turn_club": {
         "id": "the_90_turn_club", "name": "The 90-Turn Club", "emoji": "🤖",
@@ -1006,6 +1008,31 @@ ACHIEVEMENT_DEFS = {
     "trial_and_error": {
         "id": "trial_and_error", "name": "Trial and Error", "emoji": "🔬",
         "description": "Persist through 25 tool calls that errored",
+        "rarity": "rare", "group": "Expert",
+    },
+    "manual_override": {
+        "id": "manual_override", "name": "Manual Override", "emoji": "✋",
+        "description": "Interrupt a running tool call — take manual control",
+        "rarity": "uncommon", "group": "Expert",
+    },
+    "backseat_driver": {
+        "id": "backseat_driver", "name": "Backseat Driver", "emoji": "🗣️",
+        "description": "Interrupt 5 tool calls while they run",
+        "rarity": "rare", "group": "Expert",
+    },
+    "control_freak": {
+        "id": "control_freak", "name": "Control Freak", "emoji": "🎛️",
+        "description": "Interrupt 15 tool calls — you like to be in charge",
+        "rarity": "epic", "group": "Expert",
+    },
+    "dead_end": {
+        "id": "dead_end", "name": "Dead End", "emoji": "🚧",
+        "description": "Hit a tool call blocked by policy before it ran",
+        "rarity": "uncommon", "group": "Expert",
+    },
+    "brick_wall": {
+        "id": "brick_wall", "name": "Brick Wall", "emoji": "🧱",
+        "description": "Hit 10 tool calls blocked by policy",
         "rarity": "rare", "group": "Expert",
     },
 
@@ -1250,6 +1277,25 @@ _CONVERSATION_THRESHOLDS = [
     (50, "serial_starter"),
     (100, "conversation_colossus"),
 ]
+
+# Tool-interrupt thresholds (status="cancelled" from post_tool_call — the
+# user pressed stop while a tool was running, error_type keyboard_interrupt).
+# Distinct from tool errors (execution failed) and approvals (consent prompt
+# the user answered): an interrupt is the user actively taking control.
+_INTERRUPT_THRESHOLDS = [
+    (1, "manual_override"),
+    (5, "backseat_driver"),
+    (15, "control_freak"),
+]
+
+# Policy-block thresholds (status="blocked" from post_tool_call — a tool was
+# denied BEFORE execution by scope/plugin/guardrail policy; error_type
+# tool_scope_block / plugin_block / guardrail_block).
+_BLOCK_THRESHOLDS = [
+    (1, "dead_end"),
+    (10, "brick_wall"),
+]
+
 
 # Single-response tool-batch thresholds (api_request_id from pre_tool_call):
 # every tool call the model emitted in ONE assistant response shares the
@@ -1616,7 +1662,12 @@ def _post_tool_call(**kwargs):
         if active["fast_streak"] >= 5:
             _unlock("quick_draw", now)
 
-    # ── Tool-error resilience (status from gateway: ok/cancelled/block/error)
+    # ── Tool-status resilience ──────────────────────────────────────
+    # Status from gateway: "ok" | "cancelled" | "blocked" | "error".
+    #   error    → execution failed (Trial and Error)
+    #   cancelled→ user pressed stop mid-tool (keyboard_interrupt)
+    #   blocked  → policy denied the tool BEFORE it ran
+    #             (tool_scope_block / plugin_block / guardrail_block)
     status = kwargs.get("status", "ok")
     if status == "error":
         stats["tool_errors"] = stats.get("tool_errors", 0) + 1
@@ -1624,6 +1675,22 @@ def _post_tool_call(**kwargs):
             _unlock("trial_and_error", now)
         else:
             _set_progress("trial_and_error", stats["tool_errors"], 25)
+    elif status == "cancelled":
+        stats["tool_interrupts"] = stats.get("tool_interrupts", 0) + 1
+        interrupt_count = stats["tool_interrupts"]
+        for threshold, ach_id in _INTERRUPT_THRESHOLDS:
+            if interrupt_count >= threshold:
+                _unlock(ach_id, now)
+            else:
+                _set_progress(ach_id, interrupt_count, threshold)
+    elif status == "blocked":
+        stats["tool_blocks"] = stats.get("tool_blocks", 0) + 1
+        block_count = stats["tool_blocks"]
+        for threshold, ach_id in _BLOCK_THRESHOLDS:
+            if block_count >= threshold:
+                _unlock(ach_id, now)
+            else:
+                _set_progress(ach_id, block_count, threshold)
 
     # ── First-use achievements ─────────────────────────────────
     ach_id = _TOOL_ACHIEVEMENTS.get(tool_name)
@@ -2874,6 +2941,10 @@ def _handle_achievements(raw_args: str) -> str:
             if stats.get("longest_subagent_ms"):
                 lines.append(_t("ui.stats_longest_subagent", locale,
                                 duration=_format_duration(stats.get("longest_subagent_ms", 0))))
+            if stats.get("tool_interrupts"):
+                lines.append(_t("ui.stats_interrupts", locale, count=stats.get("tool_interrupts", 0)))
+            if stats.get("tool_blocks"):
+                lines.append(_t("ui.stats_blocks", locale, count=stats.get("tool_blocks", 0)))
             if stats.get("longest_message_words"):
                 lines.append(_t("ui.stats_longest_message", locale, count=stats.get("longest_message_words", 0)))
             hooks_used = stats.get("hooks_used", set())

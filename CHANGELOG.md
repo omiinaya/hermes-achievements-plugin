@@ -1,5 +1,30 @@
 # Changelog
 
+## [2.14.0] — 2026-08-01
+
+### Added
+
+- **Tool-status dimension** — `post_tool_call` now reads the full `status`
+  surface the gateway delivers, not just `error`. Two genuinely new
+  observation dimensions, verified against the installed Hermes source:
+  - **User interrupts** — `status="cancelled"` fires when the user presses
+    stop while a tool is running (`error_type` keyboard_interrupt): Manual
+    Override ✋ (uncommon, Expert) on the first interrupt, Backseat Driver
+    🗣️ (rare) at 5, Control Freak 🎛️ (epic) at 15. Distinct from tool
+    errors (execution failed) and from approvals (consent prompts the
+    user answers) — an interrupt is the user actively taking control.
+  - **Policy blocks** — `status="blocked"` fires when scope/plugin/
+    guardrail policy denies a tool BEFORE it runs: Dead End 🚧 (uncommon,
+    Expert) on the first block, Brick Wall 🧱 (rare) at 10. A block is
+    environmental policy, invisible to every other hook.
+  - `tool_interrupts` / `tool_blocks` counters + stats-view lines.
+  - Also fixed the stale status enum in the handler comment (the gateway
+    emits `"blocked"`, not `"block"`).
+- New `TestToolInterrupts` (4 tests) + `TestToolBlocks` (3 tests) suites
+  with negative cases (ok/error statuses never count), tier cascade, and
+  counter assertions; grind fires 15 interrupts + 10 blocks; stats-view
+  tests. **139 → 144 achievements** (Expert 28 → 33).
+
 ## [2.13.1] — 2026-08-01
 
 ### Fixed

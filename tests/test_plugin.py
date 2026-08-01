@@ -104,16 +104,16 @@ def _parse_groups_and_rarities():
 
 
 class TestAchievementDefinitions(unittest.TestCase):
-    """Validate that all 139 achievement definitions are complete and valid."""
+    """Validate that all 144 achievement definitions are complete and valid."""
 
     def setUp(self):
         self.achievements = _parse_achievement_defs()
         self.groups, self.rarities = _parse_groups_and_rarities()
 
     def test_exact_count(self):
-        """There should be exactly 139 achievements."""
-        self.assertEqual(len(self.achievements), 139,
-                         f"Expected 139 achievements, got {len(self.achievements)}")
+        """There should be exactly 144 achievements."""
+        self.assertEqual(len(self.achievements), 144,
+                         f"Expected 144 achievements, got {len(self.achievements)}")
 
     def test_required_fields(self):
         """Every achievement must have id, name, description, emoji, rarity, group."""
@@ -152,7 +152,7 @@ class TestAchievementDefinitions(unittest.TestCase):
             "Getting Started": 16,
             "Tools & Skills": 28,
             "Power User": 42,
-            "Expert": 28,
+            "Expert": 33,
             "Milestones": 19,
             "Community": 6,
         }
@@ -375,6 +375,8 @@ class TestTranslationFunction(unittest.TestCase):
             "stats_longest_response": {"count": 1200},
             "stats_truncations": {"count": 3},
             "stats_longest_subagent": {"duration": "12m 30s"},
+            "stats_interrupts": {"count": 3},
+            "stats_blocks": {"count": 2},
             "stats_longest_message": {"count": 340},
             "stats_hooks_used": {"count": 4},
             "stats_platforms": {"platforms": "discord, telegram"},

@@ -229,13 +229,15 @@ unlock them, Steam-style. Currently secret: `Fresh Start`, `Cautious`,
 | 🧩 | Plugin Developer | Create your own Hermes plugin | Legendary |
 | 🧰 | Tool Torrent | Emit 20 tool calls in a single response | Legendary |
 
-### 👑 Expert (28)
+### 👑 Expert (33)
 
 | Icon | Name | Description | Rarity |
 |------|------|-------------|--------|
 | 🤿 | Deep Dive | Let Hermes work 10 steps in a single turn | Uncommon |
 | 🌍 | Multi-Lingual | Communicate with Hermes in a language other than English | Uncommon |
 | 📚 | Doc Diver | Read the Hermes documentation | Uncommon |
+| ✋ | Manual Override | Interrupt a running tool call — take manual control | Uncommon |
+| 🚧 | Dead End | Hit a tool call blocked by policy before it ran | Uncommon |
 | 📖 | Novelist | Send a single message of 1500+ words | Rare |
 | 📦 | Big Haul | Receive a 1MB+ result from a single tool call | Rare |
 | 🛑 | Token Wall | Hit the model's output token limit 25 times (finish_reason=length) | Rare |
@@ -246,6 +248,8 @@ unlock them, Steam-style. Currently secret: `Fresh Start`, `Cautious`,
 | ⚙️ | Environment Tuner | Configure custom environment variables for a cron job | Rare |
 | 🔍 | Under Scrutiny | Trigger 10 approval requests | Rare |
 | 🔬 | Trial and Error | Persist through 25 tool calls that errored | Rare |
+| 🗣️ | Backseat Driver | Interrupt 5 tool calls while they run | Rare |
+| 🧱 | Brick Wall | Hit 10 tool calls blocked by policy | Rare |
 | 🏛️ | Context Colossus | Make one API request with 100+ messages in context | Epic |
 | 🧠 | Context Monster | Send one API request with 200K+ input tokens | Epic |
 | 🗄️ | Colossal Result | Receive a 10MB+ result from a single tool call | Epic |
@@ -256,6 +260,7 @@ unlock them, Steam-style. Currently secret: `Fresh Start`, `Cautious`,
 | 🔷 | Rare Collector | Unlock every Rare achievement | Epic |
 | 🧗 | Resilient | Complete a task after a subagent failed | Epic |
 | 🛡️ | Indestructible | Survive 10 LLM API errors without quitting | Epic |
+| 🎛️ | Control Freak | Interrupt 15 tool calls — you like to be in charge | Epic |
 | 🌊 | Token Tsunami | Send one API request with 500K+ input tokens | Legendary |
 | 📡📡 | Cross-Platform Veteran | Chat with Hermes from 5+ different platforms | Legendary |
 | 🪝 | Hook Master | Create a plugin using 3+ different hook types | Legendary |
