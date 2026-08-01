@@ -365,6 +365,60 @@ class TestPluginRegistration(unittest.TestCase):
         self.assertIs(ctx.hooks[0][1], self.mod._post_llm_call)
 
 
+class TestCommandHandlers(HookTestBase):
+    """Slash command output (achievements/achievement/lang)."""
+
+    def test_achievements_list_all_groups(self):
+        out = self.mod._handle_achievements("")
+        for g in self.mod.GROUPS:
+            self.assertIn(g, out)
+        self.assertIn("Hermes Achievements", out)
+        self.assertIn("First Steps", out)
+
+    def test_achievements_stats_has_session_line(self):
+        self.tool_call("terminal", {"command": "echo x"}, session_id="sess-stat")
+        out = self.mod._handle_achievements("stats")
+        self.assertIn("Unlocked:", out)
+        self.assertIn("This session:", out)
+
+    def test_achievements_group_filter(self):
+        out = self.mod._handle_achievements("getting_started")
+        self.assertIn("Getting Started", out)
+        self.assertIn("First Steps", out)
+        self.assertNotIn("Ghost in the Shell", out)
+
+    def test_achievement_detail(self):
+        out = self.mod._handle_achievement_detail("first_steps")
+        self.assertIn("First Steps", out)
+        self.assertIn("Common", out)
+        self.assertIn("Getting Started", out)
+
+    def test_achievement_detail_fuzzy(self):
+        out = self.mod._handle_achievement_detail("steps")
+        self.assertIn("First Steps", out)
+
+    def test_achievement_detail_multiple_matches(self):
+        out = self.mod._handle_achievement_detail("first")
+        self.assertIn("Multiple:", out)
+
+    def test_achievement_detail_unknown(self):
+        out = self.mod._handle_achievement_detail("not_an_achievement")
+        self.assertIn("Unknown", out)
+
+    def test_lang_switch_and_show(self):
+        out = self.mod._handle_lang("es")
+        self.assertIn("Español", out)
+        self.assertEqual(self.mod._load_state()["locale"], "es")
+        # Achievements list now localized
+        out_list = self.mod._handle_achievements("recent")
+        self.mod._unlock("first_steps")
+        self.mod._state["newly_unlocked"] = []
+        out2 = self.mod._handle_achievements("recent")
+        self.assertNotIn("First Steps", out2)  # Spanish name differs
+        self.mod._handle_lang("en")
+        self.assertEqual(self.mod._load_state()["locale"], "en")
+
+
 class TestReadmeSync(unittest.TestCase):
     """README achievement tables match ACHIEVEMENT_DEFS (no drift)."""
 

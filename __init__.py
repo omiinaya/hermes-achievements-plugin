@@ -899,13 +899,13 @@ _SESSION_CALL_THRESHOLDS = [
     (200, "marathon_session"),
 ]
 
-# Tool-category-based achievements (cumulative distinct tool types used ever)
+# Cumulative distinct tool types used ever thresholds
 _TOOL_DIVERSITY_THRESHOLDS = [
     (10, "tool_hoarder"),
 ]
 
-# Tool-category-in-a-session thresholds
-_SESSION_CATEGORY_THRESHOLDS = [
+# Distinct tool types in a single session thresholds
+_SESSION_TOOL_THRESHOLDS = [
     (5, "tool_collector"),
     (8, "workflow_builder"),
 ]
@@ -1084,7 +1084,7 @@ def _check_session_tool_thresholds(tool_names, now):
     NOT categories (read_file/write_file/search_files are distinct tools).
     """
     distinct = set(tool_names) if tool_names else set()
-    for threshold, ach_id in _SESSION_CATEGORY_THRESHOLDS:
+    for threshold, ach_id in _SESSION_TOOL_THRESHOLDS:
         if len(distinct) >= threshold:
             _unlock(ach_id, now)
         else:
