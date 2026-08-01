@@ -189,6 +189,15 @@ def main():
                       f"{sorted(stale)}" if stale else "")
                 check("state preserved", len(unlocked) > 0,
                       f"{len(unlocked)} achievements unlocked")
+                bak_path = state_path + ".bak"
+                # Informational, not a failure: a frozen install written
+                # before v2.4.0 (which added the rolling backup) legitimately
+                # has no .bak yet — it appears on the first save after load.
+                if os.path.exists(bak_path):
+                    check("rolling backup present", True)
+                else:
+                    print("  [note] rolling backup absent — will be created on "
+                          "the first save (expected for pre-v2.4.0 frozen state)")
             except Exception as exc:  # noqa: BLE001
                 check("state.json parses", False, repr(exc))
 
