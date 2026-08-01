@@ -68,8 +68,8 @@ def render_groups(defs, groups, group_emojis):
 
 def main():
     defs, groups, group_emojis = load_defs()
-    if len(defs) != 105:
-        print(f"WARNING: {len(defs)} achievements (expected 105)", file=sys.stderr)
+    if len(defs) != 107:
+        print(f"WARNING: {len(defs)} achievements (expected 107)", file=sys.stderr)
 
     with open(README, encoding="utf-8") as f:
         readme = f.read()

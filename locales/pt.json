@@ -273,6 +273,14 @@
       "name": "Malabarista de Perfis",
       "description": "Criar um perfil nomeado do Hermes"
     },
+    "provider_collector": {
+      "name": "Colecionador de Provedores",
+      "description": "Usar 5 provedores de IA diferentes"
+    },
+    "provider_hopper": {
+      "name": "Saltador de Provedores",
+      "description": "Usar 2 provedores de IA diferentes"
+    },
     "quick_draw": {
       "name": "Tiro Rápido",
       "description": "Completar 5 tarefas com resposta rápida"
@@ -498,6 +506,7 @@
     "stats_unlocked": "Desbloqueadas: {unlocked} / {total}  ({percent}%)",
     "stats_users_seen": "Usuários distintos vistos:  {count}",
     "summary_hint": "Use `/achievements <grupo>` para listas completas — ex. `/achievements tools_skills`",
-    "usage_lang": "Uso: `/achievements lang <código>` — definir idioma (en/es/fr/pt)"
+    "usage_lang": "Uso: `/achievements lang <código>` — definir idioma (en/es/fr/pt)",
+    "stats_providers": "Provedores:                {providers}{more}"
   }
 }

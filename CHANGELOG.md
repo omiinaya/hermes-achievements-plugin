@@ -1,5 +1,21 @@
 # Changelog
 
+## [2.6.0] — 2026-08-01
+
+### Added
+
+- **Provider diversity dimension (105 → 107)** — the plugin tracked models and platforms but had no visibility into *which LLM providers* were in use, even though `post_api_request` delivers `provider` on every successful API call. Two new achievements:
+  - **Provider Hopper 🔄** (common, Getting Started) — use 2 different AI providers
+  - **Provider Collector 🔄** (rare, Power User) — use 5 different AI providers
+- **Stats view now shows `Providers: …`** (`ui.stats_providers`, all 4 locales) — mirrors the Models line, with the same "+N more" suffix beyond 3. The first infrastructure-level stat.
+- Full-grind simulation now cycles 8 synthetic providers through `_post_api_request`, so the all-107-unlockable invariant covers the new dimension end-to-end.
+- **First GitHub Release created** — the repo had shipped 8 versions (v2.4.3 → v2.5.0) with zero GitHub Releases: no release notes, no downloadable wheels. v2.5.0's wheel is now attached to its release; the process gap is documented and the release flow is now part of the dev loop.
+- `stats_providers` format test + 3 new stats-view tests (shown, more-suffix, both locales-safe).
+
+### Changed
+
+- `providers_used` added to state persistence + normalization (JSON-safe set round-trip), so provider progress survives gateway restarts.
+
 ## [2.5.0] — 2026-07-31
 
 ### Added

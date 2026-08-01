@@ -273,6 +273,14 @@
       "name": "Jongleur de Profils",
       "description": "Créer un profil Hermes nommé"
     },
+    "provider_collector": {
+      "name": "Collectionneur de Fournisseurs",
+      "description": "Utiliser 5 fournisseurs d'IA différents"
+    },
+    "provider_hopper": {
+      "name": "Sauteur de Fournisseurs",
+      "description": "Utiliser 2 fournisseurs d'IA différents"
+    },
     "quick_draw": {
       "name": "Tir Rapide",
       "description": "Accomplir 5 tâches avec un délai d'exécution rapide"
@@ -498,6 +506,7 @@
     "stats_unlocked": "Débloqués : {unlocked} / {total}  ({percent}%)",
     "stats_users_seen": "Utilisateurs distincts vus : {count}",
     "summary_hint": "Utilisez `/achievements <groupe>` pour les listes complètes — ex. `/achievements tools_skills`",
-    "usage_lang": "Utilisation : `/achievements lang <code>` — définir la langue (en/es/fr/pt)"
+    "usage_lang": "Utilisation : `/achievements lang <code>` — définir la langue (en/es/fr/pt)",
+    "stats_providers": "Fournisseurs:              {providers}{more}"
   }
 }

@@ -6,7 +6,7 @@
 [![CI](https://github.com/omiinaya/hermes-achievements-plugin/actions/workflows/test.yml/badge.svg)](https://github.com/omiinaya/hermes-achievements-plugin/actions/workflows/test.yml)
 [![Coverage](https://img.shields.io/badge/coverage-99%25-brightgreen.svg)](https://github.com/omiinaya/hermes-achievements-plugin/actions/workflows/test.yml)
 
-**105 Steam-style achievement badges** for [Hermes Agent](https://hermes-agent.nousresearch.com). Unlock achievements as you use Hermes — run commands, search the web, schedule cron jobs, create skills, and explore the platform. Achievements are tracked silently and delivered to your Discord home channel the moment they unlock.
+**107 Steam-style achievement badges** for [Hermes Agent](https://hermes-agent.nousresearch.com). Unlock achievements as you use Hermes — run commands, search the web, schedule cron jobs, create skills, and explore the platform. Achievements are tracked silently and delivered to your Discord home channel the moment they unlock.
 
 ## Quick Start
 
@@ -128,7 +128,7 @@ unlock them, Steam-style. Currently secret: `Fresh Start`, `Cautious`,
 
 ## Achievement Groups
 
-### 🚀 Getting Started (10)
+### 🚀 Getting Started (11)
 
 | Icon | Name | Description | Rarity |
 |------|------|-------------|--------|
@@ -140,6 +140,7 @@ unlock them, Steam-style. Currently secret: `Fresh Start`, `Cautious`,
 | 📋 | Slash Commander | Use 3 different slash commands | Common |
 | 🔄 | Persistent | Send messages across 3 different sessions | Common |
 | 🌱 | Fresh Start | Start a fresh session with /new or /reset | Common |
+| 🔄 | Provider Hopper | Use 2 different AI providers | Common |
 | 🌙 | Night Owl | Use Hermes after midnight (local time) | Uncommon |
 | 🛡️ | Cautious | Deny an approval request | Uncommon |
 
@@ -176,7 +177,7 @@ unlock them, Steam-style. Currently secret: `Fresh Start`, `Cautious`,
 | 🛠️🛠️ | Complete Toolset | Use every available Hermes tool type at least once | Epic |
 | 👥 | Army Commander | Spawn 25 subagents with delegate_task | Epic |
 
-### ⚡ Power User (23)
+### ⚡ Power User (24)
 
 | Icon | Name | Description | Rarity |
 |------|------|-------------|--------|
@@ -189,6 +190,7 @@ unlock them, Steam-style. Currently secret: `Fresh Start`, `Cautious`,
 | 👤 | Profile Collector | Create 5 Hermes profiles | Rare |
 | ⛓️ | Chain Reaction | Chain 2 cron jobs together with context_from | Rare |
 | 🎭 | Multi-Model | Use 5 different AI models | Rare |
+| 🔄 | Provider Collector | Use 5 different AI providers | Rare |
 | 🏗️ | Workflow Builder | Use 8 different tool types in a single session | Rare |
 | ⚡ | Quick Draw | Complete 5 tasks with rapid turnaround | Rare |
 | ⚡⚡ | Parallel Master | Run 3 subagents in parallel with a single delegate_task | Rare |
@@ -313,7 +315,7 @@ State data is stored at `~/.hermes/achievements/state.json` (user-local, not par
 vim ~/.hermes/plugins/achievements/__init__.py
 
 # Run the test suite (static + functional) — includes the full-grind
-# simulation that proves all 105 achievements can unlock
+# simulation that proves all 107 achievements can unlock
 python3 -m pytest tests/ -q
 
 # Run the one-shot health check (defs, locales, manifest↔register hooks,

@@ -2,7 +2,7 @@
 Hermes Achievements Plugin
 ===========================
 Steam-style achievement badges for using and learning about Hermes Agent.
-105 achievements across 6 categories.
+107 achievements across 6 categories.
 
 Hooks:
   - post_llm_call:  detects tool calls from conversation_history → unlocks achievements
@@ -249,6 +249,7 @@ def _new_state():
             "tools_used": {},
             "platforms": set(),
             "models_used": set(),
+            "providers_used": set(),
             "slash_commands_used": set(),
             "skills_installed": 0,
             "skills_created": 0,
@@ -291,7 +292,7 @@ def _new_state():
 def _normalize_state():
     """Convert list fields back to sets for internal use."""
     stats = _state.setdefault("stats", {})
-    for key in ("platforms", "models_used", "slash_commands_used", "hooks_used", "users_seen"):
+    for key in ("platforms", "models_used", "providers_used", "slash_commands_used", "hooks_used", "users_seen"):
         v = stats.get(key)
         if isinstance(v, set):
             continue
@@ -684,6 +685,16 @@ ACHIEVEMENT_DEFS = {
         "id": "model_collector", "name": "Model Collector", "emoji": "🎭",
         "description": "Use 10 different AI models",
         "rarity": "epic", "group": "Power User",
+    },
+    "provider_hopper": {
+        "id": "provider_hopper", "name": "Provider Hopper", "emoji": "🔄",
+        "description": "Use 2 different AI providers",
+        "rarity": "common", "group": "Getting Started",
+    },
+    "provider_collector": {
+        "id": "provider_collector", "name": "Provider Collector", "emoji": "🔄",
+        "description": "Use 5 different AI providers",
+        "rarity": "rare", "group": "Power User",
     },
     "workflow_builder": {
         "id": "workflow_builder", "name": "Workflow Builder", "emoji": "🏗️",
@@ -1642,10 +1653,22 @@ def _post_llm_call(**kwargs):
 # milestones and the fast-response achievement.
 
 def _post_api_request(**kwargs):
-    """Detect token milestones and fast API responses."""
+    """Detect token milestones, fast API responses, and provider diversity."""
     state = _load_state()
     stats = state.setdefault("stats", {})
     now = datetime.now(UTC).isoformat()
+
+    # ── Provider diversity (cumulative, persisted) ─────────────
+    provider = kwargs.get("provider", "")
+    if provider and provider not in ("unknown", ""):
+        stats.setdefault("providers_used", set()).add(provider)
+        num_providers = len(stats["providers_used"])
+        if num_providers >= 2:
+            _unlock("provider_hopper", now)
+        if num_providers >= 5:
+            _unlock("provider_collector", now)
+        else:
+            _set_progress("provider_collector", num_providers, 5)
 
     usage = kwargs.get("usage")
     total_tokens = 0
@@ -2180,6 +2203,12 @@ def _handle_achievements(raw_args: str) -> str:
             if models:
                 more = _t("ui.model_more", locale, count=len(models)-3) if len(models) > 3 else ""
                 lines.append(_t("ui.stats_models", locale, models=", ".join(models[:3]), more=more))
+            providers = stats.get("providers_used", [])
+            if isinstance(providers, set):
+                providers = sorted(providers)
+            if providers:
+                more = _t("ui.model_more", locale, count=len(providers)-3) if len(providers) > 3 else ""
+                lines.append(_t("ui.stats_providers", locale, providers=", ".join(providers[:3]), more=more))
         lines.append(_t("ui.stats_footer", locale))
         if pct >= 100:
             lines.append(_t("ui.completionist_unlocked", locale))

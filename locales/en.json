@@ -273,6 +273,14 @@
       "name": "Profile Juggler",
       "description": "Create a named Hermes profile"
     },
+    "provider_collector": {
+      "name": "Provider Collector",
+      "description": "Use 5 different AI providers"
+    },
+    "provider_hopper": {
+      "name": "Provider Hopper",
+      "description": "Use 2 different AI providers"
+    },
     "quick_draw": {
       "name": "Quick Draw",
       "description": "Complete 5 tasks with rapid turnaround"
@@ -484,6 +492,7 @@
     "stats_max_concurrent": "Peak concurrent agents:   {count}",
     "stats_models": "Models:                   {models}{more}",
     "stats_platforms": "Platforms:                {platforms}",
+    "stats_providers": "Providers:                {providers}{more}",
     "stats_session_resets": "Session resets:           {count}",
     "stats_hooks_used": "Plugin hooks authored:   {count}",
     "stats_session_tools": "This session:             {calls} calls · {tools} tool types",
