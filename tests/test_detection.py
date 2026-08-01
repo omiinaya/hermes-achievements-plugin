@@ -530,6 +530,45 @@ class TestSessionFinalize(HookTestBase):
                 os.environ["HERMES_SESSION_CHAT_ID"] = old_origin
         self.assertEqual(len(captured), 1)
 
+    def test_notification_sends_user_agent_header(self):
+        # Cloudflare (Discord's CDN) rejects API calls without a browser-like
+        # User-Agent with HTTP 403 error code 1010 — a missing UA silently
+        # kills every notification. Regression guard: the request must carry
+        # both the bot Authorization and a User-Agent.
+        captured = []
+
+        class FakeResp:
+            def __enter__(self): return self
+            def __exit__(self, *a): return False
+
+        def fake_urlopen(req, timeout=None):
+            captured.append(req)
+            return FakeResp()
+
+        self.mod._load_env_var = lambda key, fallback="": {
+            "DISCORD_BOT_TOKEN": "test-token",
+            "DISCORD_HOME_CHANNEL": "456",
+        }.get(key, fallback)
+        old_origin = os.environ.pop("HERMES_SESSION_CHAT_ID", None)
+        old = self.mod.urllib.request.urlopen
+        self.mod.urllib.request.urlopen = fake_urlopen
+        try:
+            self.mod._send_discord_notification(self.mod.ACHIEVEMENT_DEFS["first_steps"])
+            self.mod._on_session_finalize(session_id="s", platform="gateway")
+        finally:
+            self.mod.urllib.request.urlopen = old
+            if old_origin is not None:
+                os.environ["HERMES_SESSION_CHAT_ID"] = old_origin
+        self.assertEqual(len(captured), 1)
+        req = captured[0]
+        # urllib normalizes header names to Title-Case ('User-Agent' →
+        # 'User-agent'), so match case-insensitively.
+        headers = {k.lower(): v for k, v in req.headers.items()}
+        auth = headers.get("authorization", "")
+        ua = headers.get("user-agent", "")
+        self.assertTrue(auth.startswith("Bot "), f"missing bot Authorization: {auth!r}")
+        self.assertTrue(len(ua) > 5, f"missing User-Agent: {ua!r}")
+
     def test_finalize_never_crashes(self):
         # Broken state path + broken notification → finalize still returns
         old_path, old_bak = self.mod._STATE_PATH, self.mod._STATE_BAK_PATH
