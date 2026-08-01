@@ -1654,6 +1654,29 @@ class TestCommandHandlers(HookTestBase):
         out = self.mod._handle_achievements("next")
         self.assertNotIn("Terminal Jockey", out)
 
+    def test_next_hint_skips_achievements_meeting_threshold(self):
+        self.mod._set_progress("terminal_jockey", 25, 25)
+        hint = self.mod._next_up_hint(self.mod._load_state())
+        self.assertEqual(hint, "")
+
+    def test_stats_shows_tier_progress_counters(self):
+        # Cron/skills/config counters surface in the stats view
+        st = self.mod._load_state()["stats"]
+        st["cron_jobs_created"] = 2
+        st["skills_created"] = 1
+        st["config_changes"] = 3
+        out = self.mod._handle_achievements("stats")
+        self.assertIn("Cron jobs created:", out)
+        self.assertIn("Skills created:", out)
+        self.assertIn("Config changes:", out)
+
+    def test_stats_completionist_unlocked_line(self):
+        # All achievements unlocked → completionist line appears
+        for aid in self.mod.ACHIEVEMENT_DEFS:
+            self.mod._unlock(aid)
+        out = self.mod._handle_achievements("stats")
+        self.assertIn("COMPLETIONIST UNLOCKED!", out)
+
     def test_recent_uses_newly_when_present(self):
         self.mod._unlock("first_steps")
         self.mod._unlock("terminal_jockey")
