@@ -1919,7 +1919,7 @@ def _transform_terminal_output(**kwargs):
         _unlock("ghost_command", now)
 
     _save_state()
-    return None  # observer only — never transform output
+    return None  # noqa: RET501, PLR1711 — observer contract: a string here would REPLACE output
 
 
 # ── Hook: transform_tool_result ─────────────────────────────────────────
@@ -1948,7 +1948,7 @@ def _transform_tool_result(**kwargs):
         _set_progress("big_haul", size, _BIG_HAUL_BYTES)
 
     _save_state()
-    return None  # observer only — never transform result
+    return None  # noqa: RET501, PLR1711 — observer contract: a string here would REPLACE result
 
 
 # ── Hook: post_llm_call ─────────────────────────────────────────────────
@@ -2219,13 +2219,11 @@ def _is_local_base_url(base_url):
         host = ""
     if not host:
         return False
-    if host in _LOCAL_HOST_MARKERS:
-        return True
-    if any(host.startswith(p) for p in _LOCAL_PREFIXES):
-        return True
-    if any(host.endswith(s) for s in _LOCAL_SUFFIXES):
-        return True
-    return False
+    return (
+        host in _LOCAL_HOST_MARKERS
+        or any(host.startswith(p) for p in _LOCAL_PREFIXES)
+        or any(host.endswith(s) for s in _LOCAL_SUFFIXES)
+    )
 
 
 def _pre_api_request(**kwargs):

@@ -10,7 +10,6 @@ Usage:  python3 scripts/render_readme.py
 """
 import ast
 import os
-import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PLUGIN = os.path.join(ROOT, "__init__.py")
