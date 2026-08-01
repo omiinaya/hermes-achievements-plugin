@@ -1283,6 +1283,25 @@ class TestCommandHandlers(HookTestBase):
         out = self.mod._handle_achievements("next")
         self.assertIn("No progress tracked yet", out)
 
+    def test_default_view_shows_closest_to_unlock_hint(self):
+        # Progress toward an achievement → default view teases it
+        self.mod._set_progress("terminal_jockey", 20, 25)
+        out = self.mod._handle_achievements("")
+        self.assertIn("Closest to unlock", out)
+        self.assertIn("Terminal Jockey", out)
+
+    def test_next_hint_omits_secrets_and_unlocked(self):
+        # Secret achievements must not leak into the teaser
+        self.mod._set_progress("quick_draw", 2, 5)  # secret
+        self.mod._unlock("first_steps")
+        hint = self.mod._next_up_hint(self.mod._load_state())
+        self.assertNotIn("Quick Draw", hint)
+        self.assertNotIn("First Steps", hint)
+
+    def test_next_hint_empty_when_nothing_in_progress(self):
+        hint = self.mod._next_up_hint(self.mod._load_state())
+        self.assertEqual(hint, "")
+
 
 class TestSecretAchievements(HookTestBase):
     """Locked secret achievements hide name/description/progress."""

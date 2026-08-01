@@ -380,6 +380,7 @@ class TestTranslationFunction(unittest.TestCase):
             "notification_format": {"emoji": "⬜", "icon": "👣", "name": "Test",
                                      "description": "Test", "rarity": "Common", "group": "Test"},
             "batch_unlocked": {"count": 3},
+            "next_hint": {"name": "Test", "bar": "█████░░░░░", "current": 5, "target": 10, "percent": 50},
             "badge_format": {"icon": "⬜", "name": "Test", "description": "Test", "progress": ""},
             "stats_header": {},
             "stats_footer": {},

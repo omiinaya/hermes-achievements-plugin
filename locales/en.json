@@ -446,6 +446,7 @@
     "model_more": " +{count} more",
     "newly_prefix": "  ✅ ",
     "next_empty": "No progress tracked yet — keep using Hermes!",
+    "next_hint": "🔮 Closest to unlock: **{name}** {bar} {current}/{target} ({percent}%)",
     "next_title": "🎯 **Next Up** — closest to unlocking:",
     "no_achievements": "No achievements yet. Start using Hermes!",
     "notification_format": "{emoji} {icon} **{name}** — {description}\n*{rarity} · {group}*",

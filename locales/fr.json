@@ -446,6 +446,7 @@
     "model_more": " +{count} supplémentaires",
     "newly_prefix": "  ✅ ",
     "next_empty": "Aucune progression pour l'instant — continuez d'utiliser Hermes !",
+    "next_hint": "🔮 Le plus proche du déblocage : **{name}** {bar} {current}/{target} ({percent}%)",
     "next_title": "🎯 **À venir** — les plus proches du déblocage :",
     "no_achievements": "Aucun succès pour l'instant. Commence à utiliser Hermes !",
     "notification_format": "{emoji} {icon} **{name}** — {description}\n*{rarity} · {group}*",

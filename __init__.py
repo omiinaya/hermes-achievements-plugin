@@ -1872,6 +1872,38 @@ def _handle_next_up(state) -> str:
     return "\n".join(lines)
 
 
+def _next_up_hint(state) -> str:
+    """One-line teaser of the closest-to-unlock achievement (default view)."""
+    locale = state.get("locale", "en")
+    ach_state = state.get("achievements", {})
+    best = None
+    for aid, a_def in ACHIEVEMENT_DEFS.items():
+        s = ach_state.get(aid, {})
+        if s.get("unlocked"):
+            continue
+        if a_def.get("secret", False) or a_def.get("hidden", False):
+            continue
+        prog = s.get("progress")
+        if not prog or not prog.get("target"):
+            continue
+        cur = prog.get("current", 0)
+        tgt = prog.get("target", 1)
+        pct = cur / tgt
+        if pct >= 1.0:
+            continue
+        if best is None or pct > best[0]:
+            best = (pct, aid, cur, tgt)
+    if best is None:
+        return ""
+    pct, aid, cur, tgt = best
+    a_def = ACHIEVEMENT_DEFS[aid]
+    name = _t(f"achievement.{aid}.name", locale)
+    bar = _progress_bar(cur, tgt)
+    pct_int = int(pct * 100)
+    return _t("ui.next_hint", locale, name=name, bar=bar,
+              current=cur, target=tgt, percent=pct_int)
+
+
 def _handle_achievements(raw_args: str) -> str:
     args = raw_args.strip().lower()
     state = _load_state()
@@ -2006,6 +2038,11 @@ def _handle_achievements(raw_args: str) -> str:
         lines.append(
             f"{GROUP_EMOJIS.get(group, '🎮')} **{group_name}** ({ug}/{len(ga)}) {bar}"
         )
+    # Closest-to-unlock teaser (one line; full list via `/achievements next`)
+    next_line = _next_up_hint(state)
+    if next_line:
+        lines.append("")
+        lines.append(next_line)
     lines.append("")
     lines.append(_t("ui.summary_hint", locale))
     help_all = _t("ui.help_all", locale)
