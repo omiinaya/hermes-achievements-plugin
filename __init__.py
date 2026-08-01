@@ -2156,7 +2156,11 @@ def _handle_achievement_detail(raw_args: str) -> str:
             a_id = matches[0]
             a_def = ACHIEVEMENT_DEFS[a_id]
         elif len(matches) >= 1:
-            return f"Multiple: {', '.join(matches)}"
+            # Cap the ambiguity list — a generic query can match dozens of
+            # names and blow Discord's 2000-char message cap.
+            shown = matches[:10]
+            more = f" and {len(matches) - len(shown)} more" if len(matches) > len(shown) else ""
+            return f"Multiple: {', '.join(shown)}{more}. Be more specific."
         else:
             return f"Unknown `{a_id}`. Use `/achievements`."
 

@@ -1629,6 +1629,14 @@ class TestCommandHandlers(HookTestBase):
         out = self.mod._handle_achievement_detail("first")
         self.assertIn("Multiple:", out)
 
+    def test_achievement_detail_multiple_capped_at_10(self):
+        # A generic query (e.g. 'the') can match dozens — output must stay
+        # under Discord's 2000-char cap with 'and N more' suffix
+        out = self.mod._handle_achievement_detail("the")
+        self.assertLessEqual(len(out), 2000, f"multiple list is {len(out)} chars")
+        self.assertIn("more", out)
+        self.assertIn("Be more specific", out)
+
     def test_achievement_detail_unknown(self):
         out = self.mod._handle_achievement_detail("not_an_achievement")
         self.assertIn("Unknown", out)

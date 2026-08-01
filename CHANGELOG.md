@@ -2,12 +2,15 @@
 
 ## [2.4.3] — 2026-07-31
 
+### Fixed
+
+- **`/achievement` ambiguity list could exceed Discord's cap** — a generic query (e.g. "the") matched dozens of names and produced a >2000-char "Multiple:" line. Now capped at 10 with an "and N more" suffix + "Be more specific" hint.
+
 ### Added
 
 - **12th plugin hook: `on_session_finalize`** — fires when the gateway shuts down an agent or a session's reset policy expires. It force-flushes the debounced `_save_state` (a write may still be pending inside the 2s window) and synchronously delivers any notifications still in the 3s debounce window. Nothing is lost when the process exits.
-
-### Fixed
-
+- `_save_state` no-ops when no state has been loaded yet (finalize can fire before the first hook).
+- Python 3.13 added to the CI matrix and pyproject classifiers.
 - **`recent` view could exceed Discord's 2000-char cap** — it rendered all of `newly_unlocked` (up to 20 entries); now bounded to the 10 most recent. New matrix test asserts every view × every locale stays under the cap with 50 unlocks + 20 new entries.
 
 ## [2.4.2] — 2026-07-31
