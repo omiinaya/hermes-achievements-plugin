@@ -928,6 +928,17 @@ class TestStatePersistence(HookTestBase):
         self.assertEqual(st["slash_commands_used"], set())
         self.assertEqual(st["active_session"]["tool_names"], set())
 
+    def test_corrupted_active_session_non_dict_normalized(self):
+        # active_session persisted as a non-dict → replaced with fresh shape
+        state = self.mod._load_state()
+        state["stats"]["active_session"] = "garbage"
+        self.mod._state = None
+        st = self.mod._load_state()["stats"]["active_session"]
+        self.assertEqual(st["id"], None)
+        self.assertEqual(st["calls"], 0)
+        self.assertEqual(st["tool_names"], set())
+        self.assertEqual(st["fast_streak"], 0)
+
     def test_stale_achievement_entries_pruned(self):
         # Entries for removed/renamed achievements must not linger in state
         state = self.mod._load_state()
