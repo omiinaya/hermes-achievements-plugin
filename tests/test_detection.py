@@ -146,6 +146,21 @@ class TestSessionScopedThresholds(HookTestBase):
             self.tool_call("session_search", {"query": "x"})
         self.assertTrue(self.unlocked("session_detective"))
 
+    def test_shared_threshold_progress_uses_max_not_flicker(self):
+        # web_search 13 + web_extract 12: neither crosses 25 alone, but the
+        # deep_diver progress must show the best (13), not bounce 13→12
+        for _ in range(13):
+            self.tool_call("web_search", {"query": "x"})
+        for _ in range(12):
+            self.tool_call("web_extract", {"url": "x"})
+        prog = self.mod._load_state()["achievements"]["deep_diver"].get("progress", {})
+        self.assertEqual(prog.get("current"), 13)
+        self.assertFalse(self.unlocked("deep_diver"))
+        # One more web_search → crosses 25 → unlocks
+        for _ in range(12):
+            self.tool_call("web_search", {"query": "x"})
+        self.assertTrue(self.unlocked("deep_diver"))
+
     def test_workflow_builder_needs_8_types(self):
         tools = ["terminal", "read_file", "write_file", "search_files",
                  "browser_navigate", "execute_code", "memory", "cronjob"]

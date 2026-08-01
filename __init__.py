@@ -1063,13 +1063,33 @@ def _check_group_completions():
 
 
 def _check_tool_usage_thresholds(tc_counts, now):
-    """Check tiered thresholds for individual tool usage."""
+    """Check tiered thresholds for individual tool usage.
+
+    Tools that feed the same achievement (e.g. web_search/web_extract/
+    web_scrape → deep_diver, or the four file tools → file tiers) report
+    the BEST (max) count so progress bars don't flicker between per-tool
+    values. Unlock still requires one tool type to actually cross the
+    threshold.
+    """
+    if not tc_counts:
+        return
+    # achievement id → best count across all tools that feed it
+    ach_best = {}
+    for tool_name, count in tc_counts.items():
+        for _threshold, ach_id in _TOOL_THRESHOLDS.get(tool_name, []):
+            ach_best[ach_id] = max(ach_best.get(ach_id, 0), count)
+    # Check each achievement once (avoid duplicate checks for shared tiers)
+    seen = set()
     for tool_name, count in tc_counts.items():
         for threshold, ach_id in _TOOL_THRESHOLDS.get(tool_name, []):
-            if count >= threshold:
+            if ach_id in seen:
+                continue
+            seen.add(ach_id)
+            best_count = ach_best.get(ach_id, count)
+            if best_count >= threshold:
                 _unlock(ach_id, now)
             else:
-                _set_progress(ach_id, count, threshold)
+                _set_progress(ach_id, best_count, threshold)
 
     # Cumulative total tool calls
     total = sum(tc_counts.values()) if tc_counts else 0
