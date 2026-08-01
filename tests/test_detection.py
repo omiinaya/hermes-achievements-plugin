@@ -1062,6 +1062,18 @@ class TestStatePersistence(HookTestBase):
         finally:
             self.mod._STATE_PATH, self.mod._STATE_BAK_PATH = old_path, old_bak
 
+    def test_backup_copy_failure_is_swallowed(self):
+        # Backup copy failing (OSError) must not abort the state save
+        self.tool_call("terminal", {}, session_id="sess-bakfail")
+        self.mod._save_state(force=True)  # primary written, backup created
+        # Point the backup at an unwritable path so copy2 raises OSError
+        old_bak = self.mod._STATE_BAK_PATH
+        self.mod._STATE_BAK_PATH = "/proc/definitely/not/writable/state.json.bak"
+        try:
+            self.mod._save_state(force=True)  # must not raise
+        finally:
+            self.mod._STATE_BAK_PATH = old_bak
+
     def test_load_env_var_reads_dotenv_and_env(self):
         # .env file wins over os.environ
         os.environ["ACH_TEST_VAR"] = "from-env"
