@@ -921,6 +921,8 @@ class TestStatePersistence(HookTestBase):
         state["stats"]["slash_commands_used"] = "oops"
         state["stats"]["active_session"] = {"id": None, "calls": 0,
                                             "tool_names": "not-a-set", "fast_streak": 0}
+        # Persist the corruption so a reload actually hits _normalize_state
+        self.mod._save_state(force=True)
         self.mod._state = None
         st = self.mod._load_state()["stats"]
         self.assertEqual(st["platforms"], set())
@@ -932,6 +934,7 @@ class TestStatePersistence(HookTestBase):
         # active_session persisted as a non-dict → replaced with fresh shape
         state = self.mod._load_state()
         state["stats"]["active_session"] = "garbage"
+        self.mod._save_state(force=True)
         self.mod._state = None
         st = self.mod._load_state()["stats"]["active_session"]
         self.assertEqual(st["id"], None)
@@ -944,6 +947,7 @@ class TestStatePersistence(HookTestBase):
         state = self.mod._load_state()
         state["achievements"]["star_gazer"] = {"unlocked": True}  # removed def
         state["achievements"]["made_up_old_id"] = {"unlocked": True}
+        self.mod._save_state(force=True)
         self.mod._state = None
         st = self.mod._load_state()["achievements"]
         self.assertNotIn("star_gazer", st)
