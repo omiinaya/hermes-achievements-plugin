@@ -410,7 +410,6 @@ class TestCommandHandlers(HookTestBase):
         self.assertIn("Español", out)
         self.assertEqual(self.mod._load_state()["locale"], "es")
         # Achievements list now localized
-        out_list = self.mod._handle_achievements("recent")
         self.mod._unlock("first_steps")
         self.mod._state["newly_unlocked"] = []
         out2 = self.mod._handle_achievements("recent")
