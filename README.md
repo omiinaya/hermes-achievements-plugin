@@ -6,7 +6,7 @@
 [![CI](https://github.com/omiinaya/hermes-achievements-plugin/actions/workflows/test.yml/badge.svg)](https://github.com/omiinaya/hermes-achievements-plugin/actions/workflows/test.yml)
 [![Coverage](https://img.shields.io/badge/coverage-99%25-brightgreen.svg)](https://github.com/omiinaya/hermes-achievements-plugin/actions/workflows/test.yml)
 
-**100 Steam-style achievement badges** for [Hermes Agent](https://hermes-agent.nousresearch.com). Unlock achievements as you use Hermes — run commands, search the web, schedule cron jobs, create skills, and explore the platform. Achievements are tracked silently and delivered to your Discord home channel the moment they unlock.
+**104 Steam-style achievement badges** for [Hermes Agent](https://hermes-agent.nousresearch.com). Unlock achievements as you use Hermes — run commands, search the web, schedule cron jobs, create skills, and explore the platform. Achievements are tracked silently and delivered to your Discord home channel the moment they unlock.
 
 ## Quick Start
 
@@ -227,22 +227,26 @@ unlock them, Steam-style. Currently secret: `Fresh Start`, `Cautious`,
 | 📈 | CLI Champion | Execute 500 terminal commands | Legendary |
 | 💪 | Ultra Marathon | Reach 150 tool calls in a single session | Legendary |
 
-### 🎯 Milestones (15)
+### 🎯 Milestones (19)
 
 | Icon | Name | Description | Rarity |
 |------|------|-------------|--------|
 | 🐦 | Early Bird | Use Hermes before 6 AM | Uncommon |
 | 🔧 | Tool Fan | Accumulate 100 total tool calls | Uncommon |
+| 💧 | Token Tyro | Consume 100,000 tokens across all sessions | Uncommon |
 | 🔧 | Tool Addict | Accumulate 500 total tool calls | Rare |
 | 📅 | Week Warrior | Use Hermes 7 days in a row | Rare |
 | 💪 | Power Session | Make 50 tool calls in a single session | Rare |
+| ⚡ | Speed Demon | Get 25 API responses in under 2 seconds | Rare |
 | 💯 | Century Mark | Accumulate 100+ messages across all sessions | Epic |
 | 💬 | Talkative | Send 500 messages total | Epic |
 | 🔧 | Tool Obsessed | Accumulate 1,000 total tool calls | Epic |
+| 🧙 | Token Wizard | Consume 1,000,000 tokens across all sessions | Epic |
 | 🚀 | Getting Started Complete | Unlock every Getting Started achievement | Epic |
 | 🏆 | Completionist | Unlock every other achievement | Legendary |
 | 💬💬 | Legendary Chatter | Send 1,000 messages total | Legendary |
 | 📅📅 | Monthly Master | Use Hermes 30 days in a row | Legendary |
+| 🐋 | Token Whale | Consume 10,000,000 tokens across all sessions | Legendary |
 | 🟣 | Epic Collector | Unlock every Epic achievement | Legendary |
 | 🛠️ | Tools Complete | Unlock every Tools & Skills achievement | Legendary |
 | ⚡ | Power User Complete | Unlock every Power User achievement | Legendary |

@@ -1,5 +1,14 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- **13th plugin hook: `post_api_request`** — fires once per successful provider API request and carries normalized `usage` token buckets plus `api_duration` in seconds. Opens a genuinely new observation dimension — token consumption and latency — previously invisible to the plugin (message counts were tracked, tokens were not).
+- **4 new achievements (100 → 104, all in Milestones):** Token Tyro 💧 (100K total tokens), Token Wizard 🧙 (1M), Token Whale 🐋 (10M), Speed Demon ⚡ (25 API responses under 2s). The `usage` shape is provider-normalized by the gateway; the handler also falls back to `prompt_tokens + completion_tokens` when `total_tokens` is absent.
+- **Stats view now shows `Tokens consumed: N`** (`ui.stats_tokens`, all 4 locales) — the first cost-oriented stat.
+- Full-grind simulation extended to drive `_post_api_request` (1050 requests, mixed usage shapes, alternating fast/slow durations) — the all-104-unlockable invariant now covers the new dimension end-to-end.
+
 ## [2.4.4] — 2026-07-31
 
 ### Added

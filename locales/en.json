@@ -333,6 +333,10 @@
       "name": "Social Butterfly",
       "description": "Receive messages from 3 different users"
     },
+    "speed_demon": {
+      "name": "Speed Demon",
+      "description": "Get 25 API responses in under 2 seconds"
+    },
     "talkative": {
       "name": "Talkative",
       "description": "Send 500 messages total"
@@ -344,6 +348,18 @@
     "the_90_turn_club": {
       "name": "The 90-Turn Club",
       "description": "Reach 90 tool calls in a single session (default max_turns)"
+    },
+    "token_tyro": {
+      "name": "Token Tyro",
+      "description": "Consume 100,000 tokens across all sessions"
+    },
+    "token_whale": {
+      "name": "Token Whale",
+      "description": "Consume 10,000,000 tokens across all sessions"
+    },
+    "token_wizard": {
+      "name": "Token Wizard",
+      "description": "Consume 1,000,000 tokens across all sessions"
     },
     "tool_addict": {
       "name": "Tool Addict",
@@ -473,6 +489,7 @@
     "stats_title": "📊 **Achievement Stats**",
     "stats_total_calls": "Total tool calls:         {count}",
     "stats_total_turns": "Total turns:              {count}",
+    "stats_tokens": "Tokens consumed:          {count}",
     "stats_unique_tools": "Unique tools:             {count}",
     "stats_unlocked": "Unlocked: {unlocked} / {total}  ({percent}%)",
     "stats_users_seen": "Distinct users seen:     {count}",

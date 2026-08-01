@@ -825,7 +825,7 @@ ACHIEVEMENT_DEFS = {
     },
 
     # ═══════════════════════════════════════════════════════════════════════
-    # 🎯 MILESTONES  (15)
+    # 🎯 MILESTONES  (19)
     # ═══════════════════════════════════════════════════════════════════════
     "early_bird": {
         "id": "early_bird", "name": "Early Bird", "emoji": "🐦",
@@ -880,6 +880,26 @@ ACHIEVEMENT_DEFS = {
     "power_session": {
         "id": "power_session", "name": "Power Session", "emoji": "💪",
         "description": "Make 50 tool calls in a single session",
+        "rarity": "rare", "group": "Milestones",
+    },
+    "token_tyro": {
+        "id": "token_tyro", "name": "Token Tyro", "emoji": "💧",
+        "description": "Consume 100,000 tokens across all sessions",
+        "rarity": "uncommon", "group": "Milestones",
+    },
+    "token_wizard": {
+        "id": "token_wizard", "name": "Token Wizard", "emoji": "🧙",
+        "description": "Consume 1,000,000 tokens across all sessions",
+        "rarity": "epic", "group": "Milestones",
+    },
+    "token_whale": {
+        "id": "token_whale", "name": "Token Whale", "emoji": "🐋",
+        "description": "Consume 10,000,000 tokens across all sessions",
+        "rarity": "legendary", "group": "Milestones",
+    },
+    "speed_demon": {
+        "id": "speed_demon", "name": "Speed Demon", "emoji": "⚡",
+        "description": "Get 25 API responses in under 2 seconds",
         "rarity": "rare", "group": "Milestones",
     },
     "complete_epic": {
@@ -988,6 +1008,17 @@ _MESSAGE_THRESHOLDS = [
     (500, "talkative"),
     (1000, "legendary_chatter"),
 ]
+
+# Cumulative token thresholds (usage.total_tokens from post_api_request)
+_TOKEN_THRESHOLDS = [
+    (100_000, "token_tyro"),
+    (1_000_000, "token_wizard"),
+    (10_000_000, "token_whale"),
+]
+
+# Fast API response: api_duration (seconds) below this counts as "fast"
+_FAST_RESPONSE_THRESHOLD_S = 2.0
+_FAST_RESPONSE_COUNT = 25
 
 # Single-session tool call thresholds
 _SESSION_CALL_THRESHOLDS = [
@@ -1170,6 +1201,15 @@ def _check_message_thresholds(total_turns, now):
             _unlock(ach_id, now)
         else:
             _set_progress(ach_id, total_turns, threshold)
+
+
+def _check_token_thresholds(total_tokens, now):
+    """Check cumulative token thresholds."""
+    for threshold, ach_id in _TOKEN_THRESHOLDS:
+        if total_tokens >= threshold:
+            _unlock(ach_id, now)
+        else:
+            _set_progress(ach_id, total_tokens, threshold)
 
 
 def _check_session_thresholds(session_call_count, now):
@@ -1579,6 +1619,43 @@ def _post_llm_call(**kwargs):
 
     # Persist state (forced — turn boundary)
     _save_state(force=True)
+
+
+# ── Hook: post_api_request ───────────────────────────────────────────────
+# Fires once per successful provider API request inside the agent loop.
+# Carries normalized usage (input/output/cache token buckets with computed
+# total_tokens) and api_duration in seconds — powers the token-consumption
+# milestones and the fast-response achievement.
+
+def _post_api_request(**kwargs):
+    """Detect token milestones and fast API responses."""
+    state = _load_state()
+    stats = state.setdefault("stats", {})
+    now = datetime.now(UTC).isoformat()
+
+    usage = kwargs.get("usage")
+    total_tokens = 0
+    if isinstance(usage, dict):
+        total_tokens = usage.get("total_tokens") or 0
+        if not total_tokens:
+            total_tokens = (usage.get("prompt_tokens") or 0) + (usage.get("completion_tokens") or 0)
+    if total_tokens:
+        stats["total_tokens"] = stats.get("total_tokens", 0) + int(total_tokens)
+        _check_token_thresholds(stats["total_tokens"], now)
+
+    duration = kwargs.get("api_duration")
+    if (
+        isinstance(duration, (int, float))
+        and duration >= 0
+        and duration < _FAST_RESPONSE_THRESHOLD_S
+    ):
+        stats["fast_requests"] = stats.get("fast_requests", 0) + 1
+        if stats["fast_requests"] >= _FAST_RESPONSE_COUNT:
+            _unlock("speed_demon", now)
+        else:
+            _set_progress("speed_demon", stats["fast_requests"], _FAST_RESPONSE_COUNT)
+
+    _save_state()
 
 
 # ── Hook: on_session_start ───────────────────────────────────────────────
@@ -2038,6 +2115,8 @@ def _handle_achievements(raw_args: str) -> str:
         lines.append(_t("ui.stats_unlocked", locale, unlocked=uc, total=total, percent=pct))
         if stats:
             lines.append(_t("ui.stats_total_turns", locale, count=stats.get("total_turns", 0)))
+            if stats.get("total_tokens"):
+                lines.append(_t("ui.stats_tokens", locale, count=stats.get("total_tokens", 0)))
             tools = stats.get("tools_used", {})
             lines.append(_t("ui.stats_unique_tools", locale, count=len(tools)))
             lines.append(_t("ui.stats_total_calls", locale, count=sum(tools.values())))
@@ -2250,6 +2329,7 @@ def register(ctx) -> None:
 
     # Detection: post_llm_call has conversation_history → tool calls
     ctx.register_hook("post_llm_call", _post_llm_call)
+    ctx.register_hook("post_api_request", _post_api_request)
     # Per-tool detection with full arguments (cron jobs, delegation, files)
     ctx.register_hook("post_tool_call", _post_tool_call)
     # Session accounting: new-session counter for session milestones

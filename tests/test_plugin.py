@@ -104,16 +104,16 @@ def _parse_groups_and_rarities():
 
 
 class TestAchievementDefinitions(unittest.TestCase):
-    """Validate that all 100 achievement definitions are complete and valid."""
+    """Validate that all 104 achievement definitions are complete and valid."""
 
     def setUp(self):
         self.achievements = _parse_achievement_defs()
         self.groups, self.rarities = _parse_groups_and_rarities()
 
-    def test_count(self):
-        """There should be exactly 100 achievements."""
-        self.assertEqual(len(self.achievements), 100,
-                         f"Expected 100 achievements, got {len(self.achievements)}")
+    def test_exact_count(self):
+        """There should be exactly 104 achievements."""
+        self.assertEqual(len(self.achievements), 104,
+                         f"Expected 104 achievements, got {len(self.achievements)}")
 
     def test_required_fields(self):
         """Every achievement must have id, name, description, emoji, rarity, group."""
@@ -153,7 +153,7 @@ class TestAchievementDefinitions(unittest.TestCase):
             "Tools & Skills": 28,
             "Power User": 23,
             "Expert": 18,
-            "Milestones": 15,
+            "Milestones": 19,
             "Community": 6,
         }
         for group, expected_count in expected.items():
@@ -344,8 +344,9 @@ class TestTranslationFunction(unittest.TestCase):
         """All UI strings with {placeholders} should format without error."""
         # Keys that need specific format args
         formatters = {
-            "stats_unlocked": {"unlocked": 0, "total": 100, "percent": 0},
+            "stats_unlocked": {"unlocked": 0, "total": 104, "percent": 0},
             "stats_total_turns": {"count": 42},
+            "stats_tokens": {"count": 12345},
             "stats_unique_tools": {"count": 10},
             "stats_total_calls": {"count": 500},
             "stats_sessions": {"count": 5},

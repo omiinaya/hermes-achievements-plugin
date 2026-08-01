@@ -333,6 +333,10 @@
       "name": "Papillon Social",
       "description": "Recevez des messages de 3 utilisateurs différents"
     },
+    "speed_demon": {
+      "name": "Démon de la Vitesse",
+      "description": "Obtenez 25 réponses API en moins de 2 secondes"
+    },
     "talkative": {
       "name": "Volubile",
       "description": "Envoyer 500 messages au total"
@@ -344,6 +348,18 @@
     "the_90_turn_club": {
       "name": "Le Club des 90 Tours",
       "description": "Atteindre 90 appels d'outils en une seule session (max_turns par défaut)"
+    },
+    "token_tyro": {
+      "name": "Novice des Jetons",
+      "description": "Consommez 100 000 jetons sur toutes les sessions"
+    },
+    "token_whale": {
+      "name": "Baleine de Jetons",
+      "description": "Consommez 10 000 000 jetons sur toutes les sessions"
+    },
+    "token_wizard": {
+      "name": "Sorcier des Jetons",
+      "description": "Consommez 1 000 000 jetons sur toutes les sessions"
     },
     "tool_addict": {
       "name": "Accro aux Outils",
@@ -473,6 +489,7 @@
     "stats_title": "📊 **Statistiques des Succès**",
     "stats_total_calls": "Appels d'outils total :   {count}",
     "stats_total_turns": "Tours total :            {count}",
+    "stats_tokens": "Jetons consommés :          {count}",
     "stats_unique_tools": "Outils uniques :          {count}",
     "stats_unlocked": "Débloqués : {unlocked} / {total}  ({percent}%)",
     "stats_users_seen": "Utilisateurs distincts vus : {count}",

@@ -333,6 +333,10 @@
       "name": "Mariposa Social",
       "description": "Recibe mensajes de 3 usuarios diferentes"
     },
+    "speed_demon": {
+      "name": "Demonio de la Velocidad",
+      "description": "Consigue 25 respuestas de API en menos de 2 segundos"
+    },
     "talkative": {
       "name": "Locuaz",
       "description": "Envía 500 mensajes en total"
@@ -344,6 +348,18 @@
     "the_90_turn_club": {
       "name": "El Club de las 90 Jugadas",
       "description": "Alcanza 90 llamadas a herramientas en una sola sesión (max_turns por defecto)"
+    },
+    "token_tyro": {
+      "name": "Novato de Tokens",
+      "description": "Consume 100.000 tokens en todas las sesiones"
+    },
+    "token_whale": {
+      "name": "Ballena de Tokens",
+      "description": "Consume 10.000.000 tokens en todas las sesiones"
+    },
+    "token_wizard": {
+      "name": "Mago de Tokens",
+      "description": "Consume 1.000.000 tokens en todas las sesiones"
     },
     "tool_addict": {
       "name": "Adicto a las Herramientas",
@@ -473,6 +489,7 @@
     "stats_title": "📊 **Estadísticas de Logros**",
     "stats_total_calls": "Llamadas totales:           {count}",
     "stats_total_turns": "Turnos totales:             {count}",
+    "stats_tokens": "Tokens consumidos:          {count}",
     "stats_unique_tools": "Herramientas únicas:        {count}",
     "stats_unlocked": "Desbloqueados: {unlocked} / {total}  ({percent}%)",
     "stats_users_seen": "Usuarios distintos vistos: {count}",

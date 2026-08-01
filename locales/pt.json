@@ -333,6 +333,10 @@
       "name": "Borboleta Social",
       "description": "Receba mensagens de 3 usuários diferentes"
     },
+    "speed_demon": {
+      "name": "Demônio da Velocidade",
+      "description": "Obtenha 25 respostas de API em menos de 2 segundos"
+    },
     "talkative": {
       "name": "Falante",
       "description": "Enviar 500 mensagens no total"
@@ -344,6 +348,18 @@
     "the_90_turn_club": {
       "name": "Clube das 90 Jogadas",
       "description": "Atingir 90 chamadas de ferramenta em uma única sessão (max_turns padrão)"
+    },
+    "token_tyro": {
+      "name": "Novato de Tokens",
+      "description": "Consuma 100.000 tokens em todas as sessões"
+    },
+    "token_whale": {
+      "name": "Baleia de Tokens",
+      "description": "Consuma 10.000.000 tokens em todas as sessões"
+    },
+    "token_wizard": {
+      "name": "Mago de Tokens",
+      "description": "Consuma 1.000.000 tokens em todas as sessões"
     },
     "tool_addict": {
       "name": "Viciado em Ferramentas",
@@ -473,6 +489,7 @@
     "stats_title": "📊 **Estatísticas de Conquistas**",
     "stats_total_calls": "Total de chamadas:        {count}",
     "stats_total_turns": "Total de turnos:          {count}",
+    "stats_tokens": "Tokens consumidos:         {count}",
     "stats_unique_tools": "Ferramentas únicas:        {count}",
     "stats_unlocked": "Desbloqueadas: {unlocked} / {total}  ({percent}%)",
     "stats_users_seen": "Usuários distintos vistos:  {count}",
