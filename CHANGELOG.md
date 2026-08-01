@@ -1,5 +1,19 @@
 # Changelog
 
+## [2.13.1] — 2026-08-01
+
+### Fixed
+
+- **Lint gate** — `ruff check .` (the CI `test.yml` Lint step) had been
+  failing since v2.9.0 without breaking the release workflow (which only
+  runs pytest): SIM103 in `_is_local_base_url` (early-return chain →
+  single boolean expression), RET501/PLR1711 on the two transform-hook
+  observer `return None` statements (kept with targeted noqa — the
+  observer contract is load-bearing: a string return would REPLACE
+  command output / tool results), and an unused `sys` import in
+  `scripts/render_readme.py`. Test workflow is green again; the lint
+  gate is now documented in AGENTS.md.
+
 ## [2.13.0] — 2026-08-01
 
 ### Added
