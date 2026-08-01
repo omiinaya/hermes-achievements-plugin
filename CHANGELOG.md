@@ -1,5 +1,18 @@
 # Changelog
 
+## [2.7.0] — 2026-08-01
+
+### Added
+
+- **Deep Dive 🤿 (108th achievement)** — `post_api_request` delivers `api_call_count`, which resets to 0 at the start of every user turn and increments per provider call. A count ≥ 10 means the agent ran a long autonomous multi-step stretch (tool loop, delegations, retries) without user intervention — a genuinely new *turn-depth* dimension, distinct from cumulative message/tool counts. One turn with 10+ provider calls unlocks it (Expert group).
+- Full-grind simulation escalates `api_call_count` to 14, so the all-108-unlockable invariant covers the new dimension end-to-end.
+- `deep_dive` translated across all 4 locales (Buceo Profundo / Plongée Profonde / Mergulho Profundo).
+
+### Changed
+
+- **Release automation** — pushing a `v*` tag now triggers `.github/workflows/release.yml`: re-runs tests, builds the wheel, verifies the wheel payload (code, plugin.yaml, all 4 locales, LICENSE), and publishes the GitHub Release automatically with the wheel attached. Tag push is the approval signal; direct publish (no draft) so the unpublished-release gap can't recur. Release flow documented in README Development section.
+- **First GitHub Release** — the repo had shipped 8 versions with zero releases; v2.5.0 and v2.6.0 releases now exist with wheels attached.
+
 ## [2.6.0] — 2026-08-01
 
 ### Added
