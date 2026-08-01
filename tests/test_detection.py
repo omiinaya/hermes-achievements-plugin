@@ -1176,6 +1176,23 @@ class TestCommandHandlers(HookTestBase):
         out = self.mod._t("achievement.first_steps.name", None)
         self.assertEqual(out, "First Steps")
 
+    def test_default_view_shows_recently_unlocked_section(self):
+        # Unlock something in this session, then view the default list
+        self.mod._unlock("first_steps")
+        out = self.mod._handle_achievements("")
+        self.assertIn("First Steps", out)  # recent-unlocked section renders
+
+    def test_detail_view_shows_progress_bar_for_locked_with_progress(self):
+        self.mod._set_progress("terminal_jockey", 5, 25)
+        out = self.mod._handle_achievement_detail("terminal_jockey")
+        self.assertIn("20%", out)  # 5/25 progress rendered
+        self.assertIn("█", out)  # progress bar present
+
+    def test_detail_view_shows_plain_locked_without_progress(self):
+        out = self.mod._handle_achievement_detail("first_config")
+        self.assertNotIn("%", out)
+        self.assertIn("Locked", out)
+
 
 class TestSecretAchievements(HookTestBase):
     """Locked secret achievements hide name/description/progress."""
