@@ -458,6 +458,10 @@
     "stats_sessions": "Sessions:                 {count}",
     "stats_streak": "Streak:                   {count} days",
     "detail_rarity": "**Rareté :** {emoji} {rarity}",
-    "detail_group": "**Groupe :** {group}"
+    "detail_group": "**Groupe :** {group}",
+    "stats_session_tools": "Cette session :            {calls} appels · {tools} types",
+    "stats_cron": "Tâches cron créées :        {count}",
+    "stats_skills_created": "Compétences créées :       {count}",
+    "stats_config": "Modifs de configuration :  {count}"
   }
 }

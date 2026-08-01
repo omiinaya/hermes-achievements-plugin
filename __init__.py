@@ -1587,7 +1587,17 @@ def _handle_achievements(raw_args: str) -> str:
         if not newly and not unlocked_ids:
             return _t("ui.no_achievements", locale)
         lines = [_t("ui.recent_title", locale) + "\n"]
-        for a_id in (newly if newly else list(unlocked_ids)[-3:]):
+        if newly:
+            recent_ids = newly
+        else:
+            # Fall back to the most recently unlocked by unlocked_at
+            recent_ids = sorted(
+                (aid for aid, s in ach_state.items()
+                 if s.get("unlocked") and s.get("unlocked_at")),
+                key=lambda aid: ach_state[aid].get("unlocked_at", ""),
+                reverse=True,
+            )[:3]
+        for a_id in recent_ids:
             a_def = ACHIEVEMENT_DEFS.get(a_id)
             if a_def:
                 rarity_e = RARITY_EMOJIS.get(a_def.get("rarity", "common"), "⬜")
@@ -1609,6 +1619,19 @@ def _handle_achievements(raw_args: str) -> str:
             lines.append(_t("ui.stats_total_calls", locale, count=sum(tools.values())))
             lines.append(_t("ui.stats_sessions", locale, count=stats.get("total_sessions", 0)))
             lines.append(_t("ui.stats_streak", locale, count=stats.get("current_streak", 0)))
+            # Live session summary
+            active = stats.get("active_session") or {}
+            if active.get("calls"):
+                lines.append(_t("ui.stats_session_tools", locale,
+                                calls=active.get("calls", 0),
+                                tools=len(active.get("tool_names") or [])))
+            # Tier progress counters
+            if stats.get("cron_jobs_created"):
+                lines.append(_t("ui.stats_cron", locale, count=stats.get("cron_jobs_created", 0)))
+            if stats.get("skills_created"):
+                lines.append(_t("ui.stats_skills_created", locale, count=stats.get("skills_created", 0)))
+            if stats.get("config_changes"):
+                lines.append(_t("ui.stats_config", locale, count=stats.get("config_changes", 0)))
             platforms = stats.get("platforms", [])
             if isinstance(platforms, set):
                 platforms = sorted(platforms)

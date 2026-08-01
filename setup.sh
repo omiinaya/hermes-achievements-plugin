@@ -37,7 +37,7 @@ ENV_FILE="$HERMES_HOME/.env"
 echo -e "${CYAN}"
 echo "  ╔═══════════════════════════════════════════════╗"
 echo "  ║   Hermes Achievements Plugin — Setup          ║"
-echo "  ║   v2.1.0  •  100 achievements  •  4 languages ║"
+echo "  ║   v2.2.0  •  100 achievements  •  4 languages ║"
 echo "  ╚═══════════════════════════════════════════════╝"
 echo -e "${NC}"
 
@@ -80,12 +80,14 @@ step "2/4  Installing plugin files"
 
 mkdir -p "$PLUGIN_DIR"
 
-# Copy all files, preserving locales
+# Copy all files, preserving locales/scripts/tests
 rsync -a --delete \
     --exclude='.git/' --exclude='__pycache__/' --exclude='*.pyc' \
     "$SCRIPT_DIR/" "$PLUGIN_DIR/" 2>/dev/null || \
 cp -r "$SCRIPT_DIR"/*.py "$SCRIPT_DIR"/*.yaml "$SCRIPT_DIR"/*.toml \
-      "$SCRIPT_DIR"/*.md "$SCRIPT_DIR"/LICENSE "$SCRIPT_DIR"/locales/ "$PLUGIN_DIR/" 2>/dev/null
+      "$SCRIPT_DIR"/*.md "$SCRIPT_DIR"/LICENSE \
+      "$SCRIPT_DIR"/locales/ "$SCRIPT_DIR"/scripts/ "$SCRIPT_DIR"/tests/ \
+      "$PLUGIN_DIR/" 2>/dev/null
 
 # Verify critical files
 for f in __init__.py plugin.yaml locales/en.json; do
@@ -177,7 +179,7 @@ fi
 step "✅ Setup complete!"
 
 echo "  Plugin:   $PLUGIN_DIR/"
-echo "  Version:  v2.1.0"
+echo "  Version:  v2.2.0"
 echo "  Locales:  en  es  fr  pt"
 echo ""
 echo "  Usage:"
