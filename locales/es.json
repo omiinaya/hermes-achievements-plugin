@@ -81,6 +81,10 @@
       "name": "Completista",
       "description": "Desbloquea todos los demás logros"
     },
+    "conductor": {
+      "name": "Director de Orquesta",
+      "description": "Ejecuta 3 subagentes a la vez (pico de concurrencia)"
+    },
     "config_guru": {
       "name": "Gurú de Configuración",
       "description": "Modifica 15 opciones de configuración distintas"
@@ -169,6 +173,10 @@
       "name": "Maestro de Hooks",
       "description": "Crea un plugin usando 3+ tipos de hooks distintos"
     },
+    "indestructible": {
+      "name": "Indestructible",
+      "description": "Sobrevive a 10 errores de API del LLM sin rendirte"
+    },
     "legendary_chatter": {
       "name": "Charlatán Legendario",
       "description": "Envía 1,000 mensajes en total"
@@ -241,10 +249,6 @@
       "name": "Persistente",
       "description": "Envía mensajes en 3 sesiones distintas"
     },
-    "plugin_browser": {
-      "name": "Navegador de Plugins",
-      "description": "Explora los plugins disponibles de Hermes"
-    },
     "plugin_developer": {
       "name": "Desarrollador de Plugins",
       "description": "Crea tu propio plugin de Hermes"
@@ -313,10 +317,6 @@
       "name": "Autor de Habilidades",
       "description": "Crea tu propia habilidad personalizada de Hermes"
     },
-    "skill_browser": {
-      "name": "Navegador de Habilidades",
-      "description": "Explora las habilidades disponibles en el hub"
-    },
     "skill_finder": {
       "name": "Coleccionista de Habilidades",
       "description": "Instala una habilidad desde el hub"
@@ -377,9 +377,9 @@
       "name": "Ultramaratón",
       "description": "Alcanza 150 llamadas a herramientas en una sola sesión"
     },
-    "version_spotter": {
-      "name": "Detective de Versiones",
-      "description": "Comprueba la versión de Hermes"
+    "under_scrutiny": {
+      "name": "Bajo Escrutinio",
+      "description": "Provoca 10 solicitudes de aprobación"
     },
     "visionary": {
       "name": "Visionario",
@@ -422,54 +422,57 @@
     "uncommon": "Poco común"
   },
   "ui": {
-    "recent_title": "🔥 **Logros Desbloqueados Recientemente**",
-    "no_achievements": "Aún no hay logros. ¡Empieza a usar Hermes!",
-    "stats_title": "📊 **Estadísticas de Logros**",
-    "stats_unlocked": "Desbloqueados: {unlocked} / {total}  ({percent}%)",
-    "stats_total_turns": "Turnos totales:             {count}",
-    "stats_unique_tools": "Herramientas únicas:        {count}",
-    "stats_total_calls": "Llamadas totales:           {count}",
-    "stats_platforms": "Plataformas:                {platforms}",
-    "stats_models": "Modelos:                    {models}{more}",
-    "completionist_unlocked": "\n🎉 **¡COMPLETISTA DESBLOQUEADO!**",
-    "all_title": "**🎮 Logros de Hermes**",
     "all_subtitle": "*Los logros se desbloquean automáticamente mientras usas Hermes*",
-    "recent_unlocked_section": "**🔥 Desbloqueados Recientemente:**",
-    "group_header": "{emoji} **{group}** ({unlocked}/{total})",
-    "help_footer": "---\n`/achievements` — {all}\n`/achievements <group>` — {filter}\n`/achievements stats` — {overview}\n`/achievements next` — {next_up}\n`/achievements recent` — {latest}\n`/achievement <id>` — {detail}",
-    "help_all": "ver todos",
-    "help_filter": "filtrar por grupo",
-    "help_overview": "resumen",
-    "help_latest": "últimos desbloqueos",
-    "help_detail": "ver detalle",
-    "detail_status_locked": "**Estado:** 🔒 Bloqueado",
+    "all_title": "**🎮 Logros de Hermes**",
+    "badge_format": "{icon} **{name}** — {description}{progress}",
+    "completionist_unlocked": "\n🎉 **¡COMPLETISTA DESBLOQUEADO!**",
+    "detail_group": "**Grupo:** {group}",
     "detail_progress": "**Progreso:** {bar} {current}/{target} ({percent}%)",
+    "detail_rarity": "**Rareza:** {emoji} {rarity}",
+    "detail_status_locked": "**Estado:** 🔒 Bloqueado",
     "detail_unlocked_at": "**Desbloqueado:** {time}",
-    "notification_format": "{emoji} {icon} **{name}** — {description}\n*{rarity} · {group}*",
-    "usage_lang": "Uso: `/achievements lang <code>` — cambiar idioma (en/es/fr/pt)",
-    "lang_set": "Idioma cambiado a {lang} ({native})",
-    "lang_invalid": "Idioma no soportado `{code}`. Soportados: en, es, fr, pt",
     "group_filter_header": "{emoji} **Logros de {group}**",
+    "group_header": "{emoji} **{group}** ({unlocked}/{total})",
+    "help_all": "ver todos",
+    "help_detail": "ver detalle",
+    "help_filter": "filtrar por grupo",
+    "help_footer": "---\n`/achievements` — {all}\n`/achievements <group>` — {filter}\n`/achievements stats` — {overview}\n`/achievements next` — {next_up}\n`/achievements recent` — {latest}\n`/achievement <id>` — {detail}",
+    "help_latest": "últimos desbloqueos",
+    "help_next": "próximos",
+    "help_overview": "resumen",
+    "lang_invalid": "Idioma no soportado `{code}`. Soportados: en, es, fr, pt",
+    "lang_set": "Idioma cambiado a {lang} ({native})",
     "model_more": " +{count} más",
     "newly_prefix": "  ✅ ",
-    "badge_format": "{icon} **{name}** — {description}{progress}",
-    "stats_header": "```",
-    "stats_footer": "```",
-    "stats_sessions": "Sessions:                 {count}",
-    "stats_streak": "Streak:                   {count} days",
-    "detail_rarity": "**Rareza:** {emoji} {rarity}",
-    "detail_group": "**Grupo:** {group}",
-    "stats_session_tools": "Esta sesión:              {calls} llamadas · {tools} tipos",
-    "stats_cron": "Trabajos cron creados:      {count}",
-    "stats_skills_created": "Habilidades creadas:       {count}",
-    "stats_config": "Cambios de configuración:  {count}",
-    "next_title": "🎯 **Próximos** — más cerca de desbloquear:",
     "next_empty": "Sin progreso registrado aún — ¡sigue usando Hermes!",
-    "help_next": "próximos",
-    "stats_delegated": "Subagentes lanzados:        {count}",
-    "summary_hint": "Usa `/achievements <grupo>` para listas completas — ej. `/achievements tools_skills`",
+    "next_title": "🎯 **Próximos** — más cerca de desbloquear:",
+    "no_achievements": "Aún no hay logros. ¡Empieza a usar Hermes!",
+    "notification_format": "{emoji} {icon} **{name}** — {description}\n*{rarity} · {group}*",
+    "recent_title": "🔥 **Logros Desbloqueados Recientemente**",
+    "recent_unlocked_section": "**🔥 Desbloqueados Recientemente:**",
+    "stats_api_errors": "Errores de API superados: {count}",
+    "stats_approval_requests": "Aprobaciones solicitadas: {count}",
     "stats_approvals_always": "Aprobaciones permanentes: {count}",
     "stats_approvals_denied": "Aprobaciones rechazadas:  {count}",
-    "stats_session_resets": "Reinicios de sesión:      {count}"
+    "stats_config": "Cambios de configuración:  {count}",
+    "stats_cron": "Trabajos cron creados:      {count}",
+    "stats_delegated": "Subagentes lanzados:        {count}",
+    "stats_footer": "```",
+    "stats_header": "```",
+    "stats_max_concurrent": "Agentes simultáneos máx:  {count}",
+    "stats_models": "Modelos:                    {models}{more}",
+    "stats_platforms": "Plataformas:                {platforms}",
+    "stats_session_resets": "Reinicios de sesión:      {count}",
+    "stats_session_tools": "Esta sesión:              {calls} llamadas · {tools} tipos",
+    "stats_sessions": "Sessions:                 {count}",
+    "stats_skills_created": "Habilidades creadas:       {count}",
+    "stats_streak": "Streak:                   {count} days",
+    "stats_title": "📊 **Estadísticas de Logros**",
+    "stats_total_calls": "Llamadas totales:           {count}",
+    "stats_total_turns": "Turnos totales:             {count}",
+    "stats_unique_tools": "Herramientas únicas:        {count}",
+    "stats_unlocked": "Desbloqueados: {unlocked} / {total}  ({percent}%)",
+    "summary_hint": "Usa `/achievements <grupo>` para listas completas — ej. `/achievements tools_skills`",
+    "usage_lang": "Uso: `/achievements lang <code>` — cambiar idioma (en/es/fr/pt)"
   }
 }

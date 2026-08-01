@@ -438,6 +438,138 @@ class TestSessionReset(HookTestBase):
         self.assertEqual(self.stats()["session_resets"], 3)
 
 
+class TestSubagentStart(HookTestBase):
+    """subagent_start: true concurrency tracking drives Conductor."""
+
+    def test_peak_concurrency_unlocks_conductor(self):
+        # 3 children alive at once (start x3 before any stop)
+        for _ in range(3):
+            self.mod._on_subagent_start(
+                parent_session_id="s", child_session_id="c",
+                child_role="leaf", child_goal="task",
+            )
+        self.assertTrue(self.unlocked("conductor"))
+        self.assertEqual(self.stats()["concurrent_subagents"], 3)
+        self.assertEqual(self.stats()["max_concurrent_subagents"], 3)
+
+    def test_concurrency_progress_before_threshold(self):
+        self.mod._on_subagent_start(
+            parent_session_id="s", child_session_id="c",
+            child_role="leaf", child_goal="task",
+        )
+        self.assertFalse(self.unlocked("conductor"))
+        st = self.mod._load_state()["achievements"]["conductor"]
+        self.assertEqual(st["progress"]["current"], 1)
+        self.assertEqual(st["progress"]["target"], 3)
+
+    def test_stop_decrements_concurrency(self):
+        self.mod._on_subagent_start(child_session_id="c1")
+        self.mod._on_subagent_start(child_session_id="c2")
+        self.assertEqual(self.stats()["concurrent_subagents"], 2)
+        self.mod._on_subagent_stop(
+            parent_session_id="s", child_role="leaf",
+            child_status="completed", duration_ms=1000,
+        )
+        self.assertEqual(self.stats()["concurrent_subagents"], 1)
+        self.assertEqual(self.stats()["max_concurrent_subagents"], 2)
+
+    def test_concurrency_never_goes_negative(self):
+        # stop without a matching start (plugin loaded mid-run)
+        for _ in range(3):
+            self.mod._on_subagent_stop(
+                parent_session_id="s", child_role="leaf",
+                child_status="completed", duration_ms=1000,
+            )
+        self.assertEqual(self.stats()["concurrent_subagents"], 0)
+
+    def test_start_stop_cycle_keeps_peak(self):
+        # one at a time, peak stays 1 — no Conductor
+        for _ in range(5):
+            self.mod._on_subagent_start(child_session_id="c")
+            self.mod._on_subagent_stop(
+                parent_session_id="s", child_role="leaf",
+                child_status="completed", duration_ms=1000,
+            )
+        self.assertFalse(self.unlocked("conductor"))
+        self.assertEqual(self.stats()["max_concurrent_subagents"], 1)
+
+
+class TestApiRequestError(HookTestBase):
+    """api_request_error: surviving LLM API errors drives Indestructible."""
+
+    def test_ten_errors_unlock_indestructible(self):
+        for _ in range(10):
+            self.mod._on_api_request_error(
+                error_type="InvalidAPIResponse", error_message="bad",
+                status_code=500, retry_count=3, retryable=True,
+            )
+        self.assertTrue(self.unlocked("indestructible"))
+        self.assertEqual(self.stats()["api_errors"], 10)
+
+    def test_progress_before_threshold(self):
+        for _ in range(3):
+            self.mod._on_api_request_error(
+                error_type="Timeout", error_message="slow",
+                status_code=429, retry_count=1, retryable=True,
+            )
+        self.assertFalse(self.unlocked("indestructible"))
+        st = self.mod._load_state()["achievements"]["indestructible"]
+        self.assertEqual(st["progress"]["current"], 3)
+        self.assertEqual(st["progress"]["target"], 10)
+
+    def test_single_error_counts(self):
+        self.mod._on_api_request_error(
+            error_type="RateLimit", error_message="429",
+            status_code=429, retry_count=0, retryable=False,
+        )
+        self.assertEqual(self.stats()["api_errors"], 1)
+
+
+class TestApprovalRequest(HookTestBase):
+    """pre_approval_request: approval gates drive Under Scrutiny."""
+
+    def test_ten_requests_unlock_under_scrutiny(self):
+        for _ in range(10):
+            self.mod._on_approval_request(
+                command="rm -rf /tmp/x", description="dangerous",
+                pattern_key="rm_rf", session_key="s", surface="gateway",
+            )
+        self.assertTrue(self.unlocked("under_scrutiny"))
+        self.assertEqual(self.stats()["approval_requests"], 10)
+
+    def test_progress_before_threshold(self):
+        for _ in range(4):
+            self.mod._on_approval_request(
+                command="cmd", description="d", pattern_key="k",
+                session_key="s", surface="cli",
+            )
+        self.assertFalse(self.unlocked("under_scrutiny"))
+        st = self.mod._load_state()["achievements"]["under_scrutiny"]
+        self.assertEqual(st["progress"]["current"], 4)
+        self.assertEqual(st["progress"]["target"], 10)
+
+    def test_single_request_counts(self):
+        self.mod._on_approval_request(
+            command="cmd", description="d", pattern_key="k",
+            session_key="s", surface="gateway",
+        )
+        self.assertEqual(self.stats()["approval_requests"], 1)
+        self.assertFalse(self.unlocked("under_scrutiny"))
+
+    def test_approval_requests_and_responses_are_independent(self):
+        # Prompts raised but never answered still count toward scrutiny
+        for _ in range(10):
+            self.mod._on_approval_request(
+                command="cmd", description="d", pattern_key="k",
+                session_key="s", surface="gateway",
+            )
+        self.assertTrue(self.unlocked("under_scrutiny"))
+        # No response hooks fired — no trust/caution/yolo
+        self.assertFalse(self.unlocked("trust_fall"))
+        self.assertFalse(self.unlocked("cautious"))
+        self.assertFalse(self.unlocked("yolo_mode"))
+
+
 class TestPerTurnSignals(HookTestBase):
     """Message-derived achievements."""
 
@@ -885,8 +1017,9 @@ class TestPluginRegistration(unittest.TestCase):
         hook_names = {n for n, _ in ctx.hooks}
         self.assertEqual(hook_names,
                          {"post_llm_call", "post_tool_call", "on_session_start",
-                          "on_session_end", "subagent_stop",
-                          "post_approval_response", "on_session_reset"})
+                          "on_session_end", "subagent_stop", "subagent_start",
+                          "post_approval_response", "pre_approval_request",
+                          "on_session_reset", "api_request_error"})
         cmd_names = {n for n, _ in ctx.commands}
         self.assertEqual(cmd_names, {"achievements", "achievement"})
         # Handlers are the real functions, not lambdas
@@ -901,7 +1034,7 @@ class TestCommandHandlers(HookTestBase):
         for g in self.mod.GROUPS:
             self.assertIn(g, out)
         self.assertIn("Hermes Achievements", out)
-        self.assertIn("0/13", out)  # Getting Started progress summary
+        self.assertIn("0/12", out)  # Getting Started progress summary
 
     def test_achievements_list_under_discord_limit(self):
         # Discord caps messages at 2000 chars — the default view must fit
@@ -943,6 +1076,27 @@ class TestCommandHandlers(HookTestBase):
         self.assertIn("Session resets:", out)
         # 3 children, not the legacy parallel_spawns counter
         self.assertIn("3", out)
+
+    def test_achievements_stats_shows_v24_hook_counters(self):
+        # subagent_start, pre_approval_request, api_request_error surface
+        for _ in range(3):
+            self.mod._on_subagent_start(child_session_id="c")
+        for _ in range(4):
+            self.mod._on_approval_request(
+                command="cmd", description="d", pattern_key="k",
+                session_key="s", surface="gateway",
+            )
+        for _ in range(3):
+            self.mod._on_api_request_error(
+                error_type="Timeout", error_message="slow",
+                status_code=429, retry_count=1, retryable=True,
+            )
+        out = self.mod._handle_achievements("stats")
+        self.assertIn("Peak concurrent agents:", out)
+        self.assertIn("Approvals requested:", out)
+        self.assertIn("LLM API errors survived:", out)
+        self.assertIn("4", out)  # approval requests
+        self.assertIn("3", out)  # peak concurrency + api errors
 
     def test_achievements_group_filter(self):
         out = self.mod._handle_achievements("getting_started")

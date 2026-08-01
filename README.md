@@ -125,7 +125,7 @@ unlock them, Steam-style. Currently secret: `Fresh Start`, `Cautious`,
 
 ## Achievement Groups
 
-### 🚀 Getting Started (13)
+### 🚀 Getting Started (12)
 
 | Icon | Name | Description | Rarity |
 |------|------|-------------|--------|
@@ -137,7 +137,6 @@ unlock them, Steam-style. Currently secret: `Fresh Start`, `Cautious`,
 | 🗣️ | Chatty | Send 25 messages to Hermes | Common |
 | 📋 | Slash Commander | Use 3 different slash commands | Common |
 | 📖 | Help Seeker | Use --help on any command | Common |
-| ℹ️ | Version Spotter | Check the Hermes version | Common |
 | 🔄 | Persistent | Send messages across 3 different sessions | Common |
 | 🌱 | Fresh Start | Start a fresh session with /new or /reset | Common |
 | 🌙 | Night Owl | Use Hermes after midnight (local time) | Uncommon |
@@ -176,7 +175,7 @@ unlock them, Steam-style. Currently secret: `Fresh Start`, `Cautious`,
 | 🛠️🛠️ | Complete Toolset | Use every available Hermes tool type at least once | Epic |
 | 👥 | Army Commander | Spawn 25 subagents with delegate_task | Epic |
 
-### ⚡ Power User (22)
+### ⚡ Power User (23)
 
 | Icon | Name | Description | Rarity |
 |------|------|-------------|--------|
@@ -192,6 +191,7 @@ unlock them, Steam-style. Currently secret: `Fresh Start`, `Cautious`,
 | 🏗️ | Workflow Builder | Use 8 different tool types in a single session | Rare |
 | ⚡ | Quick Draw | Complete 5 tasks with rapid turnaround | Rare |
 | ⚡⚡ | Parallel Master | Run 3 subagents in parallel with a single delegate_task | Rare |
+| 🎻 | Conductor | Run 3 subagents simultaneously (peak concurrency) | Rare |
 | 🎼 | Orchestrator | Use an orchestrator-role subagent | Rare |
 | 🪂 | Trust Fall | Approve a command permanently with 'always' | Rare |
 | 🔐 | YOLO Mode | Run with --yolo flag or disable approval prompts | Epic |
@@ -203,7 +203,7 @@ unlock them, Steam-style. Currently secret: `Fresh Start`, `Cautious`,
 | 🤖 | Marathon Session | Reach 200 tool calls in a single session | Legendary |
 | 🧩 | Plugin Developer | Create your own Hermes plugin | Legendary |
 
-### 👑 Expert (16)
+### 👑 Expert (18)
 
 | Icon | Name | Description | Rarity |
 |------|------|-------------|--------|
@@ -214,11 +214,13 @@ unlock them, Steam-style. Currently secret: `Fresh Start`, `Cautious`,
 | 🔧 | Config Guru | Modify 15 different configuration settings | Rare |
 | 🎯 | Precision Scheduler | Schedule a one-shot cron job for a specific time | Rare |
 | ⚙️ | Environment Tuner | Configure custom environment variables for a cron job | Rare |
+| 🔍 | Under Scrutiny | Trigger 10 approval requests | Rare |
 | 🤖 | The 90-Turn Club | Reach 90 tool calls in a single session (default max_turns) | Epic |
 | 📡 | Cross-Platform Operative | Chat with Hermes from 2+ different platforms | Epic |
 | 🔌 | MCP Wizard | Write a custom MCP server configuration | Epic |
 | 🔷 | Rare Collector | Unlock every Rare achievement | Epic |
 | 🧗 | Resilient | Complete a task after a subagent failed | Epic |
+| 🛡️ | Indestructible | Survive 10 LLM API errors without quitting | Epic |
 | 📡📡 | Cross-Platform Veteran | Chat with Hermes from 5+ different platforms | Legendary |
 | 🪝 | Hook Master | Create a plugin using 3+ different hook types | Legendary |
 | 📈 | CLI Champion | Execute 500 terminal commands | Legendary |
@@ -244,12 +246,10 @@ unlock them, Steam-style. Currently secret: `Fresh Start`, `Cautious`,
 | 🛠️ | Tools Complete | Unlock every Tools & Skills achievement | Legendary |
 | ⚡ | Power User Complete | Unlock every Power User achievement | Legendary |
 
-### 🤝 Community (6)
+### 🤝 Community (4)
 
 | Icon | Name | Description | Rarity |
 |------|------|-------------|--------|
-| 🔍 | Plugin Browser | Browse available Hermes plugins | Common |
-| 🧠 | Skill Browser | Browse available skills in the hub | Common |
 | 📋 | Changelog Checker | Read the Hermes changelog | Common |
 | ⚙️ | First Config | View the Hermes configuration | Common |
 | 📝 | Release Reader | Read the latest Hermes release notes | Uncommon |
@@ -257,15 +257,18 @@ unlock them, Steam-style. Currently secret: `Fresh Start`, `Cautious`,
 
 ## Architecture
 
-Achievements are detected via seven plugin hooks — no separate scanner or cron job needed:
+Achievements are detected via ten plugin hooks — no separate scanner or cron job needed:
 
 1. **`post_tool_call`** fires after *every* tool execution with the full tool arguments. This is the primary detection path: per-tool usage counters, per-session tool tracking, and argument-based achievements (cron job chaining via `context_from`, parallel delegation via `tasks`, plugin/hook authoring via file content, skill creation).
 2. **`post_llm_call`** fires once per turn and handles per-turn signals: cumulative message counts, model/platform diversity, user-command pattern matching (`hermes doctor`, `/title`, `--yolo`, ...), tiered command counters (config changes, plugins enabled, skills installed), and group/rarity completion checks.
 3. **`on_session_start`** counts distinct sessions (drives the Persistent / session milestones).
 4. **`on_session_end`** tracks daily streaks (Week Warrior, Monthly Master) and re-checks completions.
 5. **`subagent_stop`** fires once per child agent after `delegate_task` finishes, with `child_role`, `child_status`, and `duration_ms`. This is the authoritative subagent count (a single call with 3 tasks spawns 3 children), driving Army Commander (25 children), Orchestrator (orchestrator role), and Resilient (failed/interrupted child).
-6. **`post_approval_response`** fires after the user responds to an approval prompt. Choosing *always* (permanent trust) unlocks Trust Fall and counts toward YOLO Mode / YOLO Champion; choosing *deny* unlocks Cautious.
-7. **`on_session_reset`** fires when the gateway swaps in a fresh session key (`/new`, `/reset`) — drives Fresh Start and the session-resets counter.
+6. **`subagent_start`** fires when a subagent is spawned. It increments a live concurrency counter that `subagent_stop` decrements — the peak (max simultaneous children) drives Conductor (3 concurrent subagents). This is true parallelism, not just call counting.
+7. **`post_approval_response`** fires after the user responds to an approval prompt. Choosing *always* (permanent trust) unlocks Trust Fall and counts toward YOLO Mode / YOLO Champion; choosing *deny* unlocks Cautious.
+8. **`pre_approval_request`** fires when an approval prompt is raised, before the user answers. It counts how often commands trigger approval gates — 10 gates unlock Under Scrutiny, independent of how the user responds.
+9. **`on_session_reset`** fires when the gateway swaps in a fresh session key (`/new`, `/reset`) — drives Fresh Start and the session-resets counter.
+10. **`api_request_error`** fires when an LLM provider call fails (invalid response, rate limit, timeout, retries exhausted). Surviving 10 such errors without quitting unlocks Indestructible.
 
 When an achievement unlocks, a Discord notification is posted asynchronously (daemon thread — never blocks the agent loop) via the raw HTTP API to both the home channel and the channel where it was unlocked.
 

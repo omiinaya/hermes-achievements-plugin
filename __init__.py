@@ -218,6 +218,10 @@ def _new_state():
             "subagents_failed": 0,
             "approvals_always": 0,
             "approvals_denied": 0,
+            "approval_requests": 0,
+            "api_errors": 0,
+            "concurrent_subagents": 0,
+            "max_concurrent_subagents": 0,
             "session_resets": 0,
             "last_active_date": None,
             "current_streak": 0,
@@ -348,7 +352,7 @@ def _t(key, locale=None, **kwargs):
 
 ACHIEVEMENT_DEFS = {
     # ═══════════════════════════════════════════════════════════════════════
-    # 🚀 GETTING STARTED  (13)
+    # 🚀 GETTING STARTED  (12)
     # ═══════════════════════════════════════════════════════════════════════
     "first_steps": {
         "id": "first_steps", "name": "First Steps", "emoji": "👣",
@@ -393,11 +397,6 @@ ACHIEVEMENT_DEFS = {
     "help_seeker": {
         "id": "help_seeker", "name": "Help Seeker", "emoji": "📖",
         "description": "Use --help on any command",
-        "rarity": "common", "group": "Getting Started",
-    },
-    "version_spotter": {
-        "id": "version_spotter", "name": "Version Spotter", "emoji": "ℹ️",
-        "description": "Check the Hermes version",
         "rarity": "common", "group": "Getting Started",
     },
     "persistent": {
@@ -563,7 +562,7 @@ ACHIEVEMENT_DEFS = {
     },
 
     # ═══════════════════════════════════════════════════════════════════════
-    # ⚡ POWER USER  (22)
+    # ⚡ POWER USER  (23)
     # ═══════════════════════════════════════════════════════════════════════
     "cron_commander": {
         "id": "cron_commander", "name": "Cron Commander", "emoji": "⏰",
@@ -666,6 +665,11 @@ ACHIEVEMENT_DEFS = {
         "description": "Run 3 subagents in parallel with a single delegate_task",
         "rarity": "rare", "group": "Power User",
     },
+    "conductor": {
+        "id": "conductor", "name": "Conductor", "emoji": "🎻",
+        "description": "Run 3 subagents simultaneously (peak concurrency)",
+        "rarity": "rare", "group": "Power User",
+    },
     "orchestrator": {
         "id": "orchestrator", "name": "Orchestrator", "emoji": "🎼",
         "description": "Use an orchestrator-role subagent",
@@ -680,7 +684,7 @@ ACHIEVEMENT_DEFS = {
     },
 
     # ═══════════════════════════════════════════════════════════════════════
-    # 👑 EXPERT  (16)
+    # 👑 EXPERT  (18)
     # ═══════════════════════════════════════════════════════════════════════
     "the_90_turn_club": {
         "id": "the_90_turn_club", "name": "The 90-Turn Club", "emoji": "🤖",
@@ -763,6 +767,16 @@ ACHIEVEMENT_DEFS = {
         "rarity": "epic", "group": "Expert",
         "secret": True,
     },
+    "indestructible": {
+        "id": "indestructible", "name": "Indestructible", "emoji": "🛡️",
+        "description": "Survive 10 LLM API errors without quitting",
+        "rarity": "epic", "group": "Expert",
+    },
+    "under_scrutiny": {
+        "id": "under_scrutiny", "name": "Under Scrutiny", "emoji": "🔍",
+        "description": "Trigger 10 approval requests",
+        "rarity": "rare", "group": "Expert",
+    },
 
     # ═══════════════════════════════════════════════════════════════════════
     # 🎯 MILESTONES  (15)
@@ -844,22 +858,12 @@ ACHIEVEMENT_DEFS = {
     },
 
     # ═══════════════════════════════════════════════════════════════════════
-    # 🤝 COMMUNITY  (6)
+    # 🤝 COMMUNITY  (4)
     # ═══════════════════════════════════════════════════════════════════════
     "release_reader": {
         "id": "release_reader", "name": "Release Reader", "emoji": "📝",
         "description": "Read the latest Hermes release notes",
         "rarity": "uncommon", "group": "Community",
-    },
-    "plugin_browser": {
-        "id": "plugin_browser", "name": "Plugin Browser", "emoji": "🔍",
-        "description": "Browse available Hermes plugins",
-        "rarity": "common", "group": "Community",
-    },
-    "skill_browser": {
-        "id": "skill_browser", "name": "Skill Browser", "emoji": "🧠",
-        "description": "Browse available skills in the hub",
-        "rarity": "common", "group": "Community",
     },
     "changelog_checker": {
         "id": "changelog_checker", "name": "Changelog Checker", "emoji": "📋",
@@ -983,10 +987,7 @@ TERMINAL_PATTERNS = {
     "name_that_session": [re.compile(r"/title", re.IGNORECASE)],
     "session_sage": [re.compile(r"/resume|--continue", re.IGNORECASE)],
     "help_seeker": [re.compile(r"--help\b", re.IGNORECASE)],
-    "version_spotter": [re.compile(r"--version\b", re.IGNORECASE)],
     "yolo_mode": [re.compile(r"--yolo\b", re.IGNORECASE)],
-    "plugin_browser": [re.compile(r"hermes\s+plugins\s+list", re.IGNORECASE)],
-    "skill_browser": [re.compile(r"hermes\s+skills\s+list|skill_view", re.IGNORECASE)],
     "release_reader": [re.compile(r"hermes\s+changelog|CHANGELOG|release.notes", re.IGNORECASE)],
     "changelog_checker": [re.compile(r"hermes\s+changelog|CHANGELOG", re.IGNORECASE)],
     "mcp_wizard": [re.compile(r"hermes\s+mcp\s+(config|edit)", re.IGNORECASE)],
@@ -1618,6 +1619,11 @@ def _on_subagent_stop(**kwargs):
     else:
         _set_progress("army_commander", spawned, 25)
 
+    # Concurrency: one child just finished — decrement the live counter.
+    # subagent_start increments it; the peak is what Conductor measures.
+    live = stats.get("concurrent_subagents", 0)
+    stats["concurrent_subagents"] = max(0, live - 1)
+
     # Orchestrator: child used the orchestrator role
     if child_role and "orchestrator" in str(child_role).lower():
         _unlock("orchestrator", now)
@@ -1626,6 +1632,80 @@ def _on_subagent_stop(**kwargs):
     if child_status and str(child_status).lower() in ("failed", "error", "interrupted"):
         stats["subagents_failed"] = stats.get("subagents_failed", 0) + 1
         _unlock("resilient", now)
+
+    _check_group_completions()
+    _check_completionist()
+    _save_state()
+
+
+# ── Hook: subagent_start ────────────────────────────────────────────────
+# Fires when a subagent is spawned (before it runs). Pairs with
+# subagent_stop to track TRUE concurrency: children alive at the same
+# time (multiple delegate_task calls overlapping, or batched spawns).
+
+def _on_subagent_start(**kwargs):
+    """Track peak concurrent subagent count (Conductor)."""
+    state = _load_state()
+    stats = state.setdefault("stats", {})
+    now = datetime.now(UTC).isoformat()
+
+    live = stats.get("concurrent_subagents", 0) + 1
+    stats["concurrent_subagents"] = live
+    peak = max(stats.get("max_concurrent_subagents", 0), live)
+    stats["max_concurrent_subagents"] = peak
+
+    if peak >= 3:
+        _unlock("conductor", now)
+    else:
+        _set_progress("conductor", peak, 3)
+
+    _check_group_completions()
+    _check_completionist()
+    _save_state()
+
+
+# ── Hook: api_request_error ────────────────────────────────────────────
+# Fires when the LLM provider call fails (invalid response, 429/402,
+# timeout, retries exhausted). The agent keeps going — Indestructible
+# rewards surviving these without quitting.
+
+def _on_api_request_error(**kwargs):
+    """Count LLM API errors the agent survived."""
+    state = _load_state()
+    stats = state.setdefault("stats", {})
+    now = datetime.now(UTC).isoformat()
+
+    stats["api_errors"] = stats.get("api_errors", 0) + 1
+    errors = stats["api_errors"]
+
+    if errors >= 10:
+        _unlock("indestructible", now)
+    else:
+        _set_progress("indestructible", errors, 10)
+
+    _check_group_completions()
+    _check_completionist()
+    _save_state()
+
+
+# ── Hook: pre_approval_request ──────────────────────────────────────────
+# Fires when an approval prompt is raised (before the user answers).
+# Counts how often the user's commands trigger approval gates, with
+# command + surface (cli/gateway). Under Scrutiny rewards hitting 10.
+
+def _on_approval_request(**kwargs):
+    """Count approval requests the user triggered."""
+    state = _load_state()
+    stats = state.setdefault("stats", {})
+    now = datetime.now(UTC).isoformat()
+
+    stats["approval_requests"] = stats.get("approval_requests", 0) + 1
+    requests = stats["approval_requests"]
+
+    if requests >= 10:
+        _unlock("under_scrutiny", now)
+    else:
+        _set_progress("under_scrutiny", requests, 10)
 
     _check_group_completions()
     _check_completionist()
@@ -1827,6 +1907,12 @@ def _handle_achievements(raw_args: str) -> str:
                 lines.append(_t("ui.stats_approvals_always", locale, count=stats.get("approvals_always", 0)))
             if stats.get("approvals_denied"):
                 lines.append(_t("ui.stats_approvals_denied", locale, count=stats.get("approvals_denied", 0)))
+            if stats.get("approval_requests"):
+                lines.append(_t("ui.stats_approval_requests", locale, count=stats.get("approval_requests", 0)))
+            if stats.get("max_concurrent_subagents"):
+                lines.append(_t("ui.stats_max_concurrent", locale, count=stats.get("max_concurrent_subagents", 0)))
+            if stats.get("api_errors"):
+                lines.append(_t("ui.stats_api_errors", locale, count=stats.get("api_errors", 0)))
             if stats.get("session_resets"):
                 lines.append(_t("ui.stats_session_resets", locale, count=stats.get("session_resets", 0)))
             platforms = stats.get("platforms", [])
@@ -2003,7 +2089,13 @@ def register(ctx) -> None:
     # Subagent delegation: per-child counting (army_commander by children),
     # orchestrator role usage, failure resilience
     ctx.register_hook("subagent_stop", _on_subagent_stop)
+    # Subagent spawn: true concurrency tracking (Conductor)
+    ctx.register_hook("subagent_start", _on_subagent_start)
     # Approval decisions: permanent trust (yolo/trust_fall), denials
     ctx.register_hook("post_approval_response", _on_approval_response)
+    # Approval gates: how often commands trigger approval prompts
+    ctx.register_hook("pre_approval_request", _on_approval_request)
     # Fresh-session rotations (/new, /reset)
     ctx.register_hook("on_session_reset", _on_session_reset)
+    # LLM API resilience: survived provider errors (Indestructible)
+    ctx.register_hook("api_request_error", _on_api_request_error)

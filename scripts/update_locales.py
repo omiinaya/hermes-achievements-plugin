@@ -1,64 +1,100 @@
 #!/usr/bin/env python3
-"""Update locale files: remove 5 dead achievements, add 5 new ones.
+"""Update locale files: remove dead achievements, add new ones.
 
 Keeps the achievement dict alphabetically sorted, matching the existing
-locale file convention.
+locale file convention. English name/description is pulled from
+ACHIEVEMENT_DEFS in __init__.py so the source of truth is always the defs.
 """
 import json
 import os
+import re
+import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+INIT = os.path.join(ROOT, "__init__.py")
 
-REMOVE = ["star_gazer", "updater", "theme_setter", "feedback_friend", "helpful_soul"]
 
+def load_defs():
+    """Extract ACHIEVEMENT_DEFS from __init__.py without importing it."""
+    with open(INIT, encoding="utf-8") as f:
+        src = f.read()
+    m = re.search(r"ACHIEVEMENT_DEFS\s*=\s*\{", src)
+    if not m:
+        raise SystemExit("ACHIEVEMENT_DEFS not found")
+    seg = src[m.start():]
+    depth = 0
+    end = -1
+    for i, ch in enumerate(seg):
+        if ch == "{":
+            depth += 1
+        elif ch == "}":
+            depth -= 1
+            if depth == 0:
+                end = i
+                break
+    if end < 0:
+        raise SystemExit("ACHIEVEMENT_DEFS block unterminated")
+    ns = {}
+    exec(seg[: end + 1], ns)  # noqa: S102 — local script, trusted source
+    return ns["ACHIEVEMENT_DEFS"]
+
+
+# Removed achievements (no longer in ACHIEVEMENT_DEFS) — always pruned
+# automatically. This list is kept for documentation only.
+REMOVED = ["version_spotter", "plugin_browser", "skill_browser"]
+
+# Manual translations for NEW achievements. English is auto-synced from
+# ACHIEVEMENT_DEFS, so only es/fr/pt need entries here.
 NEW = {
-    "trust_fall": {
-        "en": {"name": "Trust Fall", "description": "Approve a command permanently with 'always'"},
-        "es": {"name": "Caída de Confianza", "description": "Aprueba un comando permanentemente con 'always'"},
-        "fr": {"name": "Chute de Confiance", "description": "Approuvez une commande définitivement avec « always »"},
-        "pt": {"name": "Queda de Confiança", "description": "Aprove um comando permanentemente com 'always'"},
+    "conductor": {
+        "es": {"name": "Director de Orquesta", "description": "Ejecuta 3 subagentes a la vez (pico de concurrencia)"},
+        "fr": {"name": "Chef d'Orchestre", "description": "Exécutez 3 sous-agents en même temps (concurrence maximale)"},
+        "pt": {"name": "Maestro de Orquestra", "description": "Execute 3 subagentes ao mesmo tempo (pico de concorrência)"},
     },
-    "cautious": {
-        "en": {"name": "Cautious", "description": "Deny an approval request"},
-        "es": {"name": "Cauteloso", "description": "Rechaza una solicitud de aprobación"},
-        "fr": {"name": "Prudent", "description": "Refusez une demande d'approbation"},
-        "pt": {"name": "Cauteloso", "description": "Negue uma solicitação de aprovação"},
+    "indestructible": {
+        "es": {"name": "Indestructible", "description": "Sobrevive a 10 errores de API del LLM sin rendirte"},
+        "fr": {"name": "Indestructible", "description": "Survivez à 10 erreurs d'API LLM sans abandonner"},
+        "pt": {"name": "Indestrutível", "description": "Sobreviva a 10 erros de API do LLM sem desistir"},
     },
-    "orchestrator": {
-        "en": {"name": "Orchestrator", "description": "Use an orchestrator-role subagent"},
-        "es": {"name": "Orquestador", "description": "Usa un subagente con rol de orquestador"},
-        "fr": {"name": "Orchestrateur", "description": "Utilisez un sous-agent avec le rôle d'orchestrateur"},
-        "pt": {"name": "Orquestrador", "description": "Use um subagente com função de orquestrador"},
-    },
-    "resilient": {
-        "en": {"name": "Resilient", "description": "Complete a task after a subagent failed"},
-        "es": {"name": "Resiliente", "description": "Completa una tarea después de que un subagente falle"},
-        "fr": {"name": "Résilient", "description": "Terminez une tâche après l'échec d'un sous-agent"},
-        "pt": {"name": "Resiliente", "description": "Conclua uma tarefa após uma falha de subagente"},
-    },
-    "fresh_start": {
-        "en": {"name": "Fresh Start", "description": "Start a fresh session with /new or /reset"},
-        "es": {"name": "Nuevo Comienzo", "description": "Inicia una sesión nueva con /new o /reset"},
-        "fr": {"name": "Nouveau Départ", "description": "Démarrez une nouvelle session avec /new ou /reset"},
-        "pt": {"name": "Novo Começo", "description": "Inicie uma nova sessão com /new ou /reset"},
+    "under_scrutiny": {
+        "es": {"name": "Bajo Escrutinio", "description": "Provoca 10 solicitudes de aprobación"},
+        "fr": {"name": "Sous Surveillance", "description": "Déclenchez 10 demandes d'approbation"},
+        "pt": {"name": "Sob Escrutínio", "description": "Dispare 10 solicitações de aprovação"},
     },
 }
 
-for code in ("en", "es", "fr", "pt"):
-    path = os.path.join(ROOT, "locales", f"{code}.json")
-    with open(path, encoding="utf-8") as f:
-        data = json.load(f)
 
-    ach = data.get("achievement", {})
-    for key in REMOVE:
-        ach.pop(key, None)
-    for key, entry in NEW.items():
-        ach[key] = entry[code]
+def main():
+    defs = load_defs()
+    for code in ("en", "es", "fr", "pt"):
+        path = os.path.join(ROOT, "locales", f"{code}.json")
+        with open(path, encoding="utf-8") as f:
+            data = json.load(f)
+        ach = data.get("achievement", {})
 
-    # Alphabetical sort to match existing convention
-    data["achievement"] = dict(sorted(ach.items()))
+        # Prune achievements that no longer exist
+        for key in list(ach):
+            if key not in defs:
+                ach.pop(key, None)
 
-    with open(path, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
-        f.write("\n")
-    print(f"{code}: {len(ach)} achievement entries")
+        # Add any missing achievements (English from defs, others from NEW)
+        for key, adef in defs.items():
+            if key in ach:
+                continue
+            if code == "en":
+                ach[key] = {"name": adef["name"], "description": adef["description"]}
+            elif key in NEW:
+                ach[key] = NEW[key][code]
+            else:
+                print(f"WARN: no {code} translation for '{key}' — falling back to English")
+                ach[key] = {"name": adef["name"], "description": adef["description"]}
+
+        data["achievement"] = dict(sorted(ach.items()))
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+            f.write("\n")
+        print(f"{code}: {len(ach)} achievement entries")
+
+
+if __name__ == "__main__":
+    sys.exit(main())

@@ -1,5 +1,27 @@
 # Changelog
 
+## [2.4.0] — 2026-07-31
+
+### Added
+
+- **Three new plugin hooks** (10 total), each mapping to a real Hermes gateway signal:
+  - **`subagent_start`** — fires when a subagent is spawned (has `child_role`, `child_goal`). Paired with `subagent_stop`, it tracks TRUE concurrency: a live counter incremented on spawn and decremented on stop, with a persisted peak.
+    - `Conductor` — ran 3 subagents simultaneously (peak concurrency, not just call count)
+  - **`pre_approval_request`** — fires when an approval prompt is raised, before the user answers (has `command`, `surface`). Counts approval gates independently of how the user responds.
+    - `Under Scrutiny` — triggered 10 approval requests
+  - **`api_request_error`** — fires when an LLM provider call fails (invalid response, rate limit, timeout, retries exhausted; has `error_type`, `status_code`, `retry_count`). Rewards resilience.
+    - `Indestructible` — survived 10 LLM API errors without quitting
+- **Stats view** now surfaces the new counters: `Approvals requested`, `Peak concurrent agents`, `LLM API errors survived`.
+- **`scripts/update_locales.py`** is now fully automated — it reads `ACHIEVEMENT_DEFS` from `__init__.py` as the source of truth, prunes dead keys, and backfills missing translations (falling back to English with a WARN if a translation is missing).
+
+### Removed
+
+- 3 niche, rarely-unlockable achievements (all were locked for the primary user): `Version Spotter` (Getting Started), `Plugin Browser` and `Skill Browser` (Community), with their `TERMINAL_PATTERNS` entries.
+
+### Changed
+
+- Group distribution (keeps exactly 100): Getting Started 13→12, Power User 22→23, Expert 16→18, Community 6→4.
+
 ## [2.3.1] — 2026-07-31
 
 ### Added

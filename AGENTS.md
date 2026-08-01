@@ -19,7 +19,7 @@ using Hermes. Pure Python stdlib, no external dependencies.
 - `scripts/update_locales.py` — adds/removes achievement keys across all 4
   locales (used when swapping achievements)
 
-## Detection architecture (7 hooks)
+## Detection architecture (10 hooks)
 
 | Hook | Fires | Owns |
 |------|-------|------|
@@ -28,8 +28,11 @@ using Hermes. Pure Python stdlib, no external dependencies.
 | `on_session_start` | new session created | `total_sessions` counter |
 | `on_session_end` | end of run_conversation | daily streaks, completions re-check |
 | `subagent_stop` | once per delegate_task child (has `child_role`, `child_status`, `duration_ms`) | Army Commander (counts children, not calls), Orchestrator, Resilient |
+| `subagent_start` | once per subagent spawn (has `child_role`, `child_goal`) | true concurrency tracking — live counter + peak (Conductor) |
 | `post_approval_response` | user answers an approval prompt (has `choice`: once/session/always/deny/timeout) | Trust Fall, Cautious, YOLO Mode/Champion via "always" |
+| `pre_approval_request` | an approval prompt is raised (has `command`, `surface`) | approval-gate counting (Under Scrutiny) |
 | `on_session_reset` | gateway swaps session key (`/new`, `/reset`) | Fresh Start, session-resets counter |
+| `api_request_error` | LLM provider call fails (has `error_type`, `status_code`, `retry_count`) | API-error resilience (Indestructible) |
 
 ## Key invariants
 
@@ -54,7 +57,7 @@ using Hermes. Pure Python stdlib, no external dependencies.
 ## Testing
 
 ```bash
-python3 -m pytest tests/ -q    # 135 tests, no deps beyond pytest
+python3 -m pytest tests/ -q    # 148 tests, no deps beyond pytest
 ```
 
 ## Committing

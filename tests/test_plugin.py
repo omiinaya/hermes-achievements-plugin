@@ -149,12 +149,12 @@ class TestAchievementDefinitions(unittest.TestCase):
         from collections import Counter
         counts = Counter(a["group"] for a in self.achievements)
         expected = {
-            "Getting Started": 13,
+            "Getting Started": 12,
             "Tools & Skills": 28,
-            "Power User": 22,
-            "Expert": 16,
+            "Power User": 23,
+            "Expert": 18,
             "Milestones": 15,
-            "Community": 6,
+            "Community": 4,
         }
         for group, expected_count in expected.items():
             self.assertEqual(counts.get(group, 0), expected_count,
@@ -357,6 +357,9 @@ class TestTranslationFunction(unittest.TestCase):
             "stats_delegated": {"count": 4},
             "stats_approvals_always": {"count": 2},
             "stats_approvals_denied": {"count": 1},
+            "stats_approval_requests": {"count": 4},
+            "stats_max_concurrent": {"count": 2},
+            "stats_api_errors": {"count": 3},
             "stats_session_resets": {"count": 3},
             "stats_platforms": {"platforms": "discord, telegram"},
             "stats_models": {"models": "gpt4", "more": ""},
