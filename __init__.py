@@ -250,6 +250,7 @@ def _new_state():
             "yolo_tasks": 0,
             "session_resumes": 0,
             "hooks_used": set(),
+            "users_seen": set(),
             "subagents_spawned": 0,
             "subagents_failed": 0,
             "approvals_always": 0,
@@ -280,7 +281,7 @@ def _new_state():
 def _normalize_state():
     """Convert list fields back to sets for internal use."""
     stats = _state.setdefault("stats", {})
-    for key in ("platforms", "models_used", "slash_commands_used", "hooks_used"):
+    for key in ("platforms", "models_used", "slash_commands_used", "hooks_used", "users_seen"):
         v = stats.get(key)
         if isinstance(v, set):
             continue
@@ -388,7 +389,7 @@ def _t(key, locale=None, **kwargs):
 
 ACHIEVEMENT_DEFS = {
     # ═══════════════════════════════════════════════════════════════════════
-    # 🚀 GETTING STARTED  (12)
+    # 🚀 GETTING STARTED  (10)
     # ═══════════════════════════════════════════════════════════════════════
     "first_steps": {
         "id": "first_steps", "name": "First Steps", "emoji": "👣",
@@ -403,11 +404,6 @@ ACHIEVEMENT_DEFS = {
     "doctor_visit": {
         "id": "doctor_visit", "name": "Clean Bill of Health", "emoji": "🏥",
         "description": "Run `hermes doctor` to check system health",
-        "rarity": "common", "group": "Getting Started",
-    },
-    "name_that_session": {
-        "id": "name_that_session", "name": "Name That Session", "emoji": "💬",
-        "description": "Name a session with /title",
         "rarity": "common", "group": "Getting Started",
     },
     "model_hopper": {
@@ -428,11 +424,6 @@ ACHIEVEMENT_DEFS = {
     "slash_commander": {
         "id": "slash_commander", "name": "Slash Commander", "emoji": "📋",
         "description": "Use 3 different slash commands",
-        "rarity": "common", "group": "Getting Started",
-    },
-    "help_seeker": {
-        "id": "help_seeker", "name": "Help Seeker", "emoji": "📖",
-        "description": "Use --help on any command",
         "rarity": "common", "group": "Getting Started",
     },
     "persistent": {
@@ -894,7 +885,7 @@ ACHIEVEMENT_DEFS = {
     },
 
     # ═══════════════════════════════════════════════════════════════════════
-    # 🤝 COMMUNITY  (4)
+    # 🤝 COMMUNITY  (6)
     # ═══════════════════════════════════════════════════════════════════════
     "release_reader": {
         "id": "release_reader", "name": "Release Reader", "emoji": "📝",
@@ -905,6 +896,16 @@ ACHIEVEMENT_DEFS = {
         "id": "changelog_checker", "name": "Changelog Checker", "emoji": "📋",
         "description": "Read the Hermes changelog",
         "rarity": "common", "group": "Community",
+    },
+    "social_butterfly": {
+        "id": "social_butterfly", "name": "Social Butterfly", "emoji": "🦋",
+        "description": "Receive messages from 3 different users",
+        "rarity": "uncommon", "group": "Community",
+    },
+    "party_host": {
+        "id": "party_host", "name": "Party Host", "emoji": "🎉",
+        "description": "Receive messages from 10 different users",
+        "rarity": "rare", "group": "Community",
     },
     "first_config": {
         "id": "first_config", "name": "First Config", "emoji": "⚙️",
@@ -1020,9 +1021,7 @@ TERMINAL_PATTERNS = {
     "mcp_master": [re.compile(r"hermes\s+mcp\s+add", re.IGNORECASE)],
     "profile_juggler": [re.compile(r"hermes\s+profile\s+create", re.IGNORECASE)],
     "plugin_power": [re.compile(r"hermes\s+plugins\s+enable", re.IGNORECASE)],
-    "name_that_session": [re.compile(r"/title", re.IGNORECASE)],
     "session_sage": [re.compile(r"/resume|--continue", re.IGNORECASE)],
-    "help_seeker": [re.compile(r"--help\b", re.IGNORECASE)],
     "yolo_mode": [re.compile(r"--yolo\b", re.IGNORECASE)],
     "release_reader": [re.compile(r"hermes\s+changelog|CHANGELOG|release.notes", re.IGNORECASE)],
     "changelog_checker": [re.compile(r"hermes\s+changelog|CHANGELOG", re.IGNORECASE)],
@@ -1794,6 +1793,55 @@ def _on_session_reset(**kwargs):
     _save_state()
 
 
+# ── Hook: pre_gateway_dispatch ─────────────────────────────────────────
+# Fires once per incoming user-originated message (after the internal-event
+# guard, before auth/dispatch). The full MessageEvent is available; its
+# `source` carries platform + user identity. This is the ONLY hook that
+# sees messages from OTHER users — everything else fires for agent turns.
+# Drives Social Butterfly / Party Host (distinct senders seen).
+
+def _on_pre_gateway_dispatch(**kwargs):
+    """Track distinct users who message the gateway (Social Butterfly)."""
+    event = kwargs.get("event")
+    if not event:
+        return
+    # Only user-originated messages carry a real source; internal events
+    # are filtered upstream but be defensive anyway.
+    if getattr(event, "internal", False):
+        return
+    source = getattr(event, "source", None)
+    if not source:
+        return
+    if getattr(source, "is_bot", False):
+        return
+
+    state = _load_state()
+    stats = state.setdefault("stats", {})
+    now = datetime.now(UTC).isoformat()
+
+    # Identity key: platform + stable user id (fall back to name)
+    platform = str(getattr(source, "platform", "") or "")
+    user_id = getattr(source, "user_id", None) or getattr(source, "user_name", None)
+    if not user_id:
+        return
+    users_seen = stats.setdefault("users_seen", set())
+    users_seen.add(f"{platform}:{user_id}")
+    n = len(users_seen)
+
+    if n >= 3:
+        _unlock("social_butterfly", now)
+    else:
+        _set_progress("social_butterfly", n, 3)
+    if n >= 10:
+        _unlock("party_host", now)
+    else:
+        _set_progress("party_host", n, 10)
+
+    _check_group_completions()
+    _check_completionist()
+    _save_state()
+
+
 # ── Slash Command Handlers ──────────────────────────────────────────────
 
 def _progress_bar(current, target, width=10):
@@ -2172,3 +2220,5 @@ def register(ctx) -> None:
     ctx.register_hook("on_session_reset", _on_session_reset)
     # LLM API resilience: survived provider errors (Indestructible)
     ctx.register_hook("api_request_error", _on_api_request_error)
+    # Multi-user messaging: distinct senders seen by the gateway
+    ctx.register_hook("pre_gateway_dispatch", _on_pre_gateway_dispatch)

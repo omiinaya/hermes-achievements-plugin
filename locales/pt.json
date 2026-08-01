@@ -165,10 +165,6 @@
       "name": "Fantasma na Máquina",
       "description": "Executar seu primeiro comando no terminal através do Hermes"
     },
-    "help_seeker": {
-      "name": "Buscador de Ajuda",
-      "description": "Usar --help em qualquer comando"
-    },
     "hook_master": {
       "name": "Mestre dos Hooks",
       "description": "Criar um plugin usando 3+ tipos diferentes de hook"
@@ -229,10 +225,6 @@
       "name": "Multimodelo",
       "description": "Usar 5 modelos de IA diferentes"
     },
-    "name_that_session": {
-      "name": "Dê um Nome a Essa Sessão",
-      "description": "Nomear uma sessão com /title"
-    },
     "night_owl": {
       "name": "Coruja Noturna",
       "description": "Usar o Hermes depois da meia-noite (horário local)"
@@ -244,6 +236,10 @@
     "parallel_master": {
       "name": "Mestre do Paralelismo",
       "description": "Executar 3 subagentes em paralelo com um único delegate_task"
+    },
+    "party_host": {
+      "name": "Anfitrião de Festa",
+      "description": "Receba mensagens de 10 usuários diferentes"
     },
     "persistent": {
       "name": "Persistente",
@@ -332,6 +328,10 @@
     "slash_commander": {
       "name": "Comandante de Slash",
       "description": "Usar 3 comandos de barra diferentes"
+    },
+    "social_butterfly": {
+      "name": "Borboleta Social",
+      "description": "Receba mensagens de 3 usuários diferentes"
     },
     "talkative": {
       "name": "Falante",

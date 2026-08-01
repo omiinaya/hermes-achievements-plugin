@@ -1,5 +1,26 @@
 # Changelog
 
+## [2.4.1] — 2026-07-31
+
+### Added
+
+- **11th plugin hook: `pre_gateway_dispatch`** — fires once per incoming user-originated message (before auth). This is the ONLY hook that sees messages from *other* users; everything else fires for agent turns. Tracks distinct senders (platform-scoped identity) in `stats.users_seen`:
+  - `Social Butterfly` (Community) — received messages from 3 different users
+  - `Party Host` (Community) — received messages from 10 different users
+- Bot senders and internal/system events are ignored; same user repeating doesn't inflate the count.
+
+### Removed
+
+- 2 niche CLI-pattern achievements (locked for the primary user): `Name That Session` (`/title`) and `Help Seeker` (`--help`), with their `TERMINAL_PATTERNS` entries.
+
+### Changed
+
+- Group distribution (keeps exactly 100): Getting Started 12→10, Community 4→6.
+
+### Fixed
+
+- `scripts/update_locales.py` — NEW translations are now authoritative: stale English fallbacks left by a previous run are overwritten instead of skipped.
+
 ## [2.4.0] — 2026-07-31
 
 ### Added

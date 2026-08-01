@@ -165,10 +165,6 @@
       "name": "Ghost in the Shell",
       "description": "Run your first terminal command through Hermes"
     },
-    "help_seeker": {
-      "name": "Help Seeker",
-      "description": "Use --help on any command"
-    },
     "hook_master": {
       "name": "Hook Master",
       "description": "Create a plugin using 3+ different hook types"
@@ -229,10 +225,6 @@
       "name": "Multi-Model",
       "description": "Use 5 different AI models"
     },
-    "name_that_session": {
-      "name": "Name That Session",
-      "description": "Name a session with /title"
-    },
     "night_owl": {
       "name": "Night Owl",
       "description": "Use Hermes after midnight (local time)"
@@ -244,6 +236,10 @@
     "parallel_master": {
       "name": "Parallel Master",
       "description": "Run 3 subagents in parallel with a single delegate_task"
+    },
+    "party_host": {
+      "name": "Party Host",
+      "description": "Receive messages from 10 different users"
     },
     "persistent": {
       "name": "Persistent",
@@ -332,6 +328,10 @@
     "slash_commander": {
       "name": "Slash Commander",
       "description": "Use 3 different slash commands"
+    },
+    "social_butterfly": {
+      "name": "Social Butterfly",
+      "description": "Receive messages from 3 different users"
     },
     "talkative": {
       "name": "Talkative",

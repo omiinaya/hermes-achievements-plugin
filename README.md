@@ -127,18 +127,16 @@ unlock them, Steam-style. Currently secret: `Fresh Start`, `Cautious`,
 
 ## Achievement Groups
 
-### 🚀 Getting Started (12)
+### 🚀 Getting Started (10)
 
 | Icon | Name | Description | Rarity |
 |------|------|-------------|--------|
 | 👣 | First Steps | Send your first message to Hermes | Common |
 | 🔧 | Config Tinkerer | Change a Hermes configuration setting | Common |
 | 🏥 | Clean Bill of Health | Run `hermes doctor` to check system health | Common |
-| 💬 | Name That Session | Name a session with /title | Common |
 | 🎭 | Model Hopper | Switch to a different AI model | Common |
 | 🗣️ | Chatty | Send 25 messages to Hermes | Common |
 | 📋 | Slash Commander | Use 3 different slash commands | Common |
-| 📖 | Help Seeker | Use --help on any command | Common |
 | 🔄 | Persistent | Send messages across 3 different sessions | Common |
 | 🌱 | Fresh Start | Start a fresh session with /new or /reset | Common |
 | 🌙 | Night Owl | Use Hermes after midnight (local time) | Uncommon |
@@ -248,18 +246,20 @@ unlock them, Steam-style. Currently secret: `Fresh Start`, `Cautious`,
 | 🛠️ | Tools Complete | Unlock every Tools & Skills achievement | Legendary |
 | ⚡ | Power User Complete | Unlock every Power User achievement | Legendary |
 
-### 🤝 Community (4)
+### 🤝 Community (6)
 
 | Icon | Name | Description | Rarity |
 |------|------|-------------|--------|
 | 📋 | Changelog Checker | Read the Hermes changelog | Common |
 | ⚙️ | First Config | View the Hermes configuration | Common |
 | 📝 | Release Reader | Read the latest Hermes release notes | Uncommon |
+| 🦋 | Social Butterfly | Receive messages from 3 different users | Uncommon |
+| 🎉 | Party Host | Receive messages from 10 different users | Rare |
 | 🤝 | Community Complete | Unlock every Community achievement | Epic |
 
 ## Architecture
 
-Achievements are detected via ten plugin hooks — no separate scanner or cron job needed:
+Achievements are detected via eleven plugin hooks — no separate scanner or cron job needed:
 
 1. **`post_tool_call`** fires after *every* tool execution with the full tool arguments. This is the primary detection path: per-tool usage counters, per-session tool tracking, and argument-based achievements (cron job chaining via `context_from`, parallel delegation via `tasks`, plugin/hook authoring via file content, skill creation).
 2. **`post_llm_call`** fires once per turn and handles per-turn signals: cumulative message counts, model/platform diversity, user-command pattern matching (`hermes doctor`, `/title`, `--yolo`, ...), tiered command counters (config changes, plugins enabled, skills installed), and group/rarity completion checks.
@@ -271,6 +271,7 @@ Achievements are detected via ten plugin hooks — no separate scanner or cron j
 8. **`pre_approval_request`** fires when an approval prompt is raised, before the user answers. It counts how often commands trigger approval gates — 10 gates unlock Under Scrutiny, independent of how the user responds.
 9. **`on_session_reset`** fires when the gateway swaps in a fresh session key (`/new`, `/reset`) — drives Fresh Start and the session-resets counter.
 10. **`api_request_error`** fires when an LLM provider call fails (invalid response, rate limit, timeout, retries exhausted). Surviving 10 such errors without quitting unlocks Indestructible.
+11. **`pre_gateway_dispatch`** fires once per incoming user-originated message, before auth. It is the ONLY hook that sees messages from *other* users (everything else fires for agent turns) — distinct senders drive Social Butterfly (3 users) and Party Host (10 users).
 
 When an achievement unlocks, a Discord notification is posted asynchronously (daemon thread — never blocks the agent loop) via the raw HTTP API to both the home channel and the channel where it was unlocked.
 

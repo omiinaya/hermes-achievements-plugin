@@ -578,6 +578,95 @@ class TestApprovalRequest(HookTestBase):
         self.assertFalse(self.unlocked("yolo_mode"))
 
 
+class TestPreGatewayDispatch(HookTestBase):
+    """pre_gateway_dispatch: distinct senders drive Social Butterfly."""
+
+    def _event(self, platform, user_id, user_name=None, is_bot=False, internal=False):
+        class _Source:
+            pass
+
+        class _Event:
+            pass
+
+        src = _Source()
+        src.platform = platform
+        src.user_id = user_id
+        src.user_name = user_name
+        src.is_bot = is_bot
+        ev = _Event()
+        ev.internal = internal
+        ev.source = src
+        return ev
+
+    def test_three_users_unlock_social_butterfly(self):
+        for uid in ("user-a", "user-b", "user-c"):
+            self.mod._on_pre_gateway_dispatch(
+                event=self._event("discord", uid), gateway=None, session_store=None,
+            )
+        self.assertTrue(self.unlocked("social_butterfly"))
+        self.assertFalse(self.unlocked("party_host"))
+        self.assertEqual(len(self.stats()["users_seen"]), 3)
+
+    def test_ten_users_unlock_party_host(self):
+        for i in range(10):
+            self.mod._on_pre_gateway_dispatch(
+                event=self._event("discord", f"user-{i}"),
+                gateway=None, session_store=None,
+            )
+        self.assertTrue(self.unlocked("social_butterfly"))
+        self.assertTrue(self.unlocked("party_host"))
+
+    def test_progress_before_threshold(self):
+        self.mod._on_pre_gateway_dispatch(
+            event=self._event("discord", "user-a"), gateway=None, session_store=None,
+        )
+        self.assertFalse(self.unlocked("social_butterfly"))
+        st = self.mod._load_state()["achievements"]["social_butterfly"]
+        self.assertEqual(st["progress"]["current"], 1)
+        self.assertEqual(st["progress"]["target"], 3)
+
+    def test_same_user_repeats_do_not_inflate_count(self):
+        for _ in range(5):
+            self.mod._on_pre_gateway_dispatch(
+                event=self._event("discord", "user-a"),
+                gateway=None, session_store=None,
+            )
+        self.assertEqual(len(self.stats()["users_seen"]), 1)
+        self.assertFalse(self.unlocked("social_butterfly"))
+
+    def test_platform_scoped_identity(self):
+        # Same user_id on different platforms counts as two identities
+        self.mod._on_pre_gateway_dispatch(
+            event=self._event("discord", "42"), gateway=None, session_store=None,
+        )
+        self.mod._on_pre_gateway_dispatch(
+            event=self._event("telegram", "42"), gateway=None, session_store=None,
+        )
+        self.assertEqual(len(self.stats()["users_seen"]), 2)
+
+    def test_bots_and_internal_events_ignored(self):
+        self.mod._on_pre_gateway_dispatch(
+            event=self._event("discord", "webhook", is_bot=True),
+            gateway=None, session_store=None,
+        )
+        self.mod._on_pre_gateway_dispatch(
+            event=self._event("discord", "sys", internal=True),
+            gateway=None, session_store=None,
+        )
+        self.assertEqual(len(self.stats().get("users_seen", set())), 0)
+
+    def test_no_event_is_noop(self):
+        self.mod._on_pre_gateway_dispatch(gateway=None, session_store=None)
+        self.assertEqual(len(self.stats().get("users_seen", set())), 0)
+
+    def test_no_user_identity_is_noop(self):
+        self.mod._on_pre_gateway_dispatch(
+            event=self._event("discord", None, user_name=None),
+            gateway=None, session_store=None,
+        )
+        self.assertEqual(len(self.stats().get("users_seen", set())), 0)
+
+
 class TestPerTurnSignals(HookTestBase):
     """Message-derived achievements."""
 
@@ -1090,7 +1179,8 @@ class TestPluginRegistration(unittest.TestCase):
                          {"post_llm_call", "post_tool_call", "on_session_start",
                           "on_session_end", "subagent_stop", "subagent_start",
                           "post_approval_response", "pre_approval_request",
-                          "on_session_reset", "api_request_error"})
+                          "on_session_reset", "api_request_error",
+                          "pre_gateway_dispatch"})
         cmd_names = {n for n, _ in ctx.commands}
         self.assertEqual(cmd_names, {"achievements", "achievement"})
         # Handlers are the real functions, not lambdas
@@ -1105,7 +1195,7 @@ class TestCommandHandlers(HookTestBase):
         for g in self.mod.GROUPS:
             self.assertIn(g, out)
         self.assertIn("Hermes Achievements", out)
-        self.assertIn("0/12", out)  # Getting Started progress summary
+        self.assertIn("0/10", out)  # Getting Started progress summary
 
     def test_achievements_list_under_discord_limit(self):
         # Discord caps messages at 2000 chars — the default view must fit

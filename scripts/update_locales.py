@@ -61,6 +61,16 @@ NEW = {
         "fr": {"name": "Sous Surveillance", "description": "Déclenchez 10 demandes d'approbation"},
         "pt": {"name": "Sob Escrutínio", "description": "Dispare 10 solicitações de aprovação"},
     },
+    "social_butterfly": {
+        "es": {"name": "Mariposa Social", "description": "Recibe mensajes de 3 usuarios diferentes"},
+        "fr": {"name": "Papillon Social", "description": "Recevez des messages de 3 utilisateurs différents"},
+        "pt": {"name": "Borboleta Social", "description": "Receba mensagens de 3 usuários diferentes"},
+    },
+    "party_host": {
+        "es": {"name": "Anfitrión de Fiesta", "description": "Recibe mensajes de 10 usuarios diferentes"},
+        "fr": {"name": "Hôte de Fête", "description": "Recevez des messages de 10 utilisateurs différents"},
+        "pt": {"name": "Anfitrião de Festa", "description": "Receba mensagens de 10 usuários diferentes"},
+    },
 }
 
 
@@ -77,15 +87,17 @@ def main():
             if key not in defs:
                 ach.pop(key, None)
 
-        # Add any missing achievements (English from defs, others from NEW)
+        # Add any missing achievements (English from defs, others from NEW).
+        # NEW translations are authoritative — overwrite stale English
+        # fallbacks left by a previous run.
         for key, adef in defs.items():
-            if key in ach:
-                continue
             if code == "en":
-                ach[key] = {"name": adef["name"], "description": adef["description"]}
+                if key not in ach:
+                    ach[key] = {"name": adef["name"], "description": adef["description"]}
             elif key in NEW:
-                ach[key] = NEW[key][code]
-            else:
+                if key not in ach or ach[key] != NEW[key][code]:
+                    ach[key] = NEW[key][code]
+            elif key not in ach:
                 print(f"WARN: no {code} translation for '{key}' — falling back to English")
                 ach[key] = {"name": adef["name"], "description": adef["description"]}
 

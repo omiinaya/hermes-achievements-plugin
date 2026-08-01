@@ -22,7 +22,7 @@ using Hermes. Pure Python stdlib, no external dependencies.
 - `scripts/bump_version.py` — updates the version in all 4 places that
   carry it (pyproject.toml, plugin.yaml, setup.sh ×2) in one shot
 
-## Detection architecture (10 hooks)
+## Detection architecture (11 hooks)
 
 | Hook | Fires | Owns |
 |------|-------|------|
@@ -36,6 +36,7 @@ using Hermes. Pure Python stdlib, no external dependencies.
 | `pre_approval_request` | an approval prompt is raised (has `command`, `surface`) | approval-gate counting (Under Scrutiny) |
 | `on_session_reset` | gateway swaps session key (`/new`, `/reset`) | Fresh Start, session-resets counter |
 | `api_request_error` | LLM provider call fails (has `error_type`, `status_code`, `retry_count`) | API-error resilience (Indestructible) |
+| `pre_gateway_dispatch` | once per incoming user-originated message (has `event`, `gateway`, `session_store`) | distinct-sender counting (Social Butterfly 3 users, Party Host 10) — the ONLY hook that sees other users' messages |
 
 ## Key invariants
 
@@ -60,7 +61,7 @@ using Hermes. Pure Python stdlib, no external dependencies.
 ## Testing
 
 ```bash
-python3 -m pytest tests/ -q    # 161 tests, no deps beyond pytest
+python3 -m pytest tests/ -q    # 169 tests, no deps beyond pytest
 ```
 
 ## Committing
