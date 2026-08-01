@@ -4,6 +4,7 @@
 [![Python](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/)
 [![Hermes](https://img.shields.io/badge/hermes-agent-plugin-8B5CF6.svg)](https://hermes-agent.nousresearch.com)
 [![CI](https://github.com/omiinaya/hermes-achievements-plugin/actions/workflows/test.yml/badge.svg)](https://github.com/omiinaya/hermes-achievements-plugin/actions/workflows/test.yml)
+[![Coverage](https://img.shields.io/badge/coverage-99%25-brightgreen.svg)](https://github.com/omiinaya/hermes-achievements-plugin/actions/workflows/test.yml)
 
 **100 Steam-style achievement badges** for [Hermes Agent](https://hermes-agent.nousresearch.com). Unlock achievements as you use Hermes — run commands, search the web, schedule cron jobs, create skills, and explore the platform. Achievements are tracked silently and delivered to your Discord home channel the moment they unlock.
 
