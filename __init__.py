@@ -288,6 +288,7 @@ def _new_state():
             "max_retry_depth": 0,
             "approvals_gateway": 0,
             "approved_patterns": set(),
+            "primary_users": {},
             # Live per-session tracking (reset whenever session_id changes)
             "active_session": {
                 "id": None,
@@ -647,7 +648,7 @@ ACHIEVEMENT_DEFS = {
     },
 
     # ═══════════════════════════════════════════════════════════════════════
-    # ⚡ POWER USER  (42)
+    # ⚡ POWER USER  (44)
     # ═══════════════════════════════════════════════════════════════════════
     "cron_commander": {
         "id": "cron_commander", "name": "Cron Commander", "emoji": "⏰",
@@ -824,6 +825,16 @@ ACHIEVEMENT_DEFS = {
         "id": "tool_torrent", "name": "Tool Torrent", "emoji": "🧰",
         "description": "Emit 20 tool calls in a single response",
         "rarity": "legendary", "group": "Power User",
+    },
+    "command_center": {
+        "id": "command_center", "name": "Command Center", "emoji": "🎚️",
+        "description": "Use 10 different slash commands",
+        "rarity": "rare", "group": "Power User",
+    },
+    "command_general": {
+        "id": "command_general", "name": "Command General", "emoji": "🎖️",
+        "description": "Use 25 different slash commands",
+        "rarity": "epic", "group": "Power User",
     },
     "conductor": {
         "id": "conductor", "name": "Conductor", "emoji": "🎻",
@@ -1364,6 +1375,19 @@ _APPROVAL_PATTERN_THRESHOLDS = [
     (5, "risk_explorer"),
     (15, "danger_collector"),
     (25, "living_on_the_edge"),
+]
+
+# Gateway-command thresholds (command from pre_gateway_dispatch): slash
+# commands the USER types that the gateway intercepts BEFORE the LLM
+# (/new, /reset, /title, /model, /achievements — 56 known commands) — they
+# never reach post_llm_call, so the LLM-path slash_commander could never
+# count the plugin's own command. Only commands from the platform's
+# PRIMARY user count (the first non-bot user seen — the owner in every
+# real deployment; other users' commands in shared channels must not
+# unlock the user's achievements).
+_GATEWAY_COMMAND_THRESHOLDS = [
+    (10, "command_center"),
+    (25, "command_general"),
 ]
 
 
@@ -2161,8 +2185,11 @@ def _post_llm_call(**kwargs):
             if isinstance(content, str):
                 user_commands.append(content)
                 for token in content.split():
+                    # Canonical form: command name WITHOUT leading "/"
+                    # (matches get_command() on pre_gateway_dispatch, so the
+                    # same command typed both ways dedupes in one set).
                     if token.startswith("/") and len(token) > 1:
-                        slash_cmds_this_turn.add(token.lower())
+                        slash_cmds_this_turn.add(token[1:].lower())
             break  # turn boundary — only the current user message
 
     # Track slash commands (cumulative)
@@ -2786,6 +2813,46 @@ def _on_pre_gateway_dispatch(**kwargs):
             else:
                 _set_progress(ach_id, media_count, threshold)
 
+    # ── Gateway-intercepted slash commands (Command Center/General) ──
+    # Slash commands the USER types are intercepted by the gateway BEFORE
+    # the LLM (/new, /reset, /title, /model, /achievements...) — they never
+    # reach post_llm_call, so the LLM-path slash_commander could never
+    # count the plugin's own command. The MessageEvent carries
+    # is_command()/get_command() so they ARE observable here.
+    # Attribution: this hook fires for ALL users (shared channels) BEFORE
+    # auth, so only commands from the platform's PRIMARY user count — the
+    # first non-bot user seen, which is the owner in every real deployment.
+    # Other users' commands must not unlock the user's achievements.
+    primary_users = stats.setdefault("primary_users", {})
+    user_key = f"{platform}:{user_id}"
+    primary_users.setdefault(platform, user_key)
+    if primary_users.get(platform) == user_key:
+        cmd = None
+        get_cmd = getattr(event, "get_command", None)
+        if callable(get_cmd):
+            try:
+                cmd = get_cmd()
+            except Exception:
+                cmd = None
+        if not cmd:
+            # Fallback: parse the raw text for a leading "/" token
+            text = getattr(event, "text", "") or ""
+            if text.startswith("/"):
+                cmd = text.split(maxsplit=1)[0][1:].lower()
+        if cmd:
+            slash_used = stats.setdefault("slash_commands_used", set())
+            slash_used.add(cmd)
+            num_slash = len(slash_used)
+            if num_slash >= 3:
+                _unlock("slash_commander", now)
+            else:
+                _set_progress("slash_commander", num_slash, 3)
+            for threshold, ach_id in _GATEWAY_COMMAND_THRESHOLDS:
+                if num_slash >= threshold:
+                    _unlock(ach_id, now)
+                else:
+                    _set_progress(ach_id, num_slash, threshold)
+
     _check_group_completions()
     _check_completionist()
     _save_state()
@@ -3074,6 +3141,9 @@ def _handle_achievements(raw_args: str) -> str:
             hooks_used = stats.get("hooks_used", set())
             if hooks_used:
                 lines.append(_t("ui.stats_hooks_used", locale, count=len(hooks_used)))
+            slash_used = stats.get("slash_commands_used", set())
+            if slash_used:
+                lines.append(_t("ui.stats_slash_commands", locale, count=len(slash_used)))
             platforms = stats.get("platforms", [])
             if isinstance(platforms, set):
                 platforms = sorted(platforms)

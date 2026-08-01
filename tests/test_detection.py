@@ -1705,19 +1705,32 @@ class TestPreGatewayDispatch(HookTestBase):
     """pre_gateway_dispatch: distinct senders drive Social Butterfly."""
 
     def _event(self, platform, user_id, user_name=None, is_bot=False, internal=False,
-               media=False):
+               media=False, text=""):
         class _Source:
             pass
 
         class _Event:
-            pass
+            def __init__(self, txt):
+                self._text = txt
+
+            def is_command(self):
+                return bool(self._text.startswith("/"))
+
+            def get_command(self):
+                if not self.is_command():
+                    return None
+                parts = self._text.split(maxsplit=1)
+                raw = parts[0][1:].lower() if parts else None
+                if raw and "/" in raw:
+                    return None
+                return raw
 
         src = _Source()
         src.platform = platform
         src.user_id = user_id
         src.user_name = user_name
         src.is_bot = is_bot
-        ev = _Event()
+        ev = _Event(text)
         ev.internal = internal
         ev.source = src
         ev.media_urls = ["/tmp/pic.jpg"] if media else []
@@ -1845,6 +1858,181 @@ class TestPreGatewayDispatch(HookTestBase):
             event=ev, gateway=None, session_store=None,
         )
         self.assertTrue(self.unlocked("show_and_tell"))
+
+
+class TestGatewayCommands(HookTestBase):
+    """pre_gateway_dispatch command detection: slash commands the gateway
+    intercepts BEFORE the LLM (/new, /reset, /achievements) never reach
+    post_llm_call — they're only observable here. Attribution matters:
+    this hook fires for ALL users pre-auth, so only the platform's PRIMARY
+    user (first non-bot seen = the owner) counts toward achievements."""
+
+    def _event(self, platform, user_id, user_name=None, is_bot=False, internal=False,
+               text=""):
+        class _Source:
+            pass
+
+        class _Event:
+            def __init__(self, txt):
+                self._text = txt
+
+            @property
+            def text(self):
+                return self._text
+
+            def is_command(self):
+                return bool(self._text.startswith("/"))
+
+            def get_command(self):
+                if not self.is_command():
+                    return None
+                parts = self._text.split(maxsplit=1)
+                raw = parts[0][1:].lower() if parts else None
+                if raw and "/" in raw:
+                    return None
+                return raw
+
+        src = _Source()
+        src.platform = platform
+        src.user_id = user_id
+        src.user_name = user_name
+        src.is_bot = is_bot
+        ev = _Event(text)
+        ev.internal = internal
+        ev.source = src
+        ev.media_urls = []
+        ev.media_types = []
+        ev.message_type = "text"
+        return ev
+
+    def test_three_gateway_commands_unlock_slash_commander(self):
+        # /achievements never reaches the LLM — the gateway path must count it
+        for cmd in ("/new", "/reset", "/achievements"):
+            self.mod._on_pre_gateway_dispatch(
+                event=self._event("discord", "user-a", text=cmd),
+                gateway=None, session_store=None,
+            )
+        self.assertTrue(self.unlocked("slash_commander"))
+        self.assertEqual(len(self.stats()["slash_commands_used"]), 3)
+
+    def test_ten_commands_unlock_command_center(self):
+        cmds = [f"/cmd{i}" for i in range(10)]
+        for cmd in cmds:
+            self.mod._on_pre_gateway_dispatch(
+                event=self._event("discord", "user-a", text=cmd),
+                gateway=None, session_store=None,
+            )
+        self.assertTrue(self.unlocked("command_center"))
+        self.assertFalse(self.unlocked("command_general"))
+
+    def test_twenty_five_commands_unlock_command_general(self):
+        for i in range(25):
+            self.mod._on_pre_gateway_dispatch(
+                event=self._event("discord", "user-a", text=f"/cmd{i}"),
+                gateway=None, session_store=None,
+            )
+        self.assertTrue(self.unlocked("command_center"))
+        self.assertTrue(self.unlocked("command_general"))
+
+    def test_repeated_same_command_counts_once(self):
+        for _ in range(10):
+            self.mod._on_pre_gateway_dispatch(
+                event=self._event("discord", "user-a", text="/new"),
+                gateway=None, session_store=None,
+            )
+        self.assertFalse(self.unlocked("slash_commander"))
+        self.assertEqual(len(self.stats()["slash_commands_used"]), 1)
+
+    def test_other_users_commands_do_not_count(self):
+        # First user seen is PRIMARY — a second user's commands must not
+        # count toward the owner's achievements.
+        self.mod._on_pre_gateway_dispatch(
+            event=self._event("discord", "owner", text="/new"),
+            gateway=None, session_store=None,
+        )
+        self.mod._on_pre_gateway_dispatch(
+            event=self._event("discord", "stranger", text="/reset"),
+            gateway=None, session_store=None,
+        )
+        self.mod._on_pre_gateway_dispatch(
+            event=self._event("discord", "stranger", text="/title"),
+            gateway=None, session_store=None,
+        )
+        self.assertEqual(len(self.stats()["slash_commands_used"]), 1)
+        self.assertFalse(self.unlocked("slash_commander"))
+
+    def test_primary_user_per_platform_is_independent(self):
+        # Each platform has its own primary user
+        self.mod._on_pre_gateway_dispatch(
+            event=self._event("discord", "owner", text="/new"),
+            gateway=None, session_store=None,
+        )
+        self.mod._on_pre_gateway_dispatch(
+            event=self._event("telegram", "tg-owner", text="/reset"),
+            gateway=None, session_store=None,
+        )
+        self.mod._on_pre_gateway_dispatch(
+            event=self._event("telegram", "tg-owner", text="/title"),
+            gateway=None, session_store=None,
+        )
+        self.assertEqual(len(self.stats()["slash_commands_used"]), 3)
+
+    def test_plain_text_has_no_command(self):
+        self.mod._on_pre_gateway_dispatch(
+            event=self._event("discord", "user-a", text="hello there"),
+            gateway=None, session_store=None,
+        )
+        # slash_commands_used is a default key — assert it stays EMPTY
+        self.assertEqual(len(self.stats().get("slash_commands_used", set())), 0)
+        self.assertFalse(self.unlocked("slash_commander"))
+
+    def test_no_get_command_method_falls_back_to_text(self):
+        # Older/synthetic events may lack get_command — text parsing covers it
+        ev = self._event("discord", "user-a", text="/new")
+        delattr(type(ev), "get_command")
+        self.mod._on_pre_gateway_dispatch(
+            event=ev, gateway=None, session_store=None,
+        )
+        self.assertEqual(len(self.stats()["slash_commands_used"]), 1)
+
+    def test_raising_get_command_falls_back_to_text(self):
+        # A broken get_command must not crash the hook — text parsing covers it
+        ev = self._event("discord", "user-a", text="/reset")
+
+        def _boom(self):
+            raise RuntimeError("adapter bug")
+
+        ev.get_command = _boom.__get__(ev)
+        self.mod._on_pre_gateway_dispatch(
+            event=ev, gateway=None, session_store=None,
+        )
+        self.assertEqual(len(self.stats()["slash_commands_used"]), 1)
+
+    def test_llm_and_gateway_paths_dedupe(self):
+        # Same command via post_llm_call (/title with slash) and gateway
+        # (title without) must count ONCE — canonical form strips the slash
+        self.mod._on_pre_gateway_dispatch(
+            event=self._event("discord", "user-a", text="/title"),
+            gateway=None, session_store=None,
+        )
+        self.mod._post_llm_call(
+            user_message="/title my session", conversation_history=[
+                {"role": "user", "content": "/title my session"},
+            ],
+            model="m1", platform="discord",
+        )
+        self.assertEqual(len(self.stats()["slash_commands_used"]), 1)
+
+    def test_command_center_progress_before_threshold(self):
+        for i in range(5):
+            self.mod._on_pre_gateway_dispatch(
+                event=self._event("discord", "user-a", text=f"/cmd{i}"),
+                gateway=None, session_store=None,
+            )
+        self.assertFalse(self.unlocked("command_center"))
+        st = self.mod._load_state()["achievements"]["command_center"]
+        self.assertEqual(st["progress"]["current"], 5)
+        self.assertEqual(st["progress"]["target"], 10)
 
 
 class TestPerTurnSignals(HookTestBase):
@@ -2008,7 +2196,7 @@ class TestStreakEdgeCases(HookTestBase):
         self.mod._locales_cache = {}
         try:
             cache = self.mod._load_locales()
-            self.assertEqual(len(cache.get("en", {}).get("achievement", {})), 151)
+            self.assertEqual(len(cache.get("en", {}).get("achievement", {})), 153)
         finally:
             self.mod._LOCALES_DIR = old_dir
             self.mod._WHEEL_DATA_DIR = old_wheel
@@ -2663,7 +2851,7 @@ class TestCommandHandlers(HookTestBase):
         # Every view (default/recent/next/stats/groups) in every locale must
         # stay under Discord's 2000-char cap — guards against locale string
         # growth and newly_unlocked unbounded rendering. This is the WORST
-        # case: all 151 achievements unlocked + every stats counter populated
+        # case: all 153 achievements unlocked + every stats counter populated
         # (including the longest locales). A stats view that fits when empty
         # but overflows when full is a regression.
         state = self.mod._load_state()
@@ -3323,7 +3511,7 @@ class TestReadmeSync(unittest.TestCase):
         result = subprocess.run([_sys.executable, script], capture_output=True, text=True,
                                 cwd=PLUGIN_DIR, check=False)
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertIn("OK: 151 achievements", result.stdout)
+        self.assertIn("OK: 153 achievements", result.stdout)
 
     def test_health_check_script_passes(self):
         # The health check must pass against the repo checkout (defs,
@@ -3359,7 +3547,7 @@ class TestReadmeSync(unittest.TestCase):
 
 
 class TestEveryAchievementUnlockable(HookTestBase):
-    """Full-grind simulation: prove all 151 achievement defs can unlock.
+    """Full-grind simulation: prove all 153 achievement defs can unlock.
 
     After several rounds of achievement swaps (v2.3.0, v2.4.0, v2.4.1),
     a def could sit in a detection map with an impossible condition (wrong
@@ -3375,19 +3563,36 @@ class TestEveryAchievementUnlockable(HookTestBase):
         os.environ.pop("DISCORD_BOT_TOKEN", None)
         os.environ.pop("DISCORD_HOME_CHANNEL", None)
 
-    def _gateway_event(self, platform, user_id, media=False):
+    def _gateway_event(self, platform, user_id, media=False, text=""):
         class _Source:
             pass
 
         class _Event:
-            pass
+            def __init__(self, txt):
+                self._text = txt
+
+            @property
+            def text(self):
+                return self._text
+
+            def is_command(self):
+                return bool(self._text.startswith("/"))
+
+            def get_command(self):
+                if not self.is_command():
+                    return None
+                parts = self._text.split(maxsplit=1)
+                raw = parts[0][1:].lower() if parts else None
+                if raw and "/" in raw:
+                    return None
+                return raw
 
         src = _Source()
         src.platform = platform
         src.user_id = user_id
         src.user_name = f"User {user_id}"
         src.is_bot = False
-        ev = _Event()
+        ev = _Event(text)
         ev.internal = False
         ev.source = src
         ev.media_urls = ["/tmp/pic.jpg"] if media else []
@@ -3706,6 +3911,19 @@ class TestEveryAchievementUnlockable(HookTestBase):
                     event=self._gateway_event("discord", "g-user-0", media=True),
                     gateway=None, session_store=None,
                 )
+            # 30 distinct gateway commands from the PRIMARY user (g-user-0)
+            # → Slash Commander (3) + Command Center (10) + Command General
+            # (25). Commands from OTHER users must not count.
+            for i in range(30):
+                mod._on_pre_gateway_dispatch(
+                    event=self._gateway_event(
+                        "discord", "g-user-0", text=f"/gcmd{i}"),
+                    gateway=None, session_store=None,
+                )
+            mod._on_pre_gateway_dispatch(
+                event=self._gateway_event("discord", "g-user-1", text="/reset"),
+                gateway=None, session_store=None,
+            )
             mod._on_session_reset(session_id="g-new")
             mod._on_session_finalize()
 
@@ -3725,7 +3943,7 @@ class TestEveryAchievementUnlockable(HookTestBase):
             )
             mod._check_completionist()
 
-    def test_all_151_achievements_can_unlock(self):
+    def test_all_153_achievements_can_unlock(self):
         """Every def in ACHIEVEMENT_DEFS must unlock through real hooks."""
         self._grind()
         state = self.mod._load_state()
@@ -3739,7 +3957,7 @@ class TestEveryAchievementUnlockable(HookTestBase):
             f"{locked}",
         )
 
-    def test_completionist_unlocks_as_151st(self):
+    def test_completionist_unlocks_as_153rd(self):
         """Completionist requires every other achievement first."""
         self._grind()
         state = self.mod._load_state()
@@ -3749,7 +3967,7 @@ class TestEveryAchievementUnlockable(HookTestBase):
             1 for aid in self.mod.ACHIEVEMENT_DEFS
             if state["achievements"].get(aid, {}).get("unlocked")
         )
-        self.assertEqual(unlocked, 151)
+        self.assertEqual(unlocked, 153)
 
 
 if __name__ == "__main__":

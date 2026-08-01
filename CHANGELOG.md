@@ -1,5 +1,29 @@
 # Changelog
 
+## [2.18.0] — 2026-08-01
+
+### Added
+
+- **Gateway-command dimension** — slash commands the user types are
+  intercepted by the gateway BEFORE the LLM (`/new`, `/reset`, `/title`,
+  `/model`, `/achievements` — 56 known commands), so `post_llm_call`
+  could never count them: the plugin's own `/achievements` command could
+  not unlock Slash Commander. `pre_gateway_dispatch` fires before command
+  handling, so `event.get_command()` makes them observable:
+  - **Command Center** 🎚️ (rare, Power User) — use 10 different slash
+    commands; **Command General** 🎖️ (epic, Power User) at 25.
+  - **Primary-user attribution** — the hook fires for ALL users pre-auth
+    in shared channels, so a per-platform primary user (the first non-bot
+    user seen — the owner in every real deployment) is recorded and only
+    THEIR commands count. Strangers' commands cannot unlock the user's
+    achievements (tested).
+  - **Canonical command form** — `get_command()` returns `title` while
+    the LLM path stored `/title`; both now strip the leading slash so the
+    same command typed either way dedupes in one set (tested).
+  - `slash_commands_used` now feeds Slash Commander from BOTH paths;
+    `stats_slash_commands` stat line added. 2 new achievements
+    (151 → 153, Power User 42 → 44).
+
 ## [2.17.1] — 2026-08-01
 
 ### Fixed

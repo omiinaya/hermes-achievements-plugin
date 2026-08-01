@@ -69,6 +69,14 @@
       "name": "Colossal Result",
       "description": "Receive a 10MB+ result from a single tool call"
     },
+    "command_center": {
+      "name": "Command Center",
+      "description": "Use 10 different slash commands"
+    },
+    "command_general": {
+      "name": "Command General",
+      "description": "Use 25 different slash commands"
+    },
     "complete_community": {
       "name": "Community Complete",
       "description": "Unlock every Community achievement"
@@ -690,6 +698,7 @@
     "stats_max_retry_depth": "Deepest API retry depth:  {count}",
     "stats_longest_message": "Longest message:           {count} words",
     "stats_hooks_used": "Plugin hooks authored:   {count}",
+    "stats_slash_commands": "Slash commands used:      {count}",
     "stats_session_tools": "This session:             {calls} calls · {tools} tool types",
     "stats_sessions": "Sessions:                 {count}",
     "stats_skills_created": "Skills created:             {count}",

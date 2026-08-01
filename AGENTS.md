@@ -2,7 +2,7 @@
 
 ## What this is
 
-A Hermes Agent plugin that awards 151 Steam-style achievement badges for
+A Hermes Agent plugin that awards 153 Steam-style achievement badges for
 using Hermes. Pure Python stdlib, no external dependencies.
 
 ## Repo layout
@@ -22,7 +22,7 @@ using Hermes. Pure Python stdlib, no external dependencies.
 - `scripts/bump_version.py` — updates the version in all 4 places that
   carry it (pyproject.toml, plugin.yaml, setup.sh ×2) in one shot
 - `scripts/check_plugin.py` — health check: module loads, manifest↔register()
-  hook agreement, exactly-151 defs, locale parity, no dead detection-map
+  hook agreement, exactly-153 defs, locale parity, no dead detection-map
   references, live state.json reconciliation (--live), real PluginManager
   load (--manifest), and hook kwarg contract vs the installed Hermes
   source (--gateway — catches silent no-op drift if Hermes renames a
@@ -50,7 +50,7 @@ using Hermes. Pure Python stdlib, no external dependencies.
 | `on_session_reset` | gateway swaps session key (`/new`, `/reset`) | Fresh Start, session-resets counter |
 | `on_session_finalize` | agent shutdown / session reset-policy expiry | force-flush debounced state save + synchronously deliver queued notifications (nothing lost on exit) |
 | `api_request_error` | LLM provider call fails (has `error_type`, `status_code`, `retry_count`, `max_retries`, `retryable`) | API-error resilience (Indestructible — 10 total errors survived), sustained-failure depth (Tenacious 2 / Undeterred 4 — `retry_count` is how many consecutive times the SAME request failed before the hook fired; breadth≠depth: 10 single failures never reach depth 2). `max_retry_depth` stat |
-| `pre_gateway_dispatch` | once per incoming user-originated message (has `event`, `gateway`, `session_store`; event carries `media_urls`/`media_types`/`message_type`) | distinct-sender counting (Social Butterfly 3 users, Party Host 10), media-message counting (Show and Tell 1, Visual Storyteller 25) — the ONLY hook that sees other users' messages |
+| `pre_gateway_dispatch` | once per incoming user-originated message (has `event`, `gateway`, `session_store`; event carries `media_urls`/`media_types`/`message_type`, `is_command()`/`get_command()`, `text`, `source`) | distinct-sender counting (Social Butterfly 3 users, Party Host 10), media-message counting (Show and Tell 1, Visual Storyteller 25), gateway-intercepted slash commands (Command Center 10 / Command General 25 — `/new`, `/reset`, `/title`, `/achievements` are intercepted BEFORE the LLM so post_llm_call can never see them; only the platform's PRIMARY user — first non-bot seen = the owner — counts, so strangers' commands in shared channels don't unlock the user's achievements) — the ONLY hook that sees other users' messages |
 
 ### Why 18 of Hermes' 19 valid hooks are registered
 
@@ -83,7 +83,7 @@ Current zero-read hooks and why that's correct:
 
 ## Key invariants
 
-- **Exactly 151 achievements** — `tests/test_plugin.py` enforces this.
+- **Exactly 153 achievements** — `tests/test_plugin.py` enforces this.
 - **All achievement IDs must be detectable** — every def needs a path in
   `_TOOL_ACHIEVEMENTS`, `_TOOL_THRESHOLDS`, `TERMINAL_PATTERNS`,
   `_check_tool_args()`, `_check_counter_achievements()`, or an explicit
@@ -104,7 +104,7 @@ Current zero-read hooks and why that's correct:
 ## Testing
 
 ```bash
-python3 -m pytest tests/ -q    # 361 tests, no deps beyond pytest
+python3 -m pytest tests/ -q    # 372 tests, no deps beyond pytest
 python3 -m pytest tests/ --cov=. --cov-fail-under=99 -q   # CI coverage gate
 ruff check .                   # CI lint gate — must pass before push
 ```
@@ -119,7 +119,7 @@ ruff check .                   # CI lint gate — must pass before push
 
 - `tests/test_detection.py::TestEveryAchievementUnlockable` — full-grind
   simulation: drives every hook with escalating synthetic gateway data and
-  asserts **all 151 defs actually unlock**. This is the enforcement of the
+  asserts **all 153 defs actually unlock**. This is the enforcement of the
   "every def must be detectable" invariant — after any swap, a dead def
   (impossible threshold, typo'd key, missing path) fails the run with its
   ID listed. Keep the grind's tool/command data broad enough to cover

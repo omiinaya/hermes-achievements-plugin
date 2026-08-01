@@ -69,6 +69,14 @@
       "name": "Resultado Colosal",
       "description": "Recibe un resultado de 10MB+ de una sola llamada de herramienta"
     },
+    "command_center": {
+      "name": "Centro de Comando",
+      "description": "Usa 10 comandos de barra diferentes"
+    },
+    "command_general": {
+      "name": "General de Comando",
+      "description": "Usa 25 comandos de barra diferentes"
+    },
     "complete_community": {
       "name": "Comunidad Completa",
       "description": "Desbloquea todos los logros de Comunidad"
@@ -689,6 +697,7 @@
     "stats_max_retry_depth": "Mayor profundidad de reintento: {count}",
     "stats_longest_message": "Mensaje más largo:        {count} palabras",
     "stats_hooks_used": "Hooks de plugin creados: {count}",
+    "stats_slash_commands": "Comandos de barra usados:  {count}",
     "stats_session_tools": "Esta sesión:              {calls} llamadas · {tools} tipos",
     "stats_sessions": "Sessions:                 {count}",
     "stats_skills_created": "Habilidades creadas:       {count}",

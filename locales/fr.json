@@ -69,6 +69,14 @@
       "name": "Résultat Colossal",
       "description": "Recevez un résultat de 10MB+ d'un seul appel d'outil"
     },
+    "command_center": {
+      "name": "Centre de Commande",
+      "description": "Utilisez 10 commandes slash différentes"
+    },
+    "command_general": {
+      "name": "Général de Commande",
+      "description": "Utilisez 25 commandes slash différentes"
+    },
     "complete_community": {
       "name": "Parfait Communautaire",
       "description": "Débloquer tous les succès Communauté"
@@ -689,6 +697,7 @@
     "stats_max_retry_depth": "Profondeur de nouvelle tentative max : {count}",
     "stats_longest_message": "Message le plus long:     {count} mots",
     "stats_hooks_used": "Hooks de plugin écrits :  {count}",
+    "stats_slash_commands": "Commandes slash utilisées : {count}",
     "stats_session_tools": "Cette session :            {calls} appels · {tools} types",
     "stats_sessions": "Sessions:                 {count}",
     "stats_skills_created": "Compétences créées :       {count}",

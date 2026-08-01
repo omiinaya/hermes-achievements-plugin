@@ -6,7 +6,7 @@
 [![CI](https://github.com/omiinaya/hermes-achievements-plugin/actions/workflows/test.yml/badge.svg)](https://github.com/omiinaya/hermes-achievements-plugin/actions/workflows/test.yml)
 [![Coverage](https://img.shields.io/badge/coverage-99%25-brightgreen.svg)](https://github.com/omiinaya/hermes-achievements-plugin/actions/workflows/test.yml)
 
-**151 Steam-style achievement badges** for [Hermes Agent](https://hermes-agent.nousresearch.com). Unlock achievements as you use Hermes — run commands, search the web, schedule cron jobs, create skills, and explore the platform. Achievements are tracked silently and delivered to your Discord home channel the moment they unlock.
+**153 Steam-style achievement badges** for [Hermes Agent](https://hermes-agent.nousresearch.com). Unlock achievements as you use Hermes — run commands, search the web, schedule cron jobs, create skills, and explore the platform. Achievements are tracked silently and delivered to your Discord home channel the moment they unlock.
 
 ## Quick Start
 
@@ -182,7 +182,7 @@ unlock them, Steam-style. Currently secret: `Fresh Start`, `Cautious`,
 | 🛠️🛠️ | Complete Toolset | Use every available Hermes tool type at least once | Epic |
 | 👥 | Army Commander | Spawn 25 subagents with delegate_task | Epic |
 
-### ⚡ Power User (42)
+### ⚡ Power User (44)
 
 | Icon | Name | Description | Rarity |
 |------|------|-------------|--------|
@@ -208,6 +208,7 @@ unlock them, Steam-style. Currently secret: `Fresh Start`, `Cautious`,
 | ⚡ | Quick Draw | Complete 5 tasks with rapid turnaround | Rare |
 | ⚡⚡ | Parallel Master | Run 3 subagents in parallel with a single delegate_task | Rare |
 | 🎪 | Batch Artist | Emit 5 tool calls in a single response | Rare |
+| 🎚️ | Command Center | Use 10 different slash commands | Rare |
 | 🎻 | Conductor | Run 3 subagents simultaneously (peak concurrency) | Rare |
 | 🎼 | Orchestrator | Use an orchestrator-role subagent | Rare |
 | 🪂 | Trust Fall | Approve a command permanently with 'always' | Rare |
@@ -224,6 +225,7 @@ unlock them, Steam-style. Currently secret: `Fresh Start`, `Cautious`,
 | 🎭 | Model Collector | Use 10 different AI models | Epic |
 | 🎯 | Tool Diversity | Use every available Hermes tool category | Epic |
 | 💥 | Parallel Barrage | Emit 10 tool calls in a single response | Epic |
+| 🎖️ | Command General | Use 25 different slash commands | Epic |
 | 🌌 | Omnipresent | Run terminal commands in 5 different execution environments | Epic |
 | 🤖 | Marathon Session | Reach 200 tool calls in a single session | Legendary |
 | 🧩 | Plugin Developer | Create your own Hermes plugin | Legendary |
@@ -329,7 +331,7 @@ Achievements are detected via eighteen plugin hooks — no separate scanner or c
 14. **`pre_approval_request`** fires when an approval prompt is raised, before the user answers. It counts how often commands trigger approval gates — 10 gates unlock Under Scrutiny, independent of how the user responds (attempted gates, not consent; the class/surface dimensions live on `post_approval_response` where the choice is known).
 15. **`on_session_reset`** fires when the gateway swaps in a fresh session key (`/new`, `/reset`) — drives Fresh Start and the session-resets counter.
 16. **`api_request_error`** fires when an LLM provider call fails (invalid response, rate limit, timeout, retries exhausted). Surviving 10 such errors without quitting unlocks Indestructible — and the `retry_count` of the failing request measures sustained-outage depth: Tenacious (2 consecutive failures of the same request) and Undeterred (4).
-17. **`pre_gateway_dispatch`** fires once per incoming user-originated message, before auth. It is the ONLY hook that sees messages from *other* users (everything else fires for agent turns) — distinct senders drive Social Butterfly (3 users) and Party Host (10 users), and media attachments (Show and Tell, Visual Storyteller).
+17. **`pre_gateway_dispatch`** fires once per incoming user-originated message, before auth. It is the ONLY hook that sees messages from *other* users (everything else fires for agent turns) — distinct senders drive Social Butterfly (3 users) and Party Host (10 users), and media attachments (Show and Tell, Visual Storyteller). It also sees slash commands the gateway intercepts BEFORE the LLM (`/new`, `/reset`, `/title`, `/achievements` — 56 known commands never reach the model, so post_llm_call can't count them): Command Center (10 distinct commands) and Command General (25). Only the platform's primary user (first non-bot seen — the owner) counts, so strangers' commands in shared channels don't unlock the user's achievements.
 18. **`on_session_finalize`** fires when the gateway shuts down an agent or a session's reset policy expires. It force-flushes the debounced state save and synchronously delivers any notifications still in the debounce window — nothing is lost when the process exits.
 
 When an achievement unlocks, a Discord notification is posted asynchronously (debounced daemon timer — never blocks the agent loop) via the raw HTTP API to both the home channel and the channel where it was unlocked; bursts coalesce into one message.
@@ -364,7 +366,7 @@ State data is stored at `~/.hermes/achievements/state.json` (user-local, not par
 vim ~/.hermes/plugins/achievements/__init__.py
 
 # Run the test suite (static + functional) — includes the full-grind
-# simulation that proves all 151 achievements can unlock
+# simulation that proves all 153 achievements can unlock
 python3 -m pytest tests/ -q
 
 # Run the one-shot health check (defs, locales, manifest↔register hooks,

@@ -104,16 +104,16 @@ def _parse_groups_and_rarities():
 
 
 class TestAchievementDefinitions(unittest.TestCase):
-    """Validate that all 151 achievement definitions are complete and valid."""
+    """Validate that all 153 achievement definitions are complete and valid."""
 
     def setUp(self):
         self.achievements = _parse_achievement_defs()
         self.groups, self.rarities = _parse_groups_and_rarities()
 
     def test_exact_count(self):
-        """There should be exactly 151 achievements."""
-        self.assertEqual(len(self.achievements), 151,
-                         f"Expected 151 achievements, got {len(self.achievements)}")
+        """There should be exactly 153 achievements."""
+        self.assertEqual(len(self.achievements), 153,
+                         f"Expected 153 achievements, got {len(self.achievements)}")
 
     def test_required_fields(self):
         """Every achievement must have id, name, description, emoji, rarity, group."""
@@ -179,7 +179,7 @@ class TestAchievementDefinitions(unittest.TestCase):
         expected = {
             "Getting Started": 16,
             "Tools & Skills": 28,
-            "Power User": 42,
+            "Power User": 44,
             "Expert": 40,
             "Milestones": 19,
             "Community": 6,
@@ -410,6 +410,7 @@ class TestTranslationFunction(unittest.TestCase):
             "stats_approved_patterns": {"count": 5},
             "stats_longest_message": {"count": 340},
             "stats_hooks_used": {"count": 4},
+            "stats_slash_commands": {"count": 3},
             "stats_platforms": {"platforms": "discord, telegram"},
             "stats_models": {"models": "gpt4", "more": ""},
             "stats_providers": {"providers": "openrouter, openai", "more": ""},

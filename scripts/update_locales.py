@@ -286,6 +286,16 @@ NEW = {
         "fr": {"name": "Vivre sur le Fil", "description": "Approuvez des commandes dans 25 catégories de danger différentes"},
         "pt": {"name": "Vivendo no Limite", "description": "Aprove comandos em 25 classes de perigo diferentes"},
     },
+    "command_center": {
+        "es": {"name": "Centro de Comando", "description": "Usa 10 comandos de barra diferentes"},
+        "fr": {"name": "Centre de Commande", "description": "Utilisez 10 commandes slash différentes"},
+        "pt": {"name": "Centro de Comando", "description": "Use 10 comandos de barra diferentes"},
+    },
+    "command_general": {
+        "es": {"name": "General de Comando", "description": "Usa 25 comandos de barra diferentes"},
+        "fr": {"name": "Général de Commande", "description": "Utilisez 25 commandes slash différentes"},
+        "pt": {"name": "General de Comando", "description": "Use 25 comandos de barra diferentes"},
+    },
 }
 
 
