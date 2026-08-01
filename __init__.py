@@ -17,6 +17,7 @@ import json
 import os
 import re
 import threading
+import time
 import urllib.request
 import urllib.error
 from datetime import datetime, timezone, date
@@ -50,6 +51,24 @@ def _load_env_var(key, fallback=""):
 # ── Discord delivery ─────────────────────────────────────────────────────
 
 def _send_discord_notification(ach_def):
+    """Deliver achievement notification asynchronously (non-blocking).
+
+    Spawns a daemon thread so a slow Discord API response never stalls the
+    agent's hook pipeline. Reads token/channel from .env or environment.
+    """
+    def _worker():
+        try:
+            _send_discord_notification_sync(ach_def)
+        except Exception as exc:  # never let a notification thread crash the process
+            import logging
+            logging.getLogger(__name__).warning(
+                "Achievement notification thread failed: %s", exc
+            )
+    t = threading.Thread(target=_worker, daemon=True, name="ach-notify")
+    t.start()
+
+
+def _send_discord_notification_sync(ach_def):
     """Deliver achievement notification to Hermes home channel AND the
     channel where it was unlocked. If both are the same, sends only once."""
     token = _load_env_var("DISCORD_BOT_TOKEN")
@@ -110,6 +129,33 @@ def _send_discord_notification(ach_def):
 
 _state_lock = threading.Lock()
 _state = None  # loaded lazily
+_last_save_ts = 0.0  # debounce: don't write state.json more than once per 2s
+
+
+def _save_state(force=False):
+    """Persist state to disk.
+
+    Debounced: with post_tool_call firing on every tool execution, writing
+    the JSON file each time would be wasteful. Saves at most once per 2s
+    unless force=True (used by post_llm_call / on_session_end).
+    """
+    global _last_save_ts
+    with _state_lock:
+        now = time.monotonic()
+        if not force and _last_save_ts and (now - _last_save_ts) < 2.0:
+            return
+        try:
+            os.makedirs(os.path.dirname(_STATE_PATH), exist_ok=True)
+            def _convert(v):
+                return sorted(v) if isinstance(v, set) else v
+            state_copy = json.loads(json.dumps(_state, default=_convert))
+            state_copy["last_updated"] = datetime.now(timezone.utc).isoformat()
+            with open(_STATE_PATH, "w") as f:
+                json.dump(state_copy, f, indent=2, default=str)
+            _last_save_ts = now
+        except Exception as exc:
+            import logging
+            logging.getLogger(__name__).warning("Failed to save state: %s", exc)
 
 
 def _load_state():
@@ -151,11 +197,18 @@ def _new_state():
             "config_changes": 0,
             "yolo_tasks": 0,
             "session_resumes": 0,
+            "hooks_used": set(),
             "last_active_date": None,
             "current_streak": 0,
             "longest_streak": 0,
             "total_sessions": 0,
-            "parallel_spawns": 0,
+            # Live per-session tracking (reset whenever session_id changes)
+            "active_session": {
+                "id": None,
+                "calls": 0,
+                "tool_names": set(),
+                "fast_streak": 0,
+            },
         },
         "newly_unlocked": [],
         "locale": "en",
@@ -166,7 +219,7 @@ def _new_state():
 def _normalize_state():
     """Convert list fields back to sets for internal use."""
     stats = _state.setdefault("stats", {})
-    for key in ("platforms", "models_used", "slash_commands_used"):
+    for key in ("platforms", "models_used", "slash_commands_used", "hooks_used"):
         v = stats.get(key)
         if isinstance(v, set):
             continue
@@ -175,34 +228,27 @@ def _normalize_state():
         else:
             # Corrupted/legacy scalar (e.g. int 0) — reset to empty set
             stats[key] = set()
+    # Active session's tool_names may have been persisted as a list
+    active = stats.get("active_session")
+    if not isinstance(active, dict):
+        stats["active_session"] = {"id": None, "calls": 0, "tool_names": set(), "fast_streak": 0}
+        return
+    tn = active.get("tool_names")
+    if isinstance(tn, set):
+        return
+    if isinstance(tn, (list, tuple)):
+        active["tool_names"] = set(tn)
+    else:
+        active["tool_names"] = set()
+    for k in ("id", "calls", "fast_streak"):
+        if k not in active:
+            active[k] = None if k == "id" else 0
 
 
 def _init_achievements():
     for aid in ACHIEVEMENT_DEFS:
         if aid not in _state.setdefault("achievements", {}):
             _state["achievements"][aid] = {"unlocked": False}
-
-
-def _save_state():
-    with _state_lock:
-        try:
-            os.makedirs(os.path.dirname(_STATE_PATH), exist_ok=True)
-            def _convert(v):
-                return sorted(v) if isinstance(v, set) else v
-            state_copy = json.loads(json.dumps(_state, default=_convert))
-            stats = state_copy.setdefault("stats", {})
-            if isinstance(_state.get("stats", {}).get("platforms"), set):
-                stats["platforms"] = sorted(_state["stats"]["platforms"])
-            if isinstance(_state.get("stats", {}).get("models_used"), set):
-                stats["models_used"] = sorted(_state["stats"]["models_used"])
-            if isinstance(_state.get("stats", {}).get("slash_commands_used"), set):
-                stats["slash_commands_used"] = sorted(_state["stats"]["slash_commands_used"])
-            state_copy["last_updated"] = datetime.now(timezone.utc).isoformat()
-            with open(_STATE_PATH, "w") as f:
-                json.dump(state_copy, f, indent=2, default=str)
-        except Exception as exc:
-            import logging
-            logging.getLogger(__name__).warning("Failed to save state: %s", exc)
 
 
 # ── i18n / Locale ────────────────────────────────────────────────────────
@@ -270,10 +316,8 @@ def _t(key, locale=None, **kwargs):
 
 # ── Per-turn tool tracking ──────────────────────────────────────────────
 
-_last_turn_tool_names = set()
 _last_turn_models = set()
 _last_turn_platforms = set()
-_last_turn_slash_cmds = set()
 _last_turn_user_msg = ""
 
 
@@ -874,10 +918,8 @@ _TOOL_ACHIEVEMENTS = {
     "web_search": "web_walker",
     "web_extract": "web_walker",
     "delegate_task": "agent_swarm",
-    "cronjob": "cron_commander",
     "vision_analyze": "visionary",
     "memory": "memory_holder",
-    "skill_manage": "skill_author",
     "execute_code": "code_wizard",
     "session_search": "session_detective",
 }
@@ -910,7 +952,6 @@ TERMINAL_PATTERNS = {
     "help_seeker": [re.compile(r"--help\b", re.IGNORECASE)],
     "version_spotter": [re.compile(r"--version\b", re.IGNORECASE)],
     "yolo_mode": [re.compile(r"--yolo\b", re.IGNORECASE)],
-    "config_guru": [re.compile(r"hermes\s+config\s+(set|edit|get)", re.IGNORECASE)],
     "plugin_browser": [re.compile(r"hermes\s+plugins\s+list", re.IGNORECASE)],
     "skill_browser": [re.compile(r"hermes\s+skills\s+list|skill_view", re.IGNORECASE)],
     "updater": [re.compile(r"hermes\s+update", re.IGNORECASE)],
@@ -942,6 +983,8 @@ def _unlock(ach_id, now=None):
     state.setdefault("newly_unlocked", [])
     if ach_id not in state["newly_unlocked"]:
         state["newly_unlocked"].append(ach_id)
+        # Keep the list bounded (most recent 20 only)
+        state["newly_unlocked"] = state["newly_unlocked"][-20:]
     # Fire immediate Discord notification
     ach_def = ACHIEVEMENT_DEFS.get(ach_id)
     if ach_def:
@@ -1035,16 +1078,19 @@ def _check_session_thresholds(session_call_count, now):
             _set_progress(ach_id, session_call_count, threshold)
 
 
-def _check_session_category_thresholds(tool_names, now):
-    """Check tool category-in-a-session thresholds."""
-    cats = set()
-    for tn in tool_names:
-        cats.add(_TOOL_CATEGORIES.get(tn, tn))
+def _check_session_tool_thresholds(tool_names, now):
+    """Check distinct-tool-types-in-a-session thresholds.
+
+    Descriptions say "tool types" (e.g. Jack of All Trades = 5 different
+    Hermes tool types in a single session) — count distinct tool names,
+    NOT categories (read_file/write_file/search_files are distinct tools).
+    """
+    distinct = set(tool_names) if tool_names else set()
     for threshold, ach_id in _SESSION_CATEGORY_THRESHOLDS:
-        if len(cats) >= threshold:
+        if len(distinct) >= threshold:
             _unlock(ach_id, now)
         else:
-            _set_progress(ach_id, len(cats), threshold)
+            _set_progress(ach_id, len(distinct), threshold)
 
 
 def _check_tool_diversity(tc_counts, now):
@@ -1084,13 +1130,202 @@ def _check_streaks(stats, now):
             _set_progress(ach_id, streak, threshold)
 
 
+# ── Hook: post_tool_call ─────────────────────────────────────────────────
+# Fires after EVERY tool execution with tool_name + full args. Primary
+# per-tool detection path (replaces scanning conversation_history, which
+# lacks argument details).
+
+def _post_tool_call(**kwargs):
+    """Detect tool-usage achievements from each tool execution."""
+    tool_name = kwargs.get("tool_name", "")
+    args = kwargs.get("args") or {}
+    session_id = kwargs.get("session_id", "")
+    duration_ms = kwargs.get("duration_ms", 0)
+
+    if not tool_name:
+        return
+
+    state = _load_state()
+    stats = state.setdefault("stats", {})
+    now = datetime.now(timezone.utc).isoformat()
+
+    # ── Cumulative per-tool usage ──────────────────────────────
+    tc_counts = stats.setdefault("tools_used", {})
+    tc_counts[tool_name] = tc_counts.get(tool_name, 0) + 1
+
+    # ── Per-session tracking (reset on session change) ─────────
+    active = stats.setdefault("active_session", {})
+    if active.get("id") != session_id:
+        stats["active_session"] = {
+            "id": session_id,
+            "calls": 0,
+            "tool_names": set(),
+            "fast_streak": 0,
+        }
+        active = stats["active_session"]
+    active["calls"] = active.get("calls", 0) + 1
+    active.setdefault("tool_names", set()).add(tool_name)
+
+    # ── Quick Draw: 5 consecutive fast tool calls ──────────────
+    if isinstance(duration_ms, (int, float)) and duration_ms > 0:
+        active["fast_streak"] = (
+            active.get("fast_streak", 0) + 1 if duration_ms < 20000 else 0
+        )
+        if active["fast_streak"] >= 5:
+            _unlock("quick_draw", now)
+
+    # ── First-use achievements ─────────────────────────────────
+    ach_id = _TOOL_ACHIEVEMENTS.get(tool_name)
+    if ach_id:
+        _unlock(ach_id, now)
+
+    # ── Argument-based achievements ────────────────────────────
+    _check_tool_args(tool_name, args, stats, now)
+
+    # ── Threshold checks (cumulative + session-scoped) ─────────
+    _check_tool_usage_thresholds(tc_counts, now)
+    _check_tool_diversity(tc_counts, now)
+    _check_session_thresholds(active.get("calls", 0), now)
+    _check_session_tool_thresholds(active.get("tool_names", set()), now)
+
+    # ── Group / rarity completions ─────────────────────────────
+    _check_group_completions()
+    _check_completionist()
+
+    # Debounced save (at most every 2s — tool calls can be frequent)
+    _save_state()
+
+
+def _check_tool_args(tool_name, args, stats, now):
+    """Argument-based achievement detection (cronjob, delegate_task, ...)."""
+    if not isinstance(args, dict):
+        args = {}
+
+    if tool_name == "cronjob":
+        action = str(args.get("action", ""))
+        if action == "create":
+            stats["cron_jobs_created"] = stats.get("cron_jobs_created", 0) + 1
+            _unlock("cron_commander", now)
+            # Precision Scheduler: one-shot ISO schedule or repeat='once'
+            sched = args.get("schedule", "")
+            repeat = args.get("repeat")
+            if (
+                isinstance(sched, str) and re.search(r"\d{4}-\d{2}-\d{2}[T ]", sched)
+            ) or repeat in ("once", 1, True):
+                _unlock("precision_scheduler", now)
+            # Environment Tuner: custom env/workdir for the job
+            if args.get("workdir") or args.get("env_file") or args.get("profile"):
+                _unlock("env_tuner", now)
+        # Chain Reaction: cron job chained via context_from
+        if args.get("context_from"):
+            _unlock("chain_reaction", now)
+
+    elif tool_name == "delegate_task":
+        tasks = args.get("tasks")
+        n = len(tasks) if isinstance(tasks, (list, tuple)) else 1
+        stats["parallel_spawns"] = stats.get("parallel_spawns", 0) + max(1, n)
+        if isinstance(tasks, (list, tuple)) and len(tasks) >= 3:
+            _unlock("parallel_master", now)
+        # army_commander (25 delegate calls) is handled by thresholds
+
+    elif tool_name == "skill_manage":
+        action = str(args.get("action", ""))
+        if action in ("create", "edit") or not action:
+            stats["skills_created"] = stats.get("skills_created", 0) + 1
+            _unlock("skill_author", now)
+        created = stats.get("skills_created", 0)
+        if created >= 5:
+            _unlock("skill_artisan", now)
+        else:
+            _set_progress("skill_artisan", created, 5)
+        if created >= 15:
+            _unlock("skill_virtuoso", now)
+        else:
+            _set_progress("skill_virtuoso", created, 15)
+
+    elif tool_name in ("write_file", "patch"):
+        path = str(args.get("path", "") or args.get("file_path", ""))
+        content = str(args.get("content", "") or args.get("new_string", ""))
+        if "plugin.yaml" in path or "/plugins/" in path:
+            _unlock("plugin_developer", now)
+        if "register_hook" in content:
+            hooks = set(re.findall(r'register_hook\(\s*["\']([\w]+)["\']', content))
+            if hooks:
+                stats.setdefault("hooks_used", set()).update(hooks)
+                if len(stats["hooks_used"]) >= 3:
+                    _unlock("hook_master", now)
+
+
+def _count_user_commands(user_commands, stats, now):
+    """Increment tiered counters from user command text."""
+    for cmd in user_commands:
+        if not isinstance(cmd, str):
+            continue
+        if re.search(r"hermes\s+config\s+(set|edit)\b", cmd, re.IGNORECASE):
+            stats["config_changes"] = stats.get("config_changes", 0) + 1
+        if re.search(r"hermes\s+plugins\s+enable\b", cmd, re.IGNORECASE):
+            stats["plugins_enabled"] = stats.get("plugins_enabled", 0) + 1
+        if re.search(r"hermes\s+profile\s+create\b", cmd, re.IGNORECASE):
+            stats["profiles_created"] = stats.get("profiles_created", 0) + 1
+        if re.search(r"hermes\s+mcp\s+add\b", cmd, re.IGNORECASE):
+            stats["mcp_servers_connected"] = stats.get("mcp_servers_connected", 0) + 1
+        if re.search(r"hermes\s+skills?\s+install\b", cmd, re.IGNORECASE):
+            stats["skills_installed"] = stats.get("skills_installed", 0) + 1
+        if "--yolo" in cmd:
+            stats["yolo_tasks"] = stats.get("yolo_tasks", 0) + 1
+    _check_counter_achievements(stats, now)
+
+
+def _check_counter_achievements(stats, now):
+    """Tiered achievements backed by stats counters."""
+    cc = stats.get("config_changes", 0)
+    if cc >= 15:
+        _unlock("config_guru", now)
+    else:
+        _set_progress("config_guru", cc, 15)
+    pe = stats.get("plugins_enabled", 0)
+    if pe >= 5:
+        _unlock("plugin_pack", now)
+    else:
+        _set_progress("plugin_pack", pe, 5)
+    pc = stats.get("profiles_created", 0)
+    if pc >= 5:
+        _unlock("profile_collector", now)
+    else:
+        _set_progress("profile_collector", pc, 5)
+    mc = stats.get("mcp_servers_connected", 0)
+    if mc >= 3:
+        _unlock("mcp_networker", now)
+    else:
+        _set_progress("mcp_networker", mc, 3)
+    si = stats.get("skills_installed", 0)
+    if si >= 1:
+        _unlock("skill_finder", now)
+    else:
+        _set_progress("skill_finder", si, 1)
+    if si >= 5:
+        _unlock("skill_apprentice", now)
+    else:
+        _set_progress("skill_apprentice", si, 5)
+    if si >= 15:
+        _unlock("skill_master", now)
+    else:
+        _set_progress("skill_master", si, 15)
+    yt = stats.get("yolo_tasks", 0)
+    if yt >= 25:
+        _unlock("yolo_champion", now)
+    else:
+        _set_progress("yolo_champion", yt, 25)
+
+
 # ── Hook: post_llm_call ─────────────────────────────────────────────────
-# Fires after each LLM response. Has conversation_history with tool_calls.
+# Fires once per turn after the tool-calling loop completes. Has
+# conversation_history with tool_calls; tool counting itself lives in
+# post_tool_call, this hook handles per-turn signals.
 
 def _post_llm_call(**kwargs):
-    """Detect achievements from conversation history."""
-    global _last_turn_tool_names, _last_turn_models, _last_turn_platforms
-    global _last_turn_slash_cmds, _last_turn_user_msg
+    """Detect per-turn achievements (messages, models, platforms, commands)."""
+    global _last_turn_models, _last_turn_platforms, _last_turn_user_msg
 
     state = _load_state()
     stats = state.setdefault("stats", {})
@@ -1101,7 +1336,7 @@ def _post_llm_call(**kwargs):
     model = kwargs.get("model", "")
     platform = kwargs.get("platform", "")
 
-    # Track model + platform
+    # Track model + platform (cumulative across sessions)
     if model and model not in ("unknown", ""):
         _last_turn_models.add(model)
         stats.setdefault("models_used", set()).add(model)
@@ -1112,83 +1347,43 @@ def _post_llm_call(**kwargs):
         _last_turn_platforms.add("cli")
         stats.setdefault("platforms", set()).add("cli")
 
-    # Track multi-lingual: check if user message has non-ASCII Latin chars
+    # Track multi-lingual: non-ASCII alphabetic chars in user message
     if user_message:
         _last_turn_user_msg = user_message
-        has_non_english = any(ord(c) > 0x7F for c in user_message if c.isalpha())
-        if has_non_english:
+        if any(ord(c) > 0x7F for c in user_message if c.isalpha()):
             _unlock("multi_lingual", now)
 
-    # Extract tool calls from the last assistant message in the history
-    tool_names_this_turn = set()
+    # Extract the current turn's user content for command detection
     user_commands = []
     slash_cmds_this_turn = set()
-
     for msg in reversed(conversation_history):
         role = msg.get("role", "")
         content = msg.get("content", "")
-
-        if role == "assistant" and msg.get("tool_calls"):
-            for tc in msg["tool_calls"]:
-                fn = tc.get("function", {})
-                name = fn.get("name", "") if isinstance(fn, dict) else ""
-                if name:
-                    tool_names_this_turn.add(name)
-
         if role == "user":
             if isinstance(content, str):
                 user_commands.append(content)
-                # Slash command detection
                 for token in content.split():
                     if token.startswith("/") and len(token) > 1:
                         slash_cmds_this_turn.add(token.lower())
+            break  # turn boundary — only the current user message
 
-        # Turn boundary: first user message going backward = our turn
-        if role == "user":
-            break
-
-    # Track slash commands
+    # Track slash commands (cumulative)
     for sc in slash_cmds_this_turn:
         stats.setdefault("slash_commands_used", set()).add(sc)
 
-    # ── Check tool-based first-use achievements ─────────────────
-    for tool_name in tool_names_this_turn:
-        ach_id = _TOOL_ACHIEVEMENTS.get(tool_name)
-        if ach_id and _unlock(ach_id, now):
-            continue
-
-    # Track tool usage stats
-    tc_counts = stats.setdefault("tools_used", {})
-    for tool_name in tool_names_this_turn:
-        tc_counts[tool_name] = tc_counts.get(tool_name, 0) + 1
-
-    # ── Tool threshold-based achievements ───────────────────────
-    _check_tool_usage_thresholds(tc_counts, now)
-
-    # ── Message threshold achievements ──────────────────────────
-    turn_id = kwargs.get("turn_id", 0) or 0
-    if isinstance(turn_id, (int, float)) and turn_id > 0:
-        stats["total_turns"] = max(stats.get("total_turns", 0), int(turn_id))
+    # ── Message thresholds (cumulative; post_llm_call fires 1/turn) ──
+    stats["total_turns"] = stats.get("total_turns", 0) + 1
     _check_message_thresholds(stats.get("total_turns", 0), now)
 
-    # ── Single-session call count achievements ──────────────────
-    session_call_count = sum(tc_counts.values()) if tc_counts else 0
-    _check_session_thresholds(session_call_count, now)
-
-    # ── Per-session category achievements ───────────────────────
-    _check_session_category_thresholds(tool_names_this_turn, now)
-
-    # ── Distinct tool type achievements ─────────────────────────
-    _check_tool_diversity(tc_counts, now)
-
-    # ── Check user-command achievements ─────────────────────────
+    # ── User-command achievements ──────────────────────────────
     for cmd in user_commands:
         for ach_id, patterns in TERMINAL_PATTERNS.items():
             for pat in patterns:
                 if pat.search(cmd):
                     _unlock(ach_id, now)
+    _count_user_commands(user_commands, stats, now)
 
-    # ── Model Hopper: 2+ models ────────────────────────────────
+    # ── Model Hopper: 2+ models (cumulative) ───────────────────
     num_models = len(_last_turn_models)
     if num_models >= 2:
         _unlock("model_hopper", now)
@@ -1201,7 +1396,7 @@ def _post_llm_call(**kwargs):
     else:
         _set_progress("model_collector", num_models, 10)
 
-    # ── Cross-Platform: 2+ platforms ────────────────────────────
+    # ── Cross-Platform: 2+ platforms (cumulative) ──────────────
     num_platforms = len(_last_turn_platforms)
     if num_platforms >= 2:
         _unlock("cross_platform", now)
@@ -1223,7 +1418,7 @@ def _post_llm_call(**kwargs):
     local_hour = datetime.now().hour
     if local_hour < 6:
         _unlock("early_bird", now)
-    if local_hour >= 0 and local_hour < 5:
+    if 0 <= local_hour < 5:
         _unlock("night_owl", now)
 
     # ── Slash Commander: 3+ different slash commands ────────────
@@ -1237,22 +1432,30 @@ def _post_llm_call(**kwargs):
     if user_message and user_message.strip():
         _unlock("first_steps", now)
 
-    # ── Persistent: 3+ sessions ─────────────────────────────────
+    # ── Persistent: 3+ sessions ────────────────────────────────
     total_sessions = stats.get("total_sessions", 0)
     if total_sessions >= 3:
         _unlock("persistent", now)
     else:
         _set_progress("persistent", total_sessions, 3)
 
-    # ── Update streak tracking (check after on_session_end) ─────
-    # (Streaks are maintained in on_session_end)
-
     # ── Group & rarity completions ─────────────────────────────
     _check_group_completions()
     _check_completionist()
 
-    # Persist state
-    _save_state()
+    # Persist state (forced — turn boundary)
+    _save_state(force=True)
+
+
+# ── Hook: on_session_start ───────────────────────────────────────────────
+# Fired once when a brand-new session is created (not on continuation).
+
+def _on_session_start(**kwargs):
+    """Count distinct sessions (powers the Persistent / session milestones)."""
+    state = _load_state()
+    stats = state.setdefault("stats", {})
+    stats["total_sessions"] = stats.get("total_sessions", 0) + 1
+    _save_state(force=True)
 
 
 # ── Hook: on_session_end ─────────────────────────────────────────────────
@@ -1265,21 +1468,14 @@ def _on_session_end(**kwargs):
 
     model = kwargs.get("model", "")
     platform = kwargs.get("platform", "")
-    turn_id = kwargs.get("turn_id", 0)
-    completed = kwargs.get("completed", False)
 
-    # Track
+    # Track model + platform
     if model and model not in ("unknown", ""):
         stats.setdefault("models_used", set()).add(model)
     if platform and platform not in ("unknown", "none", ""):
         stats.setdefault("platforms", set()).add(platform)
     else:
         stats.setdefault("platforms", set()).add("cli")
-    if isinstance(turn_id, (int, float)) and turn_id > 0:
-        stats["total_turns"] = max(stats.get("total_turns", 0), int(turn_id))
-
-    # ── Session count ───────────────────────────────────────────
-    stats["total_sessions"] = stats.get("total_sessions", 0) + 1
 
     # ── Streak tracking (daily consecutive usage) ───────────────
     today = date.today().isoformat()
@@ -1316,7 +1512,7 @@ def _on_session_end(**kwargs):
     _check_group_completions()
     _check_completionist()
 
-    _save_state()
+    _save_state(force=True)
 
 
 # ── Slash Command Handlers ──────────────────────────────────────────────
@@ -1548,5 +1744,9 @@ def register(ctx) -> None:
 
     # Detection: post_llm_call has conversation_history → tool calls
     ctx.register_hook("post_llm_call", _post_llm_call)
+    # Per-tool detection with full arguments (cron jobs, delegation, files)
+    ctx.register_hook("post_tool_call", _post_tool_call)
+    # Session accounting: new-session counter for session milestones
+    ctx.register_hook("on_session_start", _on_session_start)
     # Fallback metadata tracking + streaks
     ctx.register_hook("on_session_end", _on_session_end)

@@ -89,139 +89,142 @@ Example — Spanish output:
 
 | Icon | Name | Description | Rarity |
 |------|------|-------------|--------|
-| 👣 | First Steps | Send your first message | Common |
-| 🔧 | Config Tinkerer | Change a config setting | Common |
-| 🏥 | Clean Bill of Health | Run `hermes doctor` | Common |
+| 👣 | First Steps | Send your first message to Hermes | Common |
+| 🔧 | Config Tinkerer | Change a Hermes configuration setting | Common |
+| 🏥 | Clean Bill of Health | Run `hermes doctor` to check system health | Common |
 | 💬 | Name That Session | Name a session with /title | Common |
 | 🎭 | Model Hopper | Switch to a different AI model | Common |
-| 🗣️ | Chatty | Send 25 messages | Common |
-| 🌙 | Night Owl | Use Hermes after midnight | Uncommon |
+| 🗣️ | Chatty | Send 25 messages to Hermes | Common |
 | 📋 | Slash Commander | Use 3 different slash commands | Common |
-| 📖 | Help Seeker | Use --help on a command | Common |
+| 📖 | Help Seeker | Use --help on any command | Common |
 | ℹ️ | Version Spotter | Check the Hermes version | Common |
-| 🔄 | Persistent | Send messages across 3 sessions | Common |
+| 🔄 | Persistent | Send messages across 3 different sessions | Common |
+| 🌙 | Night Owl | Use Hermes after midnight (local time) | Uncommon |
 
 ### 🛠️ Tools & Skills (28)
 
 | Icon | Name | Description | Rarity |
 |------|------|-------------|--------|
-| 🛠️ | Jack of All Trades | Use 5 different tool types in one session | Uncommon |
-| 👻 | Ghost in the Shell | First terminal command | Common |
-| 🖥️ | Terminal Jockey | 25 terminal commands | Common |
-| 🖥️🖥️ | Shell Master | 100 terminal commands | Rare |
-| 🌐 | Web Walker | First web search | Uncommon |
-| 🔍 | Deep Diver | 25 web searches | Rare |
-| 👁️ | Visionary | Analyze an image | Uncommon |
-| 🧪 | Code Wizard | Execute 10 code blocks | Rare |
+| 👻 | Ghost in the Shell | Run your first terminal command through Hermes | Common |
+| 🌐 | Web Walker | Search the web using Hermes | Uncommon |
+| 👁️ | Visionary | Analyze an image with Hermes | Uncommon |
+| 🧠 | Skill Collector | Install a skill from the hub | Uncommon |
+| 📖 | Memory Keeper | Save a fact to persistent memory | Uncommon |
+| 🛠️ | Jack of All Trades | Use 5 different Hermes tool types in a single session | Uncommon |
+| 🖥️ | Terminal Jockey | Run 25 terminal commands | Uncommon |
+| 🔍 | Deep Diver | Perform 25 web searches | Uncommon |
+| 🧠 | Skill Apprentice | Install 5 skills | Uncommon |
+| 📁 | File Whisperer | Read or write 25 files | Uncommon |
+| 🔍 | Session Detective | Search past sessions 10 times | Uncommon |
+| 🧪 | Code Wizard | Execute 10 code blocks with execute_code | Rare |
+| ✍️ | Skill Author | Create your own custom Hermes skill | Rare |
+| 🖥️ | Shell Master | Run 100 terminal commands | Rare |
 | 💻 | Code Slinger | Execute 50 code blocks | Rare |
-| 💻💻 | Code Architect | Execute 100 code blocks | Epic |
-| 🧠 | Skill Collector | Install first skill | Uncommon |
-| 🧠🧠 | Skill Apprentice | Use skill_manage 5 times | Uncommon |
-| 🧠🧠🧠 | Skill Master | Use skill_manage 30 times | Rare |
-| ✍️ | Skill Author | Create first custom skill | Rare |
-| ✍️✍️ | Skill Artisan | Create 15 skills | Rare |
-| 📖 | Memory Keeper | First memory save | Uncommon |
-| 📖📖 | Memory Archivist | 25 memory saves | Uncommon |
-| 📖📖📖 | Memory Librarian | 100 memory saves | Rare |
-| ⏰ | Cron Commander | First cron job | Rare |
-| ⏰⏰ | Cron Master | 5 cron jobs | Rare |
-| ⏰⏰⏰ | Cron Overlord | 15 cron jobs | Epic |
-| 🛠️🛠️ | Tool Hoarder | Use 10 different tools | Rare |
-| 🛠️🛠️🛠️ | Complete Toolset | Use 18 different tools | Epic |
-| 📁 | File Whisperer | Read or write 25 files | Common |
-| 📁📁 | File Artisan | Read or write 100 files | Uncommon |
-| 🔌 | MCP Master | Connect first MCP server | Rare |
-| 🔌🔌 | MCP Networker | Connect 3 MCP servers | Epic |
-| 👥 | Agent Swarm | First delegate_task | Rare |
-| 👥👥 | Army Commander | 25 delegate_task calls | Epic |
-| 🔍 | Session Detective | 10 session searches | Uncommon |
-| 🌐 | Browser Explorer | 10 browser tool actions | Uncommon |
+| 🧠 | Skill Master | Install 15 skills | Rare |
+| ✍️ | Skill Artisan | Create 5 skills | Rare |
+| 📖📖 | Memory Archivist | Save 25 facts to memory | Rare |
+| ⏰ | Cron Master | Have 5 active cron jobs | Rare |
+| 🛠️ | Tool Hoarder | Use 10 different Hermes tool types cumulatively | Rare |
+| 📁 | File Artisan | Read or write 100 files | Rare |
+| 🔌 | MCP Networker | Connect 3 MCP servers | Rare |
+| 💻 | Code Architect | Execute 100 code blocks | Epic |
+| ✍️ | Skill Virtuoso | Create 15 skills | Epic |
+| 📖📖📖 | Memory Librarian | Save 100 facts to memory | Epic |
+| ⏰ | Cron Overlord | Have 15 active cron jobs | Epic |
+| 🛠️🛠️ | Complete Toolset | Use every available Hermes tool type at least once | Epic |
+| 👥 | Army Commander | Spawn 25 subagents with delegate_task | Epic |
 
 ### ⚡ Power User (20)
 
 | Icon | Name | Description | Rarity |
 |------|------|-------------|--------|
-| 🔐 | YOLO Mode | Disable approval prompts | Epic |
-| 🔐🔐 | YOLO Champion | Use --yolo 5+ times | Epic |
-| 👤 | Profile Juggler | Create a profile | Rare |
-| 👤👤 | Profile Collector | Create 5 profiles | Rare |
-| 🤖 | The 90-Turn Club | 90 tool calls in one session | Epic |
-| 🤖🤖 | Marathon Session | 200 tool calls in one session | Legendary |
-| 💪 | Busy Bee | 20 tool calls in one session | Uncommon |
-| 🌉 | Gateway Guru | Connect to a messaging platform | Rare |
-| 🌉🌉 | Gateway Networker | Connect to 3 platforms | Epic |
-| 🧩 | Plugin Power | Enable a plugin | Rare |
-| 🧩🧩 | Plugin Developer | Enable plugins 3+ times | Rare |
-| 🧩🧩🧩 | Plugin Pack | Have 5 plugins enabled | Epic |
-| 🎭 | Multi-Model | Use 5 different models | Rare |
-| 🎭🎭 | Model Collector | Use 10 different models | Epic |
-| 🔄 | Session Sage | Resume a past session | Uncommon |
-| 🏄 | Session Surfer | Resume 10 sessions | Rare |
-| 🔧 | Config Explorer | Change 10 config settings | Uncommon |
-| 👥👥👥 | Power Delegator | 50 delegate_task calls | Epic |
-| 🎯 | Tool Diversity | Use tools from all categories | Rare |
-| 📅 | Tenacious | Have 10+ sessions | Uncommon |
+| 🔄 | Session Sage | Resume a past session with --continue or /resume | Uncommon |
+| 🏄 | Session Surfer | Resume 10 different sessions | Uncommon |
+| ⏰ | Cron Commander | Schedule your first cron job | Rare |
+| 🔌 | MCP Master | Add an MCP server connection | Rare |
+| 👥 | Agent Swarm | Spawn a subagent with delegate_task | Rare |
+| 👤 | Profile Juggler | Create a named Hermes profile | Rare |
+| 👤 | Profile Collector | Create 5 Hermes profiles | Rare |
+| ⛓️ | Chain Reaction | Chain 2 cron jobs together with context_from | Rare |
+| 🎭 | Multi-Model | Use 5 different AI models | Rare |
+| 🏗️ | Workflow Builder | Use 8 different tool types in a single session | Rare |
+| ⚡ | Quick Draw | Complete 5 tasks with rapid turnaround | Rare |
+| ⚡⚡ | Parallel Master | Run 3 subagents in parallel with a single delegate_task | Rare |
+| 🔐 | YOLO Mode | Run with --yolo flag or disable approval prompts | Epic |
+| 🔐 | YOLO Champion | Complete 25 tasks without approval prompts | Epic |
+| 🌉 | Gateway Networker | Connect to 3 different messaging platforms | Epic |
+| 🧩 | Plugin Pack | Have 5 plugins enabled | Epic |
+| 🎭 | Model Collector | Use 10 different AI models | Epic |
+| 🎯 | Tool Diversity | Use every available Hermes tool category | Epic |
+| 🤖 | Marathon Session | Reach 200 tool calls in a single session | Legendary |
+| 🧩 | Plugin Developer | Create your own Hermes plugin | Legendary |
 
 ### 👑 Expert (15)
 
 | Icon | Name | Description | Rarity |
 |------|------|-------------|--------|
-| 📡📡 | Cross-Platform Veteran | Chat from 5+ platforms | Legendary |
-| 🧩🧩🧩 | Hook Master | Use skill_manage 20 times | Legendary |
-| 🔧🔧 | Config Guru | Change 15 config settings | Epic |
-| 📈 | CLI Champion | 500 terminal commands | Legendary |
-| 🔌🔌 | MCP Wizard | Connect 5 MCP servers | Legendary |
-| 🎪 | Session Master | 500 total turns | Legendary |
-| 🎯 | Precision Scheduler | Schedule a cron with a specific time | Rare |
-| 🎯🎯 | Multi-Tasker | Use 5+ tools in one turn | Epic |
-| 💪💪 | Ultra Marathon | 150 tool calls in one session | Legendary |
-| 🌍 | Multi-Lingual | Communicate in a non-English language | Epic |
-| 🏆 | Power User Champion | Unlock all Power User achievements | Legendary |
+| 🌍 | Multi-Lingual | Communicate with Hermes in a language other than English | Uncommon |
+| 📚 | Doc Diver | Read the Hermes documentation | Uncommon |
+| 🌉 | Gateway Guru | Connect Hermes to a messaging platform gateway | Rare |
+| 🧩 | Plugin Power | Install and enable a Hermes plugin | Rare |
+| 🔧 | Config Guru | Modify 15 different configuration settings | Rare |
+| 🎯 | Precision Scheduler | Schedule a one-shot cron job for a specific time | Rare |
+| ⚙️ | Environment Tuner | Configure custom environment variables for a cron job | Rare |
+| 🤖 | The 90-Turn Club | Reach 90 tool calls in a single session (default max_turns) | Epic |
+| 📡 | Cross-Platform Operative | Chat with Hermes from 2+ different platforms | Epic |
+| 🔌 | MCP Wizard | Write a custom MCP server configuration | Epic |
+| 🔷 | Rare Collector | Unlock every Rare achievement | Epic |
+| 📡📡 | Cross-Platform Veteran | Chat with Hermes from 5+ different platforms | Legendary |
+| 🪝 | Hook Master | Create a plugin using 3+ different hook types | Legendary |
+| 📈 | CLI Champion | Execute 500 terminal commands | Legendary |
+| 💪 | Ultra Marathon | Reach 150 tool calls in a single session | Legendary |
 
 ### 🎯 Milestones (15)
 
 | Icon | Name | Description | Rarity |
 |------|------|-------------|--------|
-| 🐦 | Early Bird | Use before 6 AM | Uncommon |
-| 💯 | Century Mark | 100 messages | Epic |
-| 💬 | Talkative | 500 messages | Epic |
-| 💬💬 | Legendary Chatter | 1,000 messages | Legendary |
-| 🔧 | Tool Fan | 100 total tool calls | Uncommon |
-| 🔧🔧 | Tool Addict | 500 total tool calls | Rare |
-| 🔧🔧🔧 | Tool Obsessed | 1,000 total tool calls | Epic |
-| 💪 | Power Session | 50 tool calls in one session | Rare |
-| 📅 | Week Warrior | Use Hermes 7 days in a row | Uncommon |
-| 📅📅 | Monthly Master | Use Hermes 30 days in a row | Epic |
-| 🌟 | Rare Collector | Unlock all Rare achievements | Epic |
-| 🌟🌟 | Epic Collector | Unlock all Epic achievements | Legendary |
-| 🎯 | Getting Started Complete | All Getting Started achievements | Epic |
-| 🎯 | Tools Complete | All Tools & Skills achievements | Epic |
+| 🐦 | Early Bird | Use Hermes before 6 AM | Uncommon |
+| 🔧 | Tool Fan | Accumulate 100 total tool calls | Uncommon |
+| 🔧 | Tool Addict | Accumulate 500 total tool calls | Rare |
+| 📅 | Week Warrior | Use Hermes 7 days in a row | Rare |
+| 💪 | Power Session | Make 50 tool calls in a single session | Rare |
+| 💯 | Century Mark | Accumulate 100+ messages across all sessions | Epic |
+| 💬 | Talkative | Send 500 messages total | Epic |
+| 🔧 | Tool Obsessed | Accumulate 1,000 total tool calls | Epic |
+| 🚀 | Getting Started Complete | Unlock every Getting Started achievement | Epic |
 | 🏆 | Completionist | Unlock every other achievement | Legendary |
+| 💬💬 | Legendary Chatter | Send 1,000 messages total | Legendary |
+| 📅📅 | Monthly Master | Use Hermes 30 days in a row | Legendary |
+| 🟣 | Epic Collector | Unlock every Epic achievement | Legendary |
+| 🛠️ | Tools Complete | Unlock every Tools & Skills achievement | Legendary |
+| ⚡ | Power User Complete | Unlock every Power User achievement | Legendary |
 
 ### 🤝 Community (11)
 
 | Icon | Name | Description | Rarity |
 |------|------|-------------|--------|
-| ⭐ | Star Gazer | Reference the Hermes GitHub | Common |
-| 🔍 | Plugin Browser | Browse available plugins | Common |
-| 🧠 | Skill Browser | Browse available skills | Common |
-| 🎨 | Theme Setter | Customize Hermes appearance | Common |
-| 📚 | Documentarian | Read the Hermes documentation | Uncommon |
-| 🔄 | Updater | Update Hermes to a new version | Uncommon |
+| ⭐ | Star Gazer | View the Hermes GitHub repository | Common |
+| 🔍 | Plugin Browser | Browse available Hermes plugins | Common |
+| 🧠 | Skill Browser | Browse available skills in the hub | Common |
 | 📋 | Changelog Checker | Read the Hermes changelog | Common |
-| 💡 | Feedback Friend | Submit feedback or a suggestion | Uncommon |
-| 📝 | Release Reader | Read about a Hermes release | Common |
-| 🔍 | Issue Tracker | Reference a GitHub issue or bug | Common |
-| 🤝 | Community Member | Reference the Hermes community | Common |
+| 🤝 | Helpful Soul | Use the /help command | Common |
+| ⚙️ | First Config | View the Hermes configuration | Common |
+| 📝 | Release Reader | Read the latest Hermes release notes | Uncommon |
+| 🔄 | Updater | Update Hermes to a new version | Uncommon |
+| 🎨 | Theme Setter | Customize the Hermes appearance or output | Uncommon |
+| 💡 | Feedback Friend | Submit feedback or a feature request | Uncommon |
+| 🤝 | Community Complete | Unlock every Community achievement | Epic |
 
 ## Architecture
 
-Achievements are detected inline via the `post_llm_call` hook — no separate scanner or cron job needed:
+Achievements are detected via four plugin hooks — no separate scanner or cron job needed:
 
-1. **`post_llm_call`** fires after every LLM response, carrying the conversation history with tool call data
-2. Achievement checks are O(1) — simple threshold comparisons against accumulated stats
-3. **`on_session_end`** tracks session-level metadata (streak days, session count)
-4. When an achievement unlocks, a Discord message is posted immediately via raw HTTP API
+1. **`post_tool_call`** fires after *every* tool execution with the full tool arguments. This is the primary detection path: per-tool usage counters, per-session tool tracking, and argument-based achievements (cron job chaining via `context_from`, parallel delegation via `tasks`, plugin/hook authoring via file content, skill creation).
+2. **`post_llm_call`** fires once per turn and handles per-turn signals: cumulative message counts, model/platform diversity, user-command pattern matching (`hermes doctor`, `/title`, `--yolo`, ...), tiered command counters (config changes, plugins enabled, skills installed), and group/rarity completion checks.
+3. **`on_session_start`** counts distinct sessions (drives the Persistent / session milestones).
+4. **`on_session_end`** tracks daily streaks (Week Warrior, Monthly Master) and re-checks completions.
+
+When an achievement unlocks, a Discord notification is posted asynchronously (daemon thread — never blocks the agent loop) via the raw HTTP API to both the home channel and the channel where it was unlocked.
 
 ### File layout
 
@@ -230,6 +233,12 @@ Achievements are detected inline via the `post_llm_call` hook — no separate sc
 ├── __init__.py        # Plugin code: hooks, definitions, detection, commands
 ├── plugin.yaml        # Plugin metadata (name, version, hooks)
 ├── pyproject.toml     # Python package metadata
+├── scripts/
+│   └── render_readme.py  # Regenerates README achievement tables from defs
+├── locales/           # i18n JSON files (en/es/fr/pt)
+├── tests/
+│   ├── test_plugin.py     # Static validation (defs, locales, files)
+│   └── test_detection.py  # Functional hook-driven detection tests
 ├── CHANGELOG.md       # Version history
 ├── LICENSE            # MIT License
 └── README.md          # This file
@@ -246,6 +255,9 @@ vim ~/.hermes/plugins/achievements/__init__.py
 # Restart gateway to pick up changes
 hermes gateway restart
 
+# Run the test suite (static + functional)
+python3 -m pytest tests/ -q
+
 # View achievements
 /achievements
 ```
@@ -253,9 +265,13 @@ hermes gateway restart
 ### Adding a new achievement
 
 1. Add an entry to `ACHIEVEMENT_DEFS` with a unique `id`, `name`, `emoji`, `description`, `rarity`, and `group`
-2. Add detection logic in `_post_llm_call()` — pattern match, threshold check, or stat aggregation
-3. Regenerate `NON_COMPLETIONIST_IDS` and group/rarity helper lists (they're derived at load)
-4. Update this README with the new achievement in the appropriate group table
+2. Add detection logic — tool-count thresholds in `_TOOL_THRESHOLDS`, argument detection in `_check_tool_args()`, user-command patterns in `TERMINAL_PATTERNS`, or counter checks in `_check_counter_achievements()`
+3. Add the translation keys to `locales/en.json` (and the other locales)
+4. Regenerate the README tables:
+   ```bash
+   python3 scripts/render_readme.py
+   ```
+5. Run `python3 -m pytest tests/ -q` — the test suite enforces 100 definitions, key parity across locales, and detection behavior
 
 ## License
 

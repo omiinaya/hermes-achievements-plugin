@@ -1,0 +1,300 @@
+#!/usr/bin/env python3
+"""Functional tests for achievement detection hooks.
+
+These tests load the plugin module with a temporary HERMES_HOME and drive
+the hook functions (_post_tool_call, _post_llm_call, _on_session_start,
+_on_session_end) with synthetic kwargs matching what the Hermes gateway
+passes, verifying achievements actually unlock.
+
+Run with:  python3 -m pytest tests/  -xvs
+"""
+import importlib.util
+import json
+import os
+import shutil
+import sys
+import tempfile
+import unittest
+
+PLUGIN_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+PLUGIN_FILE = os.path.join(PLUGIN_DIR, "__init__.py")
+LOCALES_DIR = os.path.join(PLUGIN_DIR, "locales")
+
+
+def _make_module(tmp_home: str):
+    """Import the plugin in a controlled way with a temp HERMES_HOME."""
+    os.environ["HERMES_HOME"] = tmp_home
+    os.makedirs(os.path.join(tmp_home, "plugins", "achievements"), exist_ok=True)
+    shutil.copytree(LOCALES_DIR, os.path.join(tmp_home, "plugins", "achievements", "locales"))
+    spec = importlib.util.spec_from_file_location("achievements_plugin_test", PLUGIN_FILE)
+    mod = importlib.util.module_from_spec(spec)
+    sys.modules["achievements_plugin_test"] = mod
+    spec.loader.exec_module(mod)
+    return mod
+
+
+class HookTestBase(unittest.TestCase):
+    """Shared fixture: temp HERMES_HOME + fresh module per test."""
+
+    def setUp(self):
+        self._tmp = tempfile.mkdtemp(prefix="ach-test-")
+        self.mod = _make_module(self._tmp)
+        self.fresh()
+
+    def tearDown(self):
+        shutil.rmtree(self._tmp, ignore_errors=True)
+        os.environ.pop("HERMES_HOME", None)
+
+    def fresh(self):
+        self.mod._state = None
+        self.mod._locales_cache = {}
+        self.mod._last_turn_models = set()
+        self.mod._last_turn_platforms = set()
+
+    def unlocked(self, ach_id):
+        return self.mod._load_state()["achievements"].get(ach_id, {}).get("unlocked", False)
+
+    def stats(self):
+        return self.mod._load_state()["stats"]
+
+    def tool_call(self, tool_name, args=None, session_id="sess", duration_ms=100):
+        self.mod._post_tool_call(
+            tool_name=tool_name, args=args or {}, session_id=session_id,
+            duration_ms=duration_ms,
+        )
+
+    def turn(self, message="hello", history=None, model="m1", platform="cli"):
+        hist = history or [{"role": "user", "content": message}]
+        self.mod._post_llm_call(
+            user_message=message, conversation_history=hist,
+            model=model, platform=platform,
+        )
+
+
+class TestTurnCounting(HookTestBase):
+    """Message thresholds must accumulate across sessions."""
+
+    def test_total_turns_accumulates(self):
+        for _ in range(10):
+            self.turn()
+        self.assertEqual(self.stats()["total_turns"], 10)
+        self.assertFalse(self.unlocked("chatty"))
+
+    def test_chatty_at_25(self):
+        for _ in range(25):
+            self.turn()
+        self.assertTrue(self.unlocked("chatty"))
+
+    def test_turn_id_string_ignored(self):
+        # Hermes passes turn_id as "session:task:hex" — must not crash or
+        # use it as the cumulative counter
+        self.mod._post_llm_call(
+            user_message="x",
+            conversation_history=[{"role": "user", "content": "x"}],
+            model="m1", platform="cli", turn_id="sess:task:abc123",
+        )
+        self.assertEqual(self.stats()["total_turns"], 1)
+
+
+class TestSessionScopedThresholds(HookTestBase):
+    """Session-scoped achievements use per-session counts, not cumulative."""
+
+    def test_power_session_unlocks_at_50_in_session(self):
+        for i in range(60):
+            self.tool_call("terminal", {"command": f"echo {i}"}, session_id="sess-A")
+        self.assertTrue(self.unlocked("power_session"))
+        self.assertFalse(self.unlocked("the_90_turn_club"))
+        self.assertEqual(self.stats()["active_session"]["calls"], 60)
+
+    def test_session_switch_resets_counters(self):
+        for _ in range(30):
+            self.tool_call("terminal", {"command": "x"}, session_id="sess-B")
+        self.tool_call("read_file", {"path": "/tmp/a"}, session_id="sess-C")
+        self.assertEqual(self.stats()["active_session"]["id"], "sess-C")
+        self.assertEqual(self.stats()["active_session"]["calls"], 1)
+        # Cumulative totals persist across sessions
+        self.assertEqual(self.stats()["tools_used"]["terminal"], 30)
+
+    def test_terminal_jockey_cumulative(self):
+        for i in range(25):
+            self.tool_call("terminal", {"command": f"echo {i}"}, session_id=f"s{i // 10}")
+        self.assertTrue(self.unlocked("terminal_jockey"))
+
+    def test_tool_collector_distinct_names_not_categories(self):
+        # read_file/write_file/search_files are 3 distinct tools but one category
+        for t in ["terminal", "read_file", "write_file", "search_files", "browser_navigate"]:
+            self.tool_call(t)
+        self.assertTrue(self.unlocked("tool_collector"))
+
+    def test_workflow_builder_needs_8_types(self):
+        tools = ["terminal", "read_file", "write_file", "search_files",
+                 "browser_navigate", "execute_code", "memory", "cronjob"]
+        for t in tools:
+            self.tool_call(t)
+        self.assertTrue(self.unlocked("workflow_builder"))
+        self.assertFalse(self.unlocked("tool_hoarder"))  # 10 cumulative needed
+
+
+class TestArgumentBased(HookTestBase):
+    """Achievements detected from tool arguments."""
+
+    def test_cron_commander_only_on_create(self):
+        self.tool_call("cronjob", {"action": "list"})
+        self.assertFalse(self.unlocked("cron_commander"))
+        self.tool_call("cronjob", {"action": "create", "schedule": "every 2h"})
+        self.assertTrue(self.unlocked("cron_commander"))
+
+    def test_precision_scheduler_iso(self):
+        self.tool_call("cronjob", {"action": "create", "schedule": "2026-08-01T09:00:00", "repeat": "once"})
+        self.assertTrue(self.unlocked("precision_scheduler"))
+
+    def test_precision_scheduler_repeat_once(self):
+        self.tool_call("cronjob", {"action": "create", "schedule": "30m", "repeat": "once"})
+        self.assertTrue(self.unlocked("precision_scheduler"))
+
+    def test_chain_reaction(self):
+        self.tool_call("cronjob", {"action": "create", "schedule": "every 2h", "context_from": ["job-1"]})
+        self.assertTrue(self.unlocked("chain_reaction"))
+
+    def test_env_tuner_workdir(self):
+        self.tool_call("cronjob", {"action": "create", "schedule": "30m", "workdir": "/home/x/proj"})
+        self.assertTrue(self.unlocked("env_tuner"))
+
+    def test_parallel_master_three_tasks(self):
+        self.tool_call("delegate_task", {"tasks": [{"goal": "a"}, {"goal": "b"}, {"goal": "c"}]})
+        self.assertTrue(self.unlocked("parallel_master"))
+        self.assertEqual(self.stats()["parallel_spawns"], 3)
+
+    def test_parallel_master_requires_three(self):
+        self.tool_call("delegate_task", {"tasks": [{"goal": "a"}, {"goal": "b"}]})
+        self.assertFalse(self.unlocked("parallel_master"))
+
+    def test_skill_author_only_create(self):
+        self.tool_call("skill_manage", {"action": "patch", "name": "s1"})
+        self.assertFalse(self.unlocked("skill_author"))
+        self.tool_call("skill_manage", {"action": "create", "name": "s1"})
+        self.assertTrue(self.unlocked("skill_author"))
+        self.assertEqual(self.stats()["skills_created"], 1)
+
+    def test_skill_artisan_five_creates(self):
+        for i in range(5):
+            self.tool_call("skill_manage", {"action": "create", "name": f"s{i}"})
+        self.assertTrue(self.unlocked("skill_artisan"))
+        self.assertFalse(self.unlocked("skill_virtuoso"))
+
+    def test_plugin_developer(self):
+        self.tool_call("write_file", {"path": "/home/x/plugins/myplugin/plugin.yaml", "content": "name: myplugin"})
+        self.assertTrue(self.unlocked("plugin_developer"))
+
+    def test_hook_master_three_hook_types(self):
+        self.tool_call("write_file", {
+            "path": "/home/x/plugins/myplugin/__init__.py",
+            "content": (
+                'ctx.register_hook("post_llm_call", f)\n'
+                'ctx.register_hook("post_tool_call", g)\n'
+                'ctx.register_hook("on_session_end", h)\n'
+            ),
+        })
+        self.assertTrue(self.unlocked("hook_master"))
+        self.assertEqual(self.stats()["hooks_used"],
+                         {"post_llm_call", "post_tool_call", "on_session_end"})
+
+
+class TestCounterAchievements(HookTestBase):
+    """Tiered achievements from recurring user commands."""
+
+    def test_config_guru_at_15_changes(self):
+        for _ in range(16):
+            self.turn("run hermes config set theme dark")
+        self.assertTrue(self.unlocked("config_guru"))
+        self.assertEqual(self.stats()["config_changes"], 16)
+
+    def test_plugin_pack_at_5(self):
+        for _ in range(5):
+            self.turn("hermes plugins enable foo")
+        self.assertTrue(self.unlocked("plugin_pack"))
+        self.assertTrue(self.unlocked("plugin_power"))
+
+    def test_skill_finder_install(self):
+        self.turn("hermes skills install web-search")
+        self.assertTrue(self.unlocked("skill_finder"))
+
+    def test_yolo_champion_at_25(self):
+        for _ in range(25):
+            self.turn("hermes run --yolo task")
+        self.assertTrue(self.unlocked("yolo_champion"))
+
+
+class TestQuickDraw(HookTestBase):
+    """5 consecutive fast tool calls unlock Quick Draw."""
+
+    def test_fast_streak_unlocks(self):
+        for _ in range(5):
+            self.tool_call("terminal", {"command": "echo fast"}, duration_ms=100)
+        self.assertTrue(self.unlocked("quick_draw"))
+
+    def test_slow_call_breaks_streak(self):
+        for _ in range(4):
+            self.tool_call("terminal", {"command": "echo fast"}, duration_ms=100)
+        self.tool_call("terminal", {"command": "slow"}, duration_ms=60000)
+        self.assertFalse(self.unlocked("quick_draw"))
+
+
+class TestSessionCounting(HookTestBase):
+    """on_session_start drives the Persistent achievement."""
+
+    def test_persistent_at_three_sessions(self):
+        for sid in ("s1", "s2", "s3"):
+            self.mod._on_session_start(session_id=sid)
+        self.turn()
+        self.assertTrue(self.unlocked("persistent"))
+        self.assertEqual(self.stats()["total_sessions"], 3)
+
+
+class TestPerTurnSignals(HookTestBase):
+    """Message-derived achievements."""
+
+    def test_first_steps_and_multi_lingual(self):
+        self.turn("hola mundo ¿cómo estás?", platform="discord")
+        self.assertTrue(self.unlocked("first_steps"))
+        self.assertTrue(self.unlocked("multi_lingual"))
+        self.assertTrue(self.unlocked("gateway_guru"))
+
+    def test_slash_commander(self):
+        self.turn("/title my session")
+        self.turn("/help")
+        self.turn("/new")
+        self.assertTrue(self.unlocked("slash_commander"))
+
+
+class TestStatePersistence(HookTestBase):
+    """State round-trips through JSON without losing set fields."""
+
+    def test_round_trip(self):
+        self.tool_call("terminal", {}, session_id="sess-H")
+        self.turn("hi")
+        self.mod._save_state(force=True)
+        self.mod._state = None  # simulate process reload
+        st = self.mod._load_state()["stats"]
+        self.assertEqual(st["tools_used"]["terminal"], 1)
+        self.assertIsInstance(st["platforms"], set)
+        self.assertIsInstance(st["active_session"]["tool_names"], set)
+
+    def test_newly_unlocked_capped(self):
+        # Unlock more than 20 achievements; list must stay bounded
+        ids = list(self.mod.ACHIEVEMENT_DEFS.keys())[:30]
+        for aid in ids:
+            self.mod._unlock(aid)
+        self.assertLessEqual(len(self.mod._load_state()["newly_unlocked"]), 20)
+
+    def test_discord_notification_is_threaded(self):
+        # _send_discord_notification must return immediately (daemon thread)
+        import threading
+        ach_def = self.mod.ACHIEVEMENT_DEFS["first_steps"]
+        threads_before = threading.active_count()
+        self.mod._send_discord_notification(ach_def)
+        self.assertLessEqual(threading.active_count(), threads_before + 1)
+
+
+if __name__ == "__main__":
+    unittest.main(verbosity=2)

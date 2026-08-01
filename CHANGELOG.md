@@ -1,5 +1,39 @@
 # Changelog
 
+## [2.2.0] — 2026-07-31
+
+### Added
+
+- **`post_tool_call` hook** — per-tool detection with full tool arguments (the primary detection path, replacing conversation-history scanning)
+- **Argument-based achievements**, previously impossible to detect:
+  - `Chain Reaction` — cron job chained via `context_from`
+  - `Parallel Master` — `delegate_task` with 3+ tasks in the `tasks` array
+  - `Precision Scheduler` — ISO timestamp schedule or `repeat="once"`
+  - `Environment Tuner` — cron job with custom `workdir`/`env_file`
+  - `Plugin Developer` — writing a file under a `/plugins/` path or named `plugin.yaml`
+  - `Hook Master` — plugin code registering 3+ distinct hook types
+- **Tiered counter achievements** via `_check_counter_achievements()`:
+  - `Config Guru` now requires 15 real config changes (was: any `hermes config` mention)
+  - `Plugin Pack` (5 plugins enabled), `Profile Collector` (5 profiles),
+    `MCP Networker` (3 servers), `Skill Collector/Apprentice/Master` (skill installs),
+    `YOLO Champion` (25 `--yolo` tasks)
+- **`on_session_start` hook** — counts distinct sessions (fixes Persistent/session milestones)
+- **Quick Draw** — 5 consecutive tool calls under 20s
+- **Functional test suite** (`tests/test_detection.py`, 31 tests) — drives the hooks with synthetic gateway kwargs and verifies actual unlocks
+- **README renderer** (`scripts/render_readme.py`) — regenerates achievement tables from `ACHIEVEMENT_DEFS` so docs can't drift
+
+### Fixed
+
+- **Message thresholds never unlocked** — `total_turns` was updated via `max(int(turn_id))` but Hermes passes `turn_id` as a string (`session:task:hex`), so Chatty/Century/Talkative/Legendary Chatter could never unlock. Now counted per `post_llm_call` firing (once per turn).
+- **Session achievements used cumulative totals** — Power Session / 90-Turn Club / Ultra Marathon / Marathon Session were checked against all-time tool totals instead of single-session counts. Now tracked per-session via `active_session`.
+- **Jack of All Trades / Workflow Builder used per-turn tools** — now accumulate distinct tool types across the whole session (and count tool *names*, not collapsed categories).
+- **Skill Author unlocked on every `skill_manage` call** — now only on `action=create`/`edit`.
+- **Cron Commander unlocked on any cronjob call** — now only on `action=create`.
+- **Discord notification blocked the agent loop** — delivery is now a daemon thread (async, non-blocking).
+- **`newly_unlocked` list unbounded** — capped at most recent 20.
+- **README/defs drift** — 12 achievement names were missing from the README and 18 stale names were listed (e.g. "Multi-Tasker", "Session Master" never existed in code). Tables now generated from source.
+- **State save storm** — `_save_state()` debounced to at most once per 2s (forced at turn/session boundaries).
+
 ## [2.1.0] — 2026-07-13
 
 ### Added
