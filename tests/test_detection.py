@@ -1671,6 +1671,15 @@ class TestCommandHandlers(HookTestBase):
         self.mod._handle_lang("en")
         self.assertEqual(self.mod._load_state()["locale"], "en")
 
+    def test_lang_aliases(self):
+        # Natural-language aliases resolve to the right code
+        for alias, code in [("spanish", "es"), ("français", "fr"),
+                            ("francais", "fr"), ("portugues", "pt")]:
+            self.mod._handle_lang(alias)
+            self.assertEqual(self.mod._load_state()["locale"], code,
+                             f"alias {alias!r} should map to {code}")
+        self.mod._handle_lang("en")
+
     def test_lang_invalid_code(self):
         out = self.mod._handle_lang("xx")
         self.assertIn("Unsupported language", out)  # ui.lang_invalid
