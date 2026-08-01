@@ -25,7 +25,10 @@ jobs:
       - name: Run test suite
         run: python -m pytest tests/ -q
       - name: Coverage gate
-        run: python -m pytest tests/ --cov=. --cov-report=term-missing --cov-fail-under=90 -q
+        # 95% floor (was 90%): the suite has held 99%+ across 3 Python
+        # versions; a lower gate would let a regression slip 9 points
+        # without CI noticing.
+        run: python -m pytest tests/ --cov=. --cov-report=term-missing --cov-fail-under=95 -q
       - name: Lint
         run: ruff check .
       - name: Verify README tables match definitions
