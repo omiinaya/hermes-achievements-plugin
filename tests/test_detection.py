@@ -899,6 +899,20 @@ class TestStatePersistence(HookTestBase):
         st = self.mod._load_state()["stats"]
         self.assertEqual(st["tools_used"]["terminal"], 1)
 
+    def test_corrupted_primary_and_backup_reset_to_fresh(self):
+        self.tool_call("terminal", {}, session_id="sess-double")
+        self.mod._save_state(force=True)
+        # Corrupt BOTH the primary state and the backup — must reset cleanly
+        for path in (self.mod._STATE_PATH, self.mod._STATE_BAK_PATH):
+            with open(path, "w") as f:
+                f.write("{also corrupted!!!")
+        self.mod._state = None
+        st = self.mod._load_state()
+        # Fresh state: all achievements exist but none unlocked, stats zeroed
+        self.assertEqual(st["stats"]["total_turns"], 0)
+        self.assertEqual(len(st["achievements"]), len(self.mod.ACHIEVEMENT_DEFS))
+        self.assertFalse(any(a.get("unlocked") for a in st["achievements"].values()))
+
     def test_corrupted_scalar_stats_normalized(self):
         # A corrupted/legacy state with scalar stats must not crash hooks
         state = self.mod._load_state()
