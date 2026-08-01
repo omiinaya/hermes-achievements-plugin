@@ -1476,6 +1476,24 @@ class TestCommandHandlers(HookTestBase):
         out = self.mod._handle_achievement_detail("not_an_achievement")
         self.assertIn("Unknown", out)
 
+    def test_achievement_detail_empty_usage(self):
+        out = self.mod._handle_achievement_detail("")
+        self.assertIn("Usage:", out)
+
+    def test_achievements_stats_shows_platforms(self):
+        self.turn("hi", model="m1", platform="telegram")
+        out = self.mod._handle_achievements("stats")
+        self.assertIn("Platforms:", out)
+        self.assertIn("telegram", out)
+
+    def test_gw_dispatch_no_source_is_noop(self):
+        class _Event:
+            internal = False
+            source = None
+        self.mod._on_pre_gateway_dispatch(
+            event=_Event(), gateway=None, session_store=None)
+        self.assertEqual(len(self.stats().get("users_seen", set())), 0)
+
     def test_lang_switch_and_show(self):
         out = self.mod._handle_lang("es")
         self.assertIn("Español", out)
