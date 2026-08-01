@@ -113,6 +113,10 @@
       "name": "Veterano Multiplataforma",
       "description": "Conversar com o Hermes de 5+ plataformas diferentes"
     },
+    "deep_dive": {
+      "name": "Mergulho Profundo",
+      "description": "Deixe o Hermes trabalhar 10 etapas em um único turno"
+    },
     "deep_diver": {
       "name": "Mergulhador Profundo",
       "description": "Realizar 25 pesquisas na web"

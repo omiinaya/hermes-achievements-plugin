@@ -956,7 +956,7 @@ class TestStreakEdgeCases(HookTestBase):
         self.mod._locales_cache = {}
         try:
             cache = self.mod._load_locales()
-            self.assertEqual(len(cache.get("en", {}).get("achievement", {})), 107)
+            self.assertEqual(len(cache.get("en", {}).get("achievement", {})), 108)
         finally:
             self.mod._LOCALES_DIR = old_dir
             self.mod._WHEEL_DATA_DIR = old_wheel
@@ -2076,7 +2076,7 @@ class TestReadmeSync(unittest.TestCase):
         result = subprocess.run([_sys.executable, script], capture_output=True, text=True,
                                 cwd=PLUGIN_DIR, check=False)
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertIn("OK: 107 achievements", result.stdout)
+        self.assertIn("OK: 108 achievements", result.stdout)
 
     def test_health_check_script_passes(self):
         # The health check must pass against the repo checkout (defs,
@@ -2112,7 +2112,7 @@ class TestReadmeSync(unittest.TestCase):
 
 
 class TestEveryAchievementUnlockable(HookTestBase):
-    """Full-grind simulation: prove all 107 achievement defs can unlock.
+    """Full-grind simulation: prove all 108 achievement defs can unlock.
 
     After several rounds of achievement swaps (v2.3.0, v2.4.0, v2.4.1),
     a def could sit in a detection map with an impossible condition (wrong
@@ -2277,6 +2277,7 @@ class TestEveryAchievementUnlockable(HookTestBase):
             # requests → Speed Demon. Mixed usage shapes exercise both the
             # total_tokens path and the prompt+completion fallback. Cycle
             # 8 providers → Provider Hopper (2) + Provider Collector (5).
+            # api_call_count escalates to 14 → Deep Dive (≥10 in one turn).
             providers = [f"provider-{i}" for i in range(8)]
             for i in range(1050):
                 if i % 3 == 0:
@@ -2288,6 +2289,7 @@ class TestEveryAchievementUnlockable(HookTestBase):
                     api_duration=0.5 if i % 2 == 0 else 9.0,
                     model=models[i % len(models)],
                     provider=providers[i % len(providers)],
+                    api_call_count=1 + (i % 14),
                 )
 
             # ── API errors, approvals, distinct users, session reset ──
@@ -2313,7 +2315,7 @@ class TestEveryAchievementUnlockable(HookTestBase):
             )
             mod._check_completionist()
 
-    def test_all_107_achievements_can_unlock(self):
+    def test_all_108_achievements_can_unlock(self):
         """Every def in ACHIEVEMENT_DEFS must unlock through real hooks."""
         self._grind()
         state = self.mod._load_state()
@@ -2327,7 +2329,7 @@ class TestEveryAchievementUnlockable(HookTestBase):
             f"{locked}",
         )
 
-    def test_completionist_unlocks_as_107th(self):
+    def test_completionist_unlocks_as_108th(self):
         """Completionist requires every other achievement first."""
         self._grind()
         state = self.mod._load_state()
@@ -2337,7 +2339,7 @@ class TestEveryAchievementUnlockable(HookTestBase):
             1 for aid in self.mod.ACHIEVEMENT_DEFS
             if state["achievements"].get(aid, {}).get("unlocked")
         )
-        self.assertEqual(unlocked, 107)
+        self.assertEqual(unlocked, 108)
 
 
 if __name__ == "__main__":

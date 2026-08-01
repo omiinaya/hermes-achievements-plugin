@@ -6,7 +6,7 @@
 [![CI](https://github.com/omiinaya/hermes-achievements-plugin/actions/workflows/test.yml/badge.svg)](https://github.com/omiinaya/hermes-achievements-plugin/actions/workflows/test.yml)
 [![Coverage](https://img.shields.io/badge/coverage-99%25-brightgreen.svg)](https://github.com/omiinaya/hermes-achievements-plugin/actions/workflows/test.yml)
 
-**107 Steam-style achievement badges** for [Hermes Agent](https://hermes-agent.nousresearch.com). Unlock achievements as you use Hermes — run commands, search the web, schedule cron jobs, create skills, and explore the platform. Achievements are tracked silently and delivered to your Discord home channel the moment they unlock.
+**108 Steam-style achievement badges** for [Hermes Agent](https://hermes-agent.nousresearch.com). Unlock achievements as you use Hermes — run commands, search the web, schedule cron jobs, create skills, and explore the platform. Achievements are tracked silently and delivered to your Discord home channel the moment they unlock.
 
 ## Quick Start
 
@@ -206,10 +206,11 @@ unlock them, Steam-style. Currently secret: `Fresh Start`, `Cautious`,
 | 🤖 | Marathon Session | Reach 200 tool calls in a single session | Legendary |
 | 🧩 | Plugin Developer | Create your own Hermes plugin | Legendary |
 
-### 👑 Expert (19)
+### 👑 Expert (20)
 
 | Icon | Name | Description | Rarity |
 |------|------|-------------|--------|
+| 🤿 | Deep Dive | Let Hermes work 10 steps in a single turn | Uncommon |
 | 🌍 | Multi-Lingual | Communicate with Hermes in a language other than English | Uncommon |
 | 📚 | Doc Diver | Read the Hermes documentation | Uncommon |
 | 🌉 | Gateway Guru | Connect Hermes to a messaging platform gateway | Rare |
@@ -315,7 +316,7 @@ State data is stored at `~/.hermes/achievements/state.json` (user-local, not par
 vim ~/.hermes/plugins/achievements/__init__.py
 
 # Run the test suite (static + functional) — includes the full-grind
-# simulation that proves all 107 achievements can unlock
+# simulation that proves all 108 achievements can unlock
 python3 -m pytest tests/ -q
 
 # Run the one-shot health check (defs, locales, manifest↔register hooks,

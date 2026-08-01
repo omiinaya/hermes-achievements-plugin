@@ -2,7 +2,7 @@
 Hermes Achievements Plugin
 ===========================
 Steam-style achievement badges for using and learning about Hermes Agent.
-107 achievements across 6 categories.
+108 achievements across 6 categories.
 
 Hooks:
   - post_llm_call:  detects tool calls from conversation_history → unlocks achievements
@@ -696,6 +696,11 @@ ACHIEVEMENT_DEFS = {
         "description": "Use 5 different AI providers",
         "rarity": "rare", "group": "Power User",
     },
+    "deep_dive": {
+        "id": "deep_dive", "name": "Deep Dive", "emoji": "🤿",
+        "description": "Let Hermes work 10 steps in a single turn",
+        "rarity": "uncommon", "group": "Expert",
+    },
     "workflow_builder": {
         "id": "workflow_builder", "name": "Workflow Builder", "emoji": "🏗️",
         "description": "Use 8 different tool types in a single session",
@@ -1035,6 +1040,9 @@ _TOKEN_THRESHOLDS = [
 # Fast API response: api_duration (seconds) below this counts as "fast"
 _FAST_RESPONSE_THRESHOLD_S = 2.0
 _FAST_RESPONSE_COUNT = 25
+
+# A turn with ≥ this many provider calls is a deep autonomous run.
+_DEEP_DIVE_STEPS = 10
 
 # Single-session tool call thresholds
 _SESSION_CALL_THRESHOLDS = [
@@ -1669,6 +1677,14 @@ def _post_api_request(**kwargs):
             _unlock("provider_collector", now)
         else:
             _set_progress("provider_collector", num_providers, 5)
+
+    # ── Deep Dive: 10 API steps in a single turn ───────────────
+    # api_call_count resets to 0 at the start of every user turn and
+    # increments per provider call — a count ≥ 10 means the agent ran a
+    # long autonomous multi-step stretch without user intervention.
+    call_count = kwargs.get("api_call_count")
+    if isinstance(call_count, (int, float)) and call_count >= _DEEP_DIVE_STEPS:
+        _unlock("deep_dive", now)
 
     usage = kwargs.get("usage")
     total_tokens = 0

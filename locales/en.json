@@ -113,6 +113,10 @@
       "name": "Cross-Platform Veteran",
       "description": "Chat with Hermes from 5+ different platforms"
     },
+    "deep_dive": {
+      "name": "Deep Dive",
+      "description": "Let Hermes work 10 steps in a single turn"
+    },
     "deep_diver": {
       "name": "Deep Diver",
       "description": "Perform 25 web searches"

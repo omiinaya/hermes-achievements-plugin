@@ -2,7 +2,7 @@
 
 ## What this is
 
-A Hermes Agent plugin that awards 107 Steam-style achievement badges for
+A Hermes Agent plugin that awards 108 Steam-style achievement badges for
 using Hermes. Pure Python stdlib, no external dependencies.
 
 ## Repo layout
@@ -49,7 +49,7 @@ using Hermes. Pure Python stdlib, no external dependencies.
 
 ## Key invariants
 
-- **Exactly 107 achievements** — `tests/test_plugin.py` enforces this.
+- **Exactly 108 achievements** — `tests/test_plugin.py` enforces this.
 - **All achievement IDs must be detectable** — every def needs a path in
   `_TOOL_ACHIEVEMENTS`, `_TOOL_THRESHOLDS`, `TERMINAL_PATTERNS`,
   `_check_tool_args()`, `_check_counter_achievements()`, or an explicit
@@ -75,7 +75,7 @@ python3 -m pytest tests/ -q    # 227 tests, no deps beyond pytest
 
 - `tests/test_detection.py::TestEveryAchievementUnlockable` — full-grind
   simulation: drives every hook with escalating synthetic gateway data and
-  asserts **all 107 defs actually unlock**. This is the enforcement of the
+  asserts **all 108 defs actually unlock**. This is the enforcement of the
   "every def must be detectable" invariant — after any swap, a dead def
   (impossible threshold, typo'd key, missing path) fails the run with its
   ID listed. Keep the grind's tool/command data broad enough to cover

@@ -4,7 +4,7 @@
 Verifies the full integrity chain of the plugin:
   1. The plugin loads cleanly (plugin.yaml manifest + __init__.py)
   2. Manifest hooks ↔ register() hooks agree (no drift)
-  3. Exactly 107 achievement defs, all with name/description/rarity/group
+  3. Exactly 108 achievement defs, all with name/description/rarity/group
   4. Locale parity: every def key exists in all 4 locale files
   5. Detection maps contain no dead references (IDs not in defs)
   6. Live state.json (if --live) reconciles: exactly-105 invariant,
@@ -218,7 +218,7 @@ def main():
 
     print("── 3. Achievement defs ──")
     defs = mod.ACHIEVEMENT_DEFS
-    check("exactly 107 defs", len(defs) == 107, f"{len(defs)} found")
+    check("exactly 108 defs", len(defs) == 108, f"{len(defs)} found")
     bad_defs = [aid for aid, d in defs.items()
                 if not d.get("name") or not d.get("description")
                 or not d.get("rarity") or not d.get("group")]

@@ -113,6 +113,10 @@
       "name": "Veterano Multiplataforma",
       "description": "Chatea con Hermes desde 5+ plataformas distintas"
     },
+    "deep_dive": {
+      "name": "Buceo Profundo",
+      "description": "Deja que Hermes trabaje 10 pasos en un solo turno"
+    },
     "deep_diver": {
       "name": "Buceador Profundo",
       "description": "Realiza 25 búsquedas web"
