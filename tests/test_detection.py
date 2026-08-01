@@ -1343,6 +1343,134 @@ class TestToolBlocks(HookTestBase):
         self.assertEqual(self.stats()["tool_blocks"], 10)
 
 
+class TestCoverageEdges(HookTestBase):
+    """Close the remaining uncovered branches (coverage hardening).
+
+    Each test targets a specific defensive / normalization path that the
+    main suites never reach: list→set state migration, base_url edge
+    cases, message_type-only media detection, badge rendering variants,
+    formatter boundaries, the lock double-check, and the empty-group
+    summary skip. Keeping 100% line coverage means a future refactor that
+    breaks one of these paths fails CI instead of silently rotting.
+    """
+
+    def test_load_state_inner_double_check(self):
+        # Line 223: the second `if _state is not None` inside the lock.
+        # Deterministic: main holds the lock the whole time, so the worker
+        # MUST pass the outer None-check and block on the lock before main
+        # sets _state — after release the worker returns via the inner check.
+        import threading
+        import time
+        mod = self.mod
+        mod._state = None
+        results = {}
+
+        def worker():
+            results["state"] = mod._load_state()
+
+        with mod._state_lock:
+            t = threading.Thread(target=worker)
+            t.start()
+            time.sleep(0.3)  # worker passed outer check, blocked on lock
+            mod._state = {"achievements": {}, "stats": {}}
+        t.join(timeout=5)
+        self.assertFalse(t.is_alive())
+        self.assertIsNotNone(results.get("state"))
+
+    def test_env_types_list_normalized_on_load(self):
+        # Older persisted state stored sets as lists — the transform
+        # handler must convert before adding (line 1973-1974).
+        st = self.stats()
+        st["env_types"] = ["local"]  # as loaded from JSON
+        self.mod._transform_terminal_output(
+            output="x", env_type="docker", returncode=0,
+        )
+        envs = self.stats()["env_types"]
+        self.assertIsInstance(envs, set)
+        self.assertIn("docker", envs)
+        self.assertIn("local", envs)
+        self.assertTrue(self.unlocked("multi_env"))  # 2 envs
+
+    def test_is_local_base_url_empty_or_non_string(self):
+        self.assertFalse(self.mod._is_local_base_url(None))
+        self.assertFalse(self.mod._is_local_base_url(""))
+        self.assertFalse(self.mod._is_local_base_url("   "))
+        self.assertFalse(self.mod._is_local_base_url(12345))
+
+    def test_is_local_base_url_malformed_url(self):
+        # urlparse raises ValueError on e.g. an unclosed IPv6 bracket;
+        # the handler must degrade to host="" → False (line 2285-2286).
+        self.assertFalse(self.mod._is_local_base_url("http://[::1"))
+
+    def test_message_type_only_media_counts(self):
+        # A gateway event may signal media via message_type alone (e.g.
+        # "voice") with empty media_urls — line 2662.
+        class _Event:
+            pass
+
+        class _Source:
+            pass
+
+        src = _Source()
+        src.platform = "discord"
+        src.user_id = "user-media-type"
+        src.user_name = "mt"
+        src.is_bot = False
+        ev = _Event()
+        ev.internal = False
+        ev.source = src
+        ev.media_urls = []
+        ev.media_types = []
+        ev.message_type = "voice"
+        self.mod._on_pre_gateway_dispatch(
+            event=ev, gateway=None, session_store=None,
+        )
+        self.assertEqual(self.stats()["media_messages"], 1)
+        self.assertTrue(self.unlocked("show_and_tell"))
+
+    def test_format_badge_non_compact_with_progress(self):
+        # The non-compact badge renders a progress bar + detail_progress
+        # template (line 2721-2722) — only reachable via direct call since
+        # the group view uses compact=True.
+        mod = self.mod
+        state = mod._load_state()
+        a_def = mod.ACHIEVEMENT_DEFS["social_butterfly"]
+        state["achievements"]["social_butterfly"] = {
+            "unlocked": False,
+            "progress": {"current": 2, "target": 3},
+        }
+        out = mod._format_badge(
+            "social_butterfly", a_def, state, compact=False,
+        )
+        self.assertIn("⬜", out)  # locked badge icon
+        self.assertIn("Social Butterfly", out)
+        self.assertIn("2/3", out)
+        self.assertIn("Progress", out)
+
+    def test_format_bytes_small_branch(self):
+        self.assertEqual(self.mod._format_bytes(0), "0 B")
+        self.assertEqual(self.mod._format_bytes(500), "500 B")
+        self.assertEqual(self.mod._format_bytes(1023), "1023 B")
+        self.assertEqual(self.mod._format_bytes(1024), "1.0 KiB")
+
+    def test_format_duration_hours_branch(self):
+        self.assertEqual(self.mod._format_duration(0), "0s")
+        self.assertEqual(self.mod._format_duration(2 * 3600 * 1000 + 5 * 60 * 1000), "2h 5m")
+        self.assertEqual(self.mod._format_duration(12 * 60 * 1000 + 30 * 1000), "12m 30s")
+
+    def test_summary_skips_empty_group(self):
+        # GROUPS is static and every group has defs, but the summary loop
+        # guards against an empty group (line 3006) — prove the guard.
+        mod = self.mod
+        original = mod.GROUPS
+        try:
+            mod.GROUPS = list(original) + ["Phantom Group"]
+            out = mod._handle_achievements("")
+        finally:
+            mod.GROUPS = original
+        self.assertNotIn("Phantom Group", out)
+
+
 class TestApprovalRequest(HookTestBase):
     """pre_approval_request: approval gates drive Under Scrutiny."""
 

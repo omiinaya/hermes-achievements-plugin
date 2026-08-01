@@ -1,5 +1,27 @@
 # Changelog
 
+## [2.15.0] — 2026-08-01
+
+### Changed
+
+- **Coverage hardened to 100%** — `__init__.py` now has full line
+  coverage (was 14 missed lines at 99%). New `TestCoverageEdges` suite
+  (9 tests) closes every defensive/normalization branch the feature
+  suites never reach: the `_load_state` lock double-check (deterministic
+  thread test), list→set `env_types` migration for older persisted
+  state, `_is_local_base_url` non-string/empty/malformed-URL fallbacks
+  (`urlparse` ValueError on unclosed IPv6 brackets), media detection via
+  `message_type` alone (e.g. "voice" with no media_urls), the non-compact
+  badge-with-progress rendering path, `_format_bytes` sub-KiB branch, and
+  `_format_duration` hours branch.
+- **Dead code eliminated** — `_format_bytes`' trailing fallback was
+  provably unreachable (the `units[-1]` guard guarantees a return on the
+  last loop iteration); replaced with a defensive `AssertionError`.
+- **CI coverage gate raised 95% → 99%** — the full tree sits at 99.7%
+  (the only misses are inside the test files themselves, which would be
+  circular to test); a 99% floor means a new hook branch can no longer
+  ship untested. 341 tests total.
+
 ## [2.14.0] — 2026-08-01
 
 ### Added

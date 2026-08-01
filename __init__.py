@@ -2806,7 +2806,7 @@ def _format_bytes(n: int) -> str:
         size /= 1024.0
         if size < 1024.0 or unit == units[-1]:
             return f"{size:.1f} {unit}"
-    return f"{n} B"
+    raise AssertionError("unreachable: units[-1] always returns")  # pragma: no cover
 
 
 def _format_duration(ms: int) -> str:

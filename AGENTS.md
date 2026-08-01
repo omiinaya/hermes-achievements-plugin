@@ -75,9 +75,18 @@ using Hermes. Pure Python stdlib, no external dependencies.
 ## Testing
 
 ```bash
-python3 -m pytest tests/ -q    # 332 tests, no deps beyond pytest
+python3 -m pytest tests/ -q    # 341 tests, no deps beyond pytest
+python3 -m pytest tests/ --cov=. --cov-fail-under=99 -q   # CI coverage gate
 ruff check .                   # CI lint gate — must pass before push
 ```
+
+- **Coverage is 100% on `__init__.py`** (99.7% full tree — the only misses
+  are inside test files themselves). `tests/test_detection.py::TestCoverageEdges`
+  exists purely to close defensive/normalization branches the feature
+  suites never reach (list→set state migration, base_url edge cases,
+  message_type-only media, badge variants, formatter boundaries, the lock
+  double-check, empty-group skip). If you add a branch, add its edge test —
+  the CI gate fails below 99%.
 
 - `tests/test_detection.py::TestEveryAchievementUnlockable` — full-grind
   simulation: drives every hook with escalating synthetic gateway data and
