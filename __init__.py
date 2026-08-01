@@ -1807,6 +1807,24 @@ def _on_session_reset(**kwargs):
     _save_state()
 
 
+# ── Hook: on_session_finalize ───────────────────────────────────────────
+# Fires when the gateway shuts down an agent or a session's reset policy
+# expires. The debounced state save may have a pending write and the
+# notification debounce window may still hold undelivered unlocks — both
+# must be flushed NOW, before the process exits.
+
+def _on_session_finalize(**kwargs):
+    """Flush pending state writes and queued notifications."""
+    try:
+        _save_state(force=True)
+    except Exception:  # noqa: BLE001 — finalize must never crash shutdown
+        pass
+    try:
+        _flush_notification_queue()
+    except Exception:  # noqa: BLE001
+        pass
+
+
 # ── Hook: pre_gateway_dispatch ─────────────────────────────────────────
 # Fires once per incoming user-originated message (after the internal-event
 # guard, before auth/dispatch). The full MessageEvent is available; its
@@ -2237,6 +2255,8 @@ def register(ctx) -> None:
     ctx.register_hook("pre_approval_request", _on_approval_request)
     # Fresh-session rotations (/new, /reset)
     ctx.register_hook("on_session_reset", _on_session_reset)
+    # Shutdown/session-expiry flush: pending state + queued notifications
+    ctx.register_hook("on_session_finalize", _on_session_finalize)
     # LLM API resilience: survived provider errors (Indestructible)
     ctx.register_hook("api_request_error", _on_api_request_error)
     # Multi-user messaging: distinct senders seen by the gateway

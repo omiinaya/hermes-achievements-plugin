@@ -487,6 +487,60 @@ class TestSessionReset(HookTestBase):
         self.assertEqual(self.stats()["session_resets"], 3)
 
 
+class TestSessionFinalize(HookTestBase):
+    """on_session_finalize: shutdown flush of state + queued notifications."""
+
+    def test_finalize_forces_state_save(self):
+        # Debounced save may be pending — finalize must force it to disk
+        self.tool_call("terminal", {}, session_id="sess-fin")
+        # Simulate pending debounce: don't call _save_state, just finalize
+        self.mod._on_session_finalize(session_id="sess-fin", platform="gateway")
+        self.assertTrue(os.path.exists(self.mod._STATE_PATH))
+        import json as _json
+        with open(self.mod._STATE_PATH) as f:
+            saved = _json.load(f)
+        self.assertEqual(saved["stats"]["tools_used"]["terminal"], 1)
+
+    def test_finalize_flushes_queued_notifications(self):
+        # Queued unlocks not yet delivered (debounce window open) → flushed
+        captured = []
+
+        class FakeResp:
+            def __enter__(self): return self
+            def __exit__(self, *a): return False
+
+        def fake_urlopen(req, timeout=None):
+            captured.append(req.data)
+            return FakeResp()
+
+        self.mod._load_env_var = lambda key, fallback="": {
+            "DISCORD_BOT_TOKEN": "test-token",
+            "DISCORD_HOME_CHANNEL": "456",
+        }.get(key, fallback)
+        old_origin = os.environ.pop("HERMES_SESSION_CHAT_ID", None)
+        old = self.mod.urllib.request.urlopen
+        self.mod.urllib.request.urlopen = fake_urlopen
+        try:
+            self.mod._send_discord_notification(self.mod.ACHIEVEMENT_DEFS["first_steps"])
+            # Timer still pending — finalize delivers synchronously
+            self.mod._on_session_finalize(session_id="s", platform="gateway")
+        finally:
+            self.mod.urllib.request.urlopen = old
+            if old_origin is not None:
+                os.environ["HERMES_SESSION_CHAT_ID"] = old_origin
+        self.assertEqual(len(captured), 1)
+
+    def test_finalize_never_crashes(self):
+        # Broken state path + broken notification → finalize still returns
+        old_path, old_bak = self.mod._STATE_PATH, self.mod._STATE_BAK_PATH
+        self.mod._STATE_PATH = "/proc/definitely/not/writable/state.json"
+        self.mod._STATE_BAK_PATH = "/proc/definitely/not/writable/state.json.bak"
+        try:
+            self.mod._on_session_finalize(session_id="s", platform="gateway")
+        finally:
+            self.mod._STATE_PATH, self.mod._STATE_BAK_PATH = old_path, old_bak
+
+
 class TestSubagentStart(HookTestBase):
     """subagent_start: true concurrency tracking drives Conductor."""
 
@@ -1407,10 +1461,10 @@ class TestPluginRegistration(unittest.TestCase):
         hook_names = {n for n, _ in ctx.hooks}
         self.assertEqual(hook_names,
                          {"post_llm_call", "post_tool_call", "on_session_start",
-                          "on_session_end", "subagent_stop", "subagent_start",
+                          "on_session_end", "on_session_reset",
+                          "on_session_finalize", "subagent_stop", "subagent_start",
                           "post_approval_response", "pre_approval_request",
-                          "on_session_reset", "api_request_error",
-                          "pre_gateway_dispatch"})
+                          "api_request_error", "pre_gateway_dispatch"})
         cmd_names = {n for n, _ in ctx.commands}
         self.assertEqual(cmd_names, {"achievements", "achievement"})
         # Handlers are the real functions, not lambdas
