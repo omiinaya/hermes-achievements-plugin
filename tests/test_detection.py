@@ -932,24 +932,32 @@ class TestStatePersistence(HookTestBase):
             os.environ.pop("ACH_TEST_VAR", None)
 
     def test_notification_worker_never_crashes(self):
-        # A broken notification must be caught in the daemon thread
-        import threading
+        # A broken notification must be caught in the debounce flush
         ach_def = self.mod.ACHIEVEMENT_DEFS["first_steps"]
 
-        def boom(ach):
+        def boom(batch):
             raise RuntimeError("discord is down")
 
-        old = self.mod._send_discord_notification_sync
-        self.mod._send_discord_notification_sync = boom
-        threads_before = threading.active_count()
+        old = self.mod._send_discord_notification_batch
+        self.mod._send_discord_notification_batch = boom
         try:
             self.mod._send_discord_notification(ach_def)  # must not raise
+            self.mod._flush_notification_queue()  # must swallow the boom
         finally:
-            self.mod._send_discord_notification_sync = old
-        # Thread spawned; give it a moment to run & swallow the error
-        import time
-        time.sleep(0.05)
-        self.assertLessEqual(threading.active_count(), threads_before + 1)
+            self.mod._send_discord_notification_batch = old
+
+    def test_load_env_var_ignores_unreadable_dotenv(self):
+        # Unreadable .env must fall back to os.environ, not raise
+        env_file = os.path.join(self._tmp, ".env")
+        with open(env_file, "w") as f:
+            f.write("ACH_TEST_VAR=from-dotenv\n")
+        # Point _load_env_var at a non-existent path by removing the file
+        os.remove(env_file)
+        os.environ["ACH_TEST_VAR"] = "from-env"
+        try:
+            self.assertEqual(self.mod._load_env_var("ACH_TEST_VAR"), "from-env")
+        finally:
+            os.environ.pop("ACH_TEST_VAR", None)
 
     def test_send_notification_sync_skips_without_token(self):
         # No token configured → silent no-op, no HTTP attempt
