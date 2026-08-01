@@ -467,6 +467,9 @@
     "next_empty": "Sin progreso registrado aún — ¡sigue usando Hermes!",
     "help_next": "próximos",
     "stats_delegated": "Subagentes lanzados:        {count}",
-    "summary_hint": "Usa `/achievements <grupo>` para listas completas — ej. `/achievements tools_skills`"
+    "summary_hint": "Usa `/achievements <grupo>` para listas completas — ej. `/achievements tools_skills`",
+    "stats_approvals_always": "Aprobaciones permanentes: {count}",
+    "stats_approvals_denied": "Aprobaciones rechazadas:  {count}",
+    "stats_session_resets": "Reinicios de sesión:      {count}"
   }
 }

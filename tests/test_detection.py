@@ -732,6 +732,30 @@ class TestCommandHandlers(HookTestBase):
         self.assertIn("Unlocked:", out)
         self.assertIn("This session:", out)
 
+    def test_achievements_stats_shows_new_hook_counters(self):
+        # subagent_stop, approval responses, session resets all surface in stats
+        for _ in range(3):
+            self.mod._on_subagent_stop(
+                parent_session_id="s", child_role="leaf",
+                child_status="completed", duration_ms=1000,
+            )
+        self.mod._on_approval_response(
+            command="cmd", description="d", pattern_key="k",
+            session_key="s", surface="cli", choice="always",
+        )
+        self.mod._on_approval_response(
+            command="cmd", description="d", pattern_key="k",
+            session_key="s", surface="cli", choice="deny",
+        )
+        self.mod._on_session_reset(session_id="new", platform="discord")
+        out = self.mod._handle_achievements("stats")
+        self.assertIn("Subagents spawned:", out)
+        self.assertIn("Permanent approvals:", out)
+        self.assertIn("Approvals denied:", out)
+        self.assertIn("Session resets:", out)
+        # 3 children, not the legacy parallel_spawns counter
+        self.assertIn("3", out)
+
     def test_achievements_group_filter(self):
         out = self.mod._handle_achievements("getting_started")
         self.assertIn("Getting Started", out)

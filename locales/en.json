@@ -467,6 +467,9 @@
     "next_empty": "No progress tracked yet — keep using Hermes!",
     "help_next": "next up",
     "stats_delegated": "Subagents spawned:          {count}",
-    "summary_hint": "Use `/achievements <group>` for full lists — e.g. `/achievements tools_skills`"
+    "summary_hint": "Use `/achievements <group>` for full lists — e.g. `/achievements tools_skills`",
+    "stats_approvals_always": "Permanent approvals:     {count}",
+    "stats_approvals_denied": "Approvals denied:         {count}",
+    "stats_session_resets": "Session resets:           {count}"
   }
 }

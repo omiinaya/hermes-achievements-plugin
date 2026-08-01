@@ -1803,8 +1803,15 @@ def _handle_achievements(raw_args: str) -> str:
                 lines.append(_t("ui.stats_skills_created", locale, count=stats.get("skills_created", 0)))
             if stats.get("config_changes"):
                 lines.append(_t("ui.stats_config", locale, count=stats.get("config_changes", 0)))
-            if stats.get("parallel_spawns"):
-                lines.append(_t("ui.stats_delegated", locale, count=stats.get("parallel_spawns", 0)))
+            # Authoritative subagent count (children, not delegate_task calls)
+            if stats.get("subagents_spawned"):
+                lines.append(_t("ui.stats_delegated", locale, count=stats.get("subagents_spawned", 0)))
+            if stats.get("approvals_always"):
+                lines.append(_t("ui.stats_approvals_always", locale, count=stats.get("approvals_always", 0)))
+            if stats.get("approvals_denied"):
+                lines.append(_t("ui.stats_approvals_denied", locale, count=stats.get("approvals_denied", 0)))
+            if stats.get("session_resets"):
+                lines.append(_t("ui.stats_session_resets", locale, count=stats.get("session_resets", 0)))
             platforms = stats.get("platforms", [])
             if isinstance(platforms, set):
                 platforms = sorted(platforms)
