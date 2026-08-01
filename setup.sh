@@ -114,6 +114,12 @@ if $RUN_TESTS; then
         err "Test suite failed — the installed plugin may be incomplete."
         exit 1
     fi
+    if (cd "$PLUGIN_DIR" && python3 scripts/check_plugin.py); then
+        ok "Health check passed (defs, locales, manifest↔register agreement)"
+    else
+        err "Health check failed — installed files are inconsistent."
+        exit 1
+    fi
 fi
 
 # ── Step 3: Validate environment ────────────────────────────────────────────
