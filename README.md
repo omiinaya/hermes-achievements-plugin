@@ -65,12 +65,12 @@ Notifications are rarity-colored Discord embeds (gray → gold) posted asynchron
   ✅ **First Steps** — Send your first message to Hermes
   ✅ **Web Walker** — Search the web using Hermes
 
-🚀 **Getting Started** (2/12) ██░░░░░░░░
+🚀 **Getting Started** (2/10) ██░░░░░░░░
 🛠️ **Tools & Skills** (2/28) █░░░░░░░░░
 ⚡ **Power User** (0/23) ░░░░░░░░░░
 👑 **Expert** (0/18) ░░░░░░░░░░
 🎯 **Milestones** (0/15) ░░░░░░░░░░
-🤝 **Community** (0/4) ░░░░░░░░░░
+🤝 **Community** (0/6) ░░░░░░░░░░
 
 🔮 Closest to unlock: **Terminal Jockey** ███░░░░░░░ 3/25 (12%)
 
