@@ -707,6 +707,44 @@ class TestPerTurnSignals(HookTestBase):
             user_message="", conversation_history=[], model="m1", platform="cli")
         self.assertFalse(self.unlocked("first_steps"))
 
+    def test_multi_model_at_5_models(self):
+        for i in range(5):
+            self.turn(f"hi {i}", model=f"model-{i}", platform="discord")
+        self.assertTrue(self.unlocked("multi_model"))
+        self.assertFalse(self.unlocked("model_collector"))
+
+    def test_model_collector_at_10_models(self):
+        for i in range(10):
+            self.turn(f"hi {i}", model=f"model-{i}", platform="discord")
+        self.assertTrue(self.unlocked("model_collector"))
+
+    def test_cross_platform_veteran_at_5_platforms(self):
+        for i, plat in enumerate(["discord", "telegram", "whatsapp", "slack", "matrix"]):
+            self.turn(f"hi {i}", model=f"m-{i}", platform=plat)
+        self.assertTrue(self.unlocked("cross_platform_veteran"))
+        self.assertTrue(self.unlocked("gateway_networker"))
+
+    def test_gateway_networker_progress_before_3(self):
+        self.turn("hi", model="m1", platform="discord")
+        self.turn("hi2", model="m1", platform="telegram")
+        self.assertFalse(self.unlocked("gateway_networker"))
+        st = self.mod._load_state()["achievements"]["gateway_networker"]
+        self.assertEqual(st["progress"]["current"], 2)
+
+    def test_platform_falls_back_to_cli_when_missing(self):
+        self.turn("hi", model="m1")  # no platform kwarg
+        self.assertIn("cli", self.stats()["platforms"])
+
+    def test_post_tool_call_without_tool_name_is_noop(self):
+        self.mod._post_tool_call(args={}, session_id="s", duration_ms=10)
+        st = self.stats()
+        self.assertEqual(st.get("total_tool_calls", 0), 0)
+
+    def test_tool_call_with_non_dict_args(self):
+        # args not a dict must not crash _check_tool_args
+        self.mod._post_tool_call(tool_name="cronjob", args="bad", session_id="s")
+        self.assertFalse(self.unlocked("cron_commander"))
+
 
 class TestStreakEdgeCases(HookTestBase):
     """on_session_end streak bookkeeping edge cases."""
@@ -740,6 +778,27 @@ class TestStreakEdgeCases(HookTestBase):
         self.mod._on_session_end(session_id="s1")
         self.mod._on_session_end(session_id="s2")
         self.assertEqual(self.stats()["current_streak"], 1)
+
+    def test_streak_future_date_resets(self):
+        # last_active in the future (clock skew) → reset, don't crash
+        from datetime import date, timedelta
+        self.mod._on_session_end(session_id="s1")
+        st = self.stats()
+        st["last_active_date"] = (date.today() + timedelta(days=1)).isoformat()  # noqa: DTZ011
+        self.mod._on_session_end(session_id="s2")
+        self.assertEqual(self.stats()["current_streak"], 1)
+
+    def test_locale_load_ignores_unreadable_dir(self):
+        # Unreadable locale dir → empty cache with en fallback, no crash
+        old_dir = self.mod._LOCALES_DIR
+        self.mod._LOCALES_DIR = "/proc/definitely/not/a/locales/dir"
+        self.mod._locales_cache = {}
+        try:
+            cache = self.mod._load_locales()
+            self.assertIn("en", cache)
+        finally:
+            self.mod._LOCALES_DIR = old_dir
+            self.mod._locales_cache = {}
 
 
 class TestStatePersistence(HookTestBase):
