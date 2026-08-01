@@ -749,7 +749,10 @@ class TestPerTurnSignals(HookTestBase):
         self.assertEqual(st["progress"]["current"], 2)
 
     def test_platform_falls_back_to_cli_when_missing(self):
-        self.turn("hi", model="m1")  # no platform kwarg
+        self.mod._post_llm_call(
+            user_message="hi", conversation_history=[{"role": "user", "content": "hi"}],
+            model="m1", platform="",
+        )
         self.assertIn("cli", self.stats()["platforms"])
 
     def test_post_tool_call_without_tool_name_is_noop(self):
@@ -1644,6 +1647,20 @@ class TestCommandHandlers(HookTestBase):
     def test_next_hint_empty_when_nothing_in_progress(self):
         hint = self.mod._next_up_hint(self.mod._load_state())
         self.assertEqual(hint, "")
+
+    def test_next_up_skips_achievements_meeting_threshold(self):
+        # Progress >= target but unlock hasn't fired → excluded from next-up
+        self.mod._set_progress("terminal_jockey", 25, 25)
+        out = self.mod._handle_achievements("next")
+        self.assertNotIn("Terminal Jockey", out)
+
+    def test_recent_uses_newly_when_present(self):
+        self.mod._unlock("first_steps")
+        self.mod._unlock("terminal_jockey")
+        self.mod._state["newly_unlocked"] = ["first_steps", "terminal_jockey"]
+        out = self.mod._handle_achievements("recent")
+        self.assertIn("First Steps", out)
+        self.assertIn("Terminal Jockey", out)
 
 
 class TestSecretAchievements(HookTestBase):
