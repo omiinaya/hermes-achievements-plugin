@@ -385,6 +385,10 @@
       "name": "Tool Obsessed",
       "description": "Accumulate 1,000 total tool calls"
     },
+    "trial_and_error": {
+      "name": "Trial and Error",
+      "description": "Persist through 25 tool calls that errored"
+    },
     "trust_fall": {
       "name": "Trust Fall",
       "description": "Approve a command permanently with 'always'"

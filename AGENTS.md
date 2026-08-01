@@ -2,7 +2,7 @@
 
 ## What this is
 
-A Hermes Agent plugin that awards 104 Steam-style achievement badges for
+A Hermes Agent plugin that awards 105 Steam-style achievement badges for
 using Hermes. Pure Python stdlib, no external dependencies.
 
 ## Repo layout
@@ -22,7 +22,7 @@ using Hermes. Pure Python stdlib, no external dependencies.
 - `scripts/bump_version.py` — updates the version in all 4 places that
   carry it (pyproject.toml, plugin.yaml, setup.sh ×2) in one shot
 - `scripts/check_plugin.py` — health check: module loads, manifest↔register()
-  hook agreement, exactly-104 defs, locale parity, no dead detection-map
+  hook agreement, exactly-105 defs, locale parity, no dead detection-map
   references, live state.json reconciliation (--live), real PluginManager
   load (--manifest), and hook kwarg contract vs the installed Hermes
   source (--gateway — catches silent no-op drift if Hermes renames a
@@ -33,7 +33,7 @@ using Hermes. Pure Python stdlib, no external dependencies.
 
 | Hook | Fires | Owns |
 |------|-------|------|
-| `post_tool_call` | every tool execution (has `tool_name`, `args`, `session_id`, `duration_ms`) | per-tool counts, per-session tracking, argument-based achievements (cron chaining, parallel delegation, skill/plugin authoring), Quick Draw |
+| `post_tool_call` | every tool execution (has `tool_name`, `args`, `session_id`, `duration_ms`, `status` ok/cancelled/block/error, `error_type`) | per-tool counts, per-session tracking, argument-based achievements (cron chaining, parallel delegation, skill/plugin authoring), Quick Draw, tool-error counting (Trial and Error — 25 failed calls) |
 | `post_llm_call` | once per turn | cumulative message counts, model/platform diversity, user-command patterns, tiered counters, group/rarity completions |
 | `post_api_request` | once per successful provider API request (has `usage` token buckets, `api_duration` in seconds, `finish_reason`) | cumulative token milestones (Token Tyro/Wizard/Whale), fast-response counting (Speed Demon), `total_tokens` stat |
 | `on_session_start` | new session created | `total_sessions` counter |
@@ -49,7 +49,7 @@ using Hermes. Pure Python stdlib, no external dependencies.
 
 ## Key invariants
 
-- **Exactly 104 achievements** — `tests/test_plugin.py` enforces this.
+- **Exactly 105 achievements** — `tests/test_plugin.py` enforces this.
 - **All achievement IDs must be detectable** — every def needs a path in
   `_TOOL_ACHIEVEMENTS`, `_TOOL_THRESHOLDS`, `TERMINAL_PATTERNS`,
   `_check_tool_args()`, `_check_counter_achievements()`, or an explicit
@@ -75,7 +75,7 @@ python3 -m pytest tests/ -q    # 226 tests, no deps beyond pytest
 
 - `tests/test_detection.py::TestEveryAchievementUnlockable` — full-grind
   simulation: drives every hook with escalating synthetic gateway data and
-  asserts **all 104 defs actually unlock**. This is the enforcement of the
+  asserts **all 105 defs actually unlock**. This is the enforcement of the
   "every def must be detectable" invariant — after any swap, a dead def
   (impossible threshold, typo'd key, missing path) fails the run with its
   ID listed. Keep the grind's tool/command data broad enough to cover

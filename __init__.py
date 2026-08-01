@@ -730,7 +730,7 @@ ACHIEVEMENT_DEFS = {
     },
 
     # ═══════════════════════════════════════════════════════════════════════
-    # 👑 EXPERT  (18)
+    # 👑 EXPERT  (19)
     # ═══════════════════════════════════════════════════════════════════════
     "the_90_turn_club": {
         "id": "the_90_turn_club", "name": "The 90-Turn Club", "emoji": "🤖",
@@ -821,6 +821,11 @@ ACHIEVEMENT_DEFS = {
     "under_scrutiny": {
         "id": "under_scrutiny", "name": "Under Scrutiny", "emoji": "🔍",
         "description": "Trigger 10 approval requests",
+        "rarity": "rare", "group": "Expert",
+    },
+    "trial_and_error": {
+        "id": "trial_and_error", "name": "Trial and Error", "emoji": "🔬",
+        "description": "Persist through 25 tool calls that errored",
         "rarity": "rare", "group": "Expert",
     },
 
@@ -1320,6 +1325,15 @@ def _post_tool_call(**kwargs):
         )
         if active["fast_streak"] >= 5:
             _unlock("quick_draw", now)
+
+    # ── Tool-error resilience (status from gateway: ok/cancelled/block/error)
+    status = kwargs.get("status", "ok")
+    if status == "error":
+        stats["tool_errors"] = stats.get("tool_errors", 0) + 1
+        if stats["tool_errors"] >= 25:
+            _unlock("trial_and_error", now)
+        else:
+            _set_progress("trial_and_error", stats["tool_errors"], 25)
 
     # ── First-use achievements ─────────────────────────────────
     ach_id = _TOOL_ACHIEVEMENTS.get(tool_name)

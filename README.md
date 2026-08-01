@@ -6,7 +6,7 @@
 [![CI](https://github.com/omiinaya/hermes-achievements-plugin/actions/workflows/test.yml/badge.svg)](https://github.com/omiinaya/hermes-achievements-plugin/actions/workflows/test.yml)
 [![Coverage](https://img.shields.io/badge/coverage-99%25-brightgreen.svg)](https://github.com/omiinaya/hermes-achievements-plugin/actions/workflows/test.yml)
 
-**104 Steam-style achievement badges** for [Hermes Agent](https://hermes-agent.nousresearch.com). Unlock achievements as you use Hermes — run commands, search the web, schedule cron jobs, create skills, and explore the platform. Achievements are tracked silently and delivered to your Discord home channel the moment they unlock.
+**105 Steam-style achievement badges** for [Hermes Agent](https://hermes-agent.nousresearch.com). Unlock achievements as you use Hermes — run commands, search the web, schedule cron jobs, create skills, and explore the platform. Achievements are tracked silently and delivered to your Discord home channel the moment they unlock.
 
 ## Quick Start
 
@@ -204,7 +204,7 @@ unlock them, Steam-style. Currently secret: `Fresh Start`, `Cautious`,
 | 🤖 | Marathon Session | Reach 200 tool calls in a single session | Legendary |
 | 🧩 | Plugin Developer | Create your own Hermes plugin | Legendary |
 
-### 👑 Expert (18)
+### 👑 Expert (19)
 
 | Icon | Name | Description | Rarity |
 |------|------|-------------|--------|
@@ -216,6 +216,7 @@ unlock them, Steam-style. Currently secret: `Fresh Start`, `Cautious`,
 | 🎯 | Precision Scheduler | Schedule a one-shot cron job for a specific time | Rare |
 | ⚙️ | Environment Tuner | Configure custom environment variables for a cron job | Rare |
 | 🔍 | Under Scrutiny | Trigger 10 approval requests | Rare |
+| 🔬 | Trial and Error | Persist through 25 tool calls that errored | Rare |
 | 🤖 | The 90-Turn Club | Reach 90 tool calls in a single session (default max_turns) | Epic |
 | 📡 | Cross-Platform Operative | Chat with Hermes from 2+ different platforms | Epic |
 | 🔌 | MCP Wizard | Write a custom MCP server configuration | Epic |
@@ -266,7 +267,7 @@ unlock them, Steam-style. Currently secret: `Fresh Start`, `Cautious`,
 
 Achievements are detected via thirteen plugin hooks — no separate scanner or cron job needed:
 
-1. **`post_tool_call`** fires after *every* tool execution with the full tool arguments. This is the primary detection path: per-tool usage counters, per-session tool tracking, and argument-based achievements (cron job chaining via `context_from`, parallel delegation via `tasks`, plugin/hook authoring via file content, skill creation).
+1. **`post_tool_call`** fires after *every* tool execution with the full tool arguments. This is the primary detection path: per-tool usage counters, per-session tool tracking, argument-based achievements (cron job chaining via `context_from`, parallel delegation via `tasks`, plugin/hook authoring via file content, skill creation), and tool-error resilience (the gateway's `status="error"` feeds Trial and Error — 25 failed calls).
 2. **`post_llm_call`** fires once per turn and handles per-turn signals: cumulative message counts, model/platform diversity, user-command pattern matching (`hermes doctor`, `/title`, `--yolo`, ...), tiered command counters (config changes, plugins enabled, skills installed), and group/rarity completion checks.
 3. **`post_api_request`** fires once per successful provider API request with normalized `usage` token buckets and `api_duration` in seconds. It powers the token-consumption milestones (Token Tyro/Wizard/Whale at 100K/1M/10M tokens) and the fast-response achievement (Speed Demon — 25 responses under 2s), plus the "Tokens consumed" stat.
 4. **`on_session_start`** counts distinct sessions (drives the Persistent / session milestones).

@@ -917,7 +917,7 @@ class TestStreakEdgeCases(HookTestBase):
         self.mod._locales_cache = {}
         try:
             cache = self.mod._load_locales()
-            self.assertEqual(len(cache.get("en", {}).get("achievement", {})), 104)
+            self.assertEqual(len(cache.get("en", {}).get("achievement", {})), 105)
         finally:
             self.mod._LOCALES_DIR = old_dir
             self.mod._WHEEL_DATA_DIR = old_wheel
@@ -2021,7 +2021,7 @@ class TestReadmeSync(unittest.TestCase):
         result = subprocess.run([_sys.executable, script], capture_output=True, text=True,
                                 cwd=PLUGIN_DIR, check=False)
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertIn("OK: 104 achievements", result.stdout)
+        self.assertIn("OK: 105 achievements", result.stdout)
 
     def test_health_check_script_passes(self):
         # The health check must pass against the repo checkout (defs,
@@ -2057,7 +2057,7 @@ class TestReadmeSync(unittest.TestCase):
 
 
 class TestEveryAchievementUnlockable(HookTestBase):
-    """Full-grind simulation: prove all 104 achievement defs can unlock.
+    """Full-grind simulation: prove all 105 achievement defs can unlock.
 
     After several rounds of achievement swaps (v2.3.0, v2.4.0, v2.4.1),
     a def could sit in a detection map with an impossible condition (wrong
@@ -2209,6 +2209,13 @@ class TestEveryAchievementUnlockable(HookTestBase):
                     child_role=role, child_status=status, duration_ms=500,
                 )
 
+            # ── Tool errors: 30 failed calls → Trial and Error ──
+            for i in range(30):
+                mod._post_tool_call(
+                    tool_name="terminal", args={}, session_id="s-main",
+                    duration_ms=500, status="error",
+                )
+
             # ── API requests: token milestones + fast responses ──
             # 12K tokens × 1050 requests = 12.6M → crosses all three token
             # thresholds. Alternate 0.5s (fast) / 9.0s (slow) → 525 fast
@@ -2249,7 +2256,7 @@ class TestEveryAchievementUnlockable(HookTestBase):
             )
             mod._check_completionist()
 
-    def test_all_104_achievements_can_unlock(self):
+    def test_all_105_achievements_can_unlock(self):
         """Every def in ACHIEVEMENT_DEFS must unlock through real hooks."""
         self._grind()
         state = self.mod._load_state()
@@ -2263,7 +2270,7 @@ class TestEveryAchievementUnlockable(HookTestBase):
             f"{locked}",
         )
 
-    def test_completionist_unlocks_as_104th(self):
+    def test_completionist_unlocks_as_105th(self):
         """Completionist requires every other achievement first."""
         self._grind()
         state = self.mod._load_state()
@@ -2273,7 +2280,7 @@ class TestEveryAchievementUnlockable(HookTestBase):
             1 for aid in self.mod.ACHIEVEMENT_DEFS
             if state["achievements"].get(aid, {}).get("unlocked")
         )
-        self.assertEqual(unlocked, 104)
+        self.assertEqual(unlocked, 105)
 
 
 if __name__ == "__main__":

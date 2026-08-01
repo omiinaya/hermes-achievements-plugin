@@ -385,6 +385,10 @@
       "name": "Obcecado por Ferramentas",
       "description": "Acumular 1.000 chamadas de ferramenta no total"
     },
+    "trial_and_error": {
+      "name": "Tentativa e Erro",
+      "description": "Persista através de 25 chamadas de ferramenta que falharam"
+    },
     "trust_fall": {
       "name": "Queda de Confiança",
       "description": "Aprove um comando permanentemente com 'always'"

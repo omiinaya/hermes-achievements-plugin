@@ -385,6 +385,10 @@
       "name": "Obsédé des Outils",
       "description": "Accumuler 1 000 appels d'outils au total"
     },
+    "trial_and_error": {
+      "name": "Essais et Erreurs",
+      "description": "Persévérez à travers 25 appels d'outils qui ont échoué"
+    },
     "trust_fall": {
       "name": "Chute de Confiance",
       "description": "Approuvez une commande définitivement avec « always »"

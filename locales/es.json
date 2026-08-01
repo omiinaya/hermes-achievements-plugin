@@ -385,6 +385,10 @@
       "name": "Obsesionado con las Herramientas",
       "description": "Acumula 1,000 llamadas a herramientas en total"
     },
+    "trial_and_error": {
+      "name": "Ensayo y Error",
+      "description": "Persiste a través de 25 llamadas a herramientas que fallaron"
+    },
     "trust_fall": {
       "name": "Caída de Confianza",
       "description": "Aprueba un comando permanentemente con 'always'"
