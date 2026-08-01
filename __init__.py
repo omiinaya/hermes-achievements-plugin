@@ -1817,11 +1817,11 @@ def _on_session_finalize(**kwargs):
     """Flush pending state writes and queued notifications."""
     try:
         _save_state(force=True)
-    except Exception:  # noqa: BLE001 — finalize must never crash shutdown
+    except Exception:  # noqa: BLE001, S110 — finalize must never crash shutdown
         pass
     try:
         _flush_notification_queue()
-    except Exception:  # noqa: BLE001
+    except Exception:  # noqa: BLE001, S110 — finalize must never crash shutdown
         pass
 
 
