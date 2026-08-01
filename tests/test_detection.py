@@ -1469,6 +1469,29 @@ class TestCommandHandlers(HookTestBase):
         out = self.mod._t("achievement.first_steps.name", None)
         self.assertEqual(out, "First Steps")
 
+    def test_t_unknown_key_returns_raw_key(self):
+        out = self.mod._t("achievement.nonexistent.name", "en")
+        self.assertEqual(out, "achievement.nonexistent.name")
+
+    def test_t_invalid_locale_falls_back_to_english(self):
+        out = self.mod._t("achievement.first_steps.name", "xx")
+        self.assertEqual(out, "First Steps")
+
+    def test_t_format_error_returns_unformatted(self):
+        # Missing format arg → unformatted string, not an exception
+        out = self.mod._t("ui.stats_cron", "en")
+        self.assertEqual(out, self.mod._load_locales()["en"]["ui"]["stats_cron"])
+
+    def test_t_non_dict_intermediate_returns_key(self):
+        # A malformed locale where a key maps to a non-dict must not crash
+        cache = self.mod._load_locales()
+        cache["en"]["achievement"] = "not-a-dict"
+        out = self.mod._t("achievement.first_steps.name", "en")
+        self.assertEqual(out, "achievement.first_steps.name")
+        # Restore for other tests
+        cache.pop("en", None)
+        self.mod._locales_cache = {}
+
     def test_default_view_shows_recently_unlocked_section(self):
         # Unlock something in this session, then view the default list
         self.mod._unlock("first_steps")
