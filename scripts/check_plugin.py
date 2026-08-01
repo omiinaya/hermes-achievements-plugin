@@ -223,6 +223,12 @@ def main():
     print("── 3. Achievement defs ──")
     defs = mod.ACHIEVEMENT_DEFS
     check("exactly 153 defs", len(defs) == 153, f"{len(defs)} found")
+    # pyproject description carries the badge count too — it rotted once
+    # (146 when the defs reached 153) because nothing guarded it.
+    desc_m = re.search(r'^description\s*=\s*"(\d+) Steam-style', _read(os.path.join(ROOT, "pyproject.toml")), re.MULTILINE)
+    check("pyproject description count matches defs",
+          desc_m is not None and int(desc_m.group(1)) == len(defs),
+          f"description says {desc_m.group(1) if desc_m else '?'} defs, actual {len(defs)}")
     bad_defs = [aid for aid, d in defs.items()
                 if not d.get("name") or not d.get("description")
                 or not d.get("rarity") or not d.get("group")]
