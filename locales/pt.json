@@ -157,6 +157,10 @@
       "name": "Cortado",
       "description": "Atingiu o limite de tokens de saída do modelo (finish_reason=length)"
     },
+    "danger_collector": {
+      "name": "Colecionador de Perigos",
+      "description": "Aprove comandos em 15 classes de perigo diferentes"
+    },
     "data_flood": {
       "name": "Enchente de Dados",
       "description": "Produza 1MB+ de saída de um único comando de terminal"
@@ -253,9 +257,17 @@
       "name": "Conversador Lendário",
       "description": "Enviar 1.000 mensagens no total"
     },
+    "living_on_the_edge": {
+      "name": "Vivendo no Limite",
+      "description": "Aprove comandos em 25 classes de perigo diferentes"
+    },
     "local_first": {
       "name": "Local Primeiro",
       "description": "Execute o Hermes contra um endpoint de modelo local"
+    },
+    "long_distance_operator": {
+      "name": "Operador de Longa Distância",
+      "description": "Aprove 10 comandos perigosos de uma plataforma de chat"
     },
     "manual_override": {
       "name": "Anulação Manual",
@@ -397,9 +409,17 @@
       "name": "Leitor de Releases",
       "description": "Ler as últimas notas de versão do Hermes"
     },
+    "remote_warden": {
+      "name": "Guardião Remoto",
+      "description": "Aprove um comando perigoso de uma plataforma de chat"
+    },
     "resilient": {
       "name": "Resiliente",
       "description": "Conclua uma tarefa após uma falha de subagente"
+    },
+    "risk_explorer": {
+      "name": "Explorador de Riscos",
+      "description": "Aprove comandos em 5 classes de perigo diferentes"
     },
     "self_hosted": {
       "name": "Auto-Hospedado",
@@ -639,6 +659,8 @@
     "recent_unlocked_section": "**🔥 Desbloqueadas Recentemente:**",
     "stats_api_errors": "Erros de API superados:   {count}",
     "stats_approval_requests": "Aprovações solicitadas:   {count}",
+    "stats_approvals_gateway": "Aprovações remotas:       {count}",
+    "stats_approved_patterns": "Classes de perigo aprovadas: {count}",
     "stats_approvals_always": "Aprovações permanentes:   {count}",
     "stats_approvals_denied": "Aprovações negadas:       {count}",
     "stats_config": "Alterações de configuração: {count}",

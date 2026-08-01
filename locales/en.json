@@ -157,6 +157,10 @@
       "name": "Cut Short",
       "description": "Hit the model's output token limit (finish_reason=length)"
     },
+    "danger_collector": {
+      "name": "Danger Collector",
+      "description": "Approve commands in 15 different danger classes"
+    },
     "data_flood": {
       "name": "Data Flood",
       "description": "Produce 1MB+ of output from a single terminal command"
@@ -253,9 +257,17 @@
       "name": "Legendary Chatter",
       "description": "Send 1,000 messages total"
     },
+    "living_on_the_edge": {
+      "name": "Living on the Edge",
+      "description": "Approve commands in 25 different danger classes"
+    },
     "local_first": {
       "name": "Local First",
       "description": "Run Hermes against a local/self-hosted model endpoint"
+    },
+    "long_distance_operator": {
+      "name": "Long-Distance Operator",
+      "description": "Approve 10 dangerous commands from a chat platform"
     },
     "manual_override": {
       "name": "Manual Override",
@@ -397,9 +409,17 @@
       "name": "Release Reader",
       "description": "Read the latest Hermes release notes"
     },
+    "remote_warden": {
+      "name": "Remote Warden",
+      "description": "Approve a dangerous command from a chat platform"
+    },
     "resilient": {
       "name": "Resilient",
       "description": "Complete a task after a subagent failed"
+    },
+    "risk_explorer": {
+      "name": "Risk Explorer",
+      "description": "Approve commands in 5 different danger classes"
     },
     "self_hosted": {
       "name": "Self-Hosted",
@@ -639,6 +659,8 @@
     "recent_unlocked_section": "**🔥 Recently Unlocked:**",
     "stats_api_errors": "LLM API errors survived:  {count}",
     "stats_approval_requests": "Approvals requested:      {count}",
+    "stats_approvals_gateway": "Remote approvals:         {count}",
+    "stats_approved_patterns": "Danger classes approved:  {count}",
     "stats_approvals_always": "Permanent approvals:     {count}",
     "stats_approvals_denied": "Approvals denied:         {count}",
     "stats_config": "Config changes:             {count}",

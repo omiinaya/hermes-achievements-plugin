@@ -286,6 +286,8 @@ def _new_state():
             "tool_interrupts": 0,
             "tool_blocks": 0,
             "max_retry_depth": 0,
+            "approvals_gateway": 0,
+            "approved_patterns": set(),
             # Live per-session tracking (reset whenever session_id changes)
             "active_session": {
                 "id": None,
@@ -303,7 +305,7 @@ def _new_state():
 def _normalize_state():
     """Convert list fields back to sets for internal use."""
     stats = _state.setdefault("stats", {})
-    for key in ("platforms", "models_used", "providers_used", "slash_commands_used", "hooks_used", "users_seen", "env_types"):
+    for key in ("platforms", "models_used", "providers_used", "slash_commands_used", "hooks_used", "users_seen", "env_types", "approved_patterns"):
         v = stats.get(key)
         if isinstance(v, set):
             continue
@@ -913,7 +915,7 @@ ACHIEVEMENT_DEFS = {
     },
 
     # ═══════════════════════════════════════════════════════════════════════
-    # 👑 EXPERT  (35)
+    # 👑 EXPERT  (40)
     # ═══════════════════════════════════════════════════════════════════════
     "the_90_turn_club": {
         "id": "the_90_turn_club", "name": "The 90-Turn Club", "emoji": "🤖",
@@ -1045,6 +1047,31 @@ ACHIEVEMENT_DEFS = {
         "id": "brick_wall", "name": "Brick Wall", "emoji": "🧱",
         "description": "Hit 10 tool calls blocked by policy",
         "rarity": "rare", "group": "Expert",
+    },
+    "remote_warden": {
+        "id": "remote_warden", "name": "Remote Warden", "emoji": "🛰️",
+        "description": "Approve a dangerous command from a chat platform",
+        "rarity": "uncommon", "group": "Expert",
+    },
+    "long_distance_operator": {
+        "id": "long_distance_operator", "name": "Long-Distance Operator", "emoji": "🚁",
+        "description": "Approve 10 dangerous commands from a chat platform",
+        "rarity": "rare", "group": "Expert",
+    },
+    "risk_explorer": {
+        "id": "risk_explorer", "name": "Risk Explorer", "emoji": "🧨",
+        "description": "Approve commands in 5 different danger classes",
+        "rarity": "uncommon", "group": "Expert",
+    },
+    "danger_collector": {
+        "id": "danger_collector", "name": "Danger Collector", "emoji": "⚗️",
+        "description": "Approve commands in 15 different danger classes",
+        "rarity": "rare", "group": "Expert",
+    },
+    "living_on_the_edge": {
+        "id": "living_on_the_edge", "name": "Living on the Edge", "emoji": "☢️",
+        "description": "Approve commands in 25 different danger classes",
+        "rarity": "epic", "group": "Expert",
     },
 
     # ═══════════════════════════════════════════════════════════════════════
@@ -1316,6 +1343,28 @@ _BLOCK_THRESHOLDS = [
 # requires raising api_max_retries (an intentional resilience config).
 _TENACIOUS_RETRY_DEPTH = 2
 _UNDETERRED_RETRY_DEPTH = 4
+
+# Approval-surface thresholds (surface from post_approval_response): the
+# platform where the user answered an approval prompt. "gateway" means a
+# chat adapter (Discord/Telegram/Slack) — approving a dangerous command
+# REMOTELY is bolder than at the CLI, so surface is a real dimension
+# distinct from the choice itself (always/deny feed YOLO/Cautious).
+_APPROVAL_SURFACE_THRESHOLDS = [
+    (1, "remote_warden"),
+    (10, "long_distance_operator"),
+]
+
+# Danger-class diversity thresholds (pattern_keys from post_approval_response):
+# the set of DISTINCT dangerous-command classes the user has approved (the
+# gateway's ~40 patterns: rm, chmod, mkfs, dd, DROP TABLE, systemctl,
+# kill -9, curl|sh, docker down, git push --force, sudo -S...). Repeated
+# approvals of the same class add nothing — breadth of risk appetite is
+# the dimension (Under Scrutiny only counts total prompt volume).
+_APPROVAL_PATTERN_THRESHOLDS = [
+    (5, "risk_explorer"),
+    (15, "danger_collector"),
+    (25, "living_on_the_edge"),
+]
 
 
 # Single-response tool-batch thresholds (api_request_id from pre_tool_call):
@@ -2575,11 +2624,12 @@ def _on_approval_request(**kwargs):
 
 # ── Hook: post_approval_response ────────────────────────────────────────
 # Fires after the user responds to an approval prompt, with
-# choice: "once" | "session" | "always" | "deny" | "timeout".
-# "always" = permanent trust (real YOLO mode); "deny" = cautious.
+# choice: "once" | "session" | "always" | "deny" | "timeout",
+# surface: "cli" | "gateway", pattern_key + pattern_keys (danger classes).
 
 def _on_approval_response(**kwargs):
-    """Detect approval behavior: permanent trust, denial, yolo mode."""
+    """Detect approval behavior: permanent trust, denial, yolo mode,
+    remote approvals (gateway surface), and danger-class diversity."""
     state = _load_state()
     stats = state.setdefault("stats", {})
     now = datetime.now(UTC).isoformat()
@@ -2600,6 +2650,36 @@ def _on_approval_response(**kwargs):
     elif choice == "deny":
         stats["approvals_denied"] = stats.get("approvals_denied", 0) + 1
         _unlock("cautious", now)
+
+    # ── Approval-context dimension ────────────────────────────
+    # Only a positive answer is an approval; deny/timeout are not.
+    if choice in ("once", "session", "always"):
+        # Surface: where the user answered. Gateway = remote approval.
+        if kwargs.get("surface") == "gateway":
+            stats["approvals_gateway"] = stats.get("approvals_gateway", 0) + 1
+            gateway_count = stats["approvals_gateway"]
+            for threshold, ach_id in _APPROVAL_SURFACE_THRESHOLDS:
+                if gateway_count >= threshold:
+                    _unlock(ach_id, now)
+                else:
+                    _set_progress(ach_id, gateway_count, threshold)
+
+        # Danger-class diversity: distinct patterns approved. pattern_keys
+        # is a list (one command can match several classes); dedupe into
+        # a persisted set so repeat approvals of the same class add nothing.
+        pattern_keys = kwargs.get("pattern_keys") or []
+        if pattern_keys:
+            approved = stats.setdefault("approved_patterns", set())
+            if not isinstance(approved, set):
+                approved = set(approved)
+                stats["approved_patterns"] = approved
+            approved.update(k for k in pattern_keys if k)
+            distinct = len(approved)
+            for threshold, ach_id in _APPROVAL_PATTERN_THRESHOLDS:
+                if distinct >= threshold:
+                    _unlock(ach_id, now)
+                else:
+                    _set_progress(ach_id, distinct, threshold)
 
     _check_group_completions()
     _check_completionist()
@@ -2937,6 +3017,10 @@ def _handle_achievements(raw_args: str) -> str:
                 lines.append(_t("ui.stats_approvals_denied", locale, count=stats.get("approvals_denied", 0)))
             if stats.get("approval_requests"):
                 lines.append(_t("ui.stats_approval_requests", locale, count=stats.get("approval_requests", 0)))
+            if stats.get("approvals_gateway"):
+                lines.append(_t("ui.stats_approvals_gateway", locale, count=stats.get("approvals_gateway", 0)))
+            if stats.get("approved_patterns"):
+                lines.append(_t("ui.stats_approved_patterns", locale, count=len(stats.get("approved_patterns", set()))))
             if stats.get("max_concurrent_subagents"):
                 lines.append(_t("ui.stats_max_concurrent", locale, count=stats.get("max_concurrent_subagents", 0)))
             if stats.get("api_errors"):

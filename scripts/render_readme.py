@@ -10,6 +10,7 @@ Usage:  python3 scripts/render_readme.py
 """
 import ast
 import os
+import re
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PLUGIN = os.path.join(ROOT, "__init__.py")
@@ -72,6 +73,20 @@ def main():
 
     with open(README, encoding="utf-8") as f:
         readme = f.read()
+
+    # Keep the header badge count in sync with ACHIEVEMENT_DEFS. The
+    # leading "**N Steam-style achievement badges**" line is hardcoded in
+    # the template — rewrite the number so it can never drift stale again.
+    readme = re.sub(
+        r"\*\*\d+ Steam-style achievement badges\*\*",
+        f"**{len(defs)} Steam-style achievement badges**",
+        readme,
+    )
+    readme = re.sub(
+        r"# simulation that proves all \d+ achievements can unlock",
+        f"# simulation that proves all {len(defs)} achievements can unlock",
+        readme,
+    )
 
     marker_start = "## Achievement Groups"
     marker_end = "## Architecture"

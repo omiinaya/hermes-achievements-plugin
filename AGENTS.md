@@ -2,7 +2,7 @@
 
 ## What this is
 
-A Hermes Agent plugin that awards 146 Steam-style achievement badges for
+A Hermes Agent plugin that awards 151 Steam-style achievement badges for
 using Hermes. Pure Python stdlib, no external dependencies.
 
 ## Repo layout
@@ -22,7 +22,7 @@ using Hermes. Pure Python stdlib, no external dependencies.
 - `scripts/bump_version.py` — updates the version in all 4 places that
   carry it (pyproject.toml, plugin.yaml, setup.sh ×2) in one shot
 - `scripts/check_plugin.py` — health check: module loads, manifest↔register()
-  hook agreement, exactly-146 defs, locale parity, no dead detection-map
+  hook agreement, exactly-151 defs, locale parity, no dead detection-map
   references, live state.json reconciliation (--live), real PluginManager
   load (--manifest), and hook kwarg contract vs the installed Hermes
   source (--gateway — catches silent no-op drift if Hermes renames a
@@ -45,16 +45,45 @@ using Hermes. Pure Python stdlib, no external dependencies.
 | `on_session_end` | end of run_conversation | daily streaks, completions re-check |
 | `subagent_stop` | once per delegate_task child (has `child_role`, `child_status`, `duration_ms`) | Army Commander (counts children, not calls), Orchestrator, Resilient, subagent runtime (Slow Thinker 10m, Marathon 60m — how long a child actually ran, a dimension child-counting cannot see) |
 | `subagent_start` | once per subagent spawn (has `child_role`, `child_goal`) | true concurrency tracking — live counter + peak (Conductor) |
-| `post_approval_response` | user answers an approval prompt (has `choice`: once/session/always/deny/timeout) | Trust Fall, Cautious, YOLO Mode/Champion via "always" |
-| `pre_approval_request` | an approval prompt is raised (has `command`, `surface`) | approval-gate counting (Under Scrutiny) |
+| `post_approval_response` | user answers an approval prompt (has `choice`: once/session/always/deny/timeout, `surface`: cli/gateway, `pattern_key` + `pattern_keys` — the dangerous-command classes that matched) | Trust Fall, Cautious, YOLO Mode/Champion via "always"; remote-approval dimension (Remote Warden 1 / Long-Distance Operator 10 — `surface="gateway"` means the user approved a dangerous command from a chat platform, bolder than at the CLI); danger-class diversity (Risk Explorer 5 / Danger Collector 15 / Living on the Edge 25 — DISTINCT classes approved, breadth of risk appetite, deduped in a persisted set so repeat approvals of one class add nothing; Under Scrutiny only counts prompt volume) |
+| `pre_approval_request` | an approval prompt is raised (has `command`, `surface`, `pattern_key` + `pattern_keys`, `session_key`) | approval-gate counting (Under Scrutiny) — fires BEFORE the user answers, so it measures attempted gates, not consent; the class/surface dimensions live on `post_approval_response` where the choice is known |
 | `on_session_reset` | gateway swaps session key (`/new`, `/reset`) | Fresh Start, session-resets counter |
 | `on_session_finalize` | agent shutdown / session reset-policy expiry | force-flush debounced state save + synchronously deliver queued notifications (nothing lost on exit) |
 | `api_request_error` | LLM provider call fails (has `error_type`, `status_code`, `retry_count`, `max_retries`, `retryable`) | API-error resilience (Indestructible — 10 total errors survived), sustained-failure depth (Tenacious 2 / Undeterred 4 — `retry_count` is how many consecutive times the SAME request failed before the hook fired; breadth≠depth: 10 single failures never reach depth 2). `max_retry_depth` stat |
 | `pre_gateway_dispatch` | once per incoming user-originated message (has `event`, `gateway`, `session_store`; event carries `media_urls`/`media_types`/`message_type`) | distinct-sender counting (Social Butterfly 3 users, Party Host 10), media-message counting (Show and Tell 1, Visual Storyteller 25) — the ONLY hook that sees other users' messages |
 
+### Why 18 of Hermes' 19 valid hooks are registered
+
+`transform_llm_output` is deliberately NOT registered. Hermes exposes it
+for transforming the final response text (first non-empty string return
+wins). The plugin is a strict observer (every transform handler returns
+None), and the hook's delivered kwargs (`response_text`, `session_id`,
+`model`, `platform`) are a **strict subset** of `post_llm_call`'s
+(`assistant_response` + the same session/model/platform), fired under the
+identical `if final_response and not interrupted` guard. Registering it
+would add zero observability and invite confusion about transform
+semantics — so 18/19 is the FINAL hook surface, not an oversight.
+
+### Zero-read hooks are a conscious choice
+
+`check_plugin.py --gateway` lists every registered hook whose handler
+reads no kwargs, together with what the gateway delivers — so a
+delivered-but-ignored kwarg is visible instead of silently skipped.
+Current zero-read hooks and why that's correct:
+- `on_session_start` — counter only; its `model`/`platform` are already
+  read in `post_llm_call` (identical values, same turn).
+- `subagent_start` — live-counter increment (paired with `subagent_stop`
+  decrement); `child_role` is read on stop.
+- `on_session_reset` / `on_session_finalize` — counters/force-flush;
+  their `reason` is always `new_session`/`session_boundary` (single-valued,
+  no diversity to observe).
+- `pre_approval_request` — gate counter; `surface`/`pattern_keys` are
+  read on `post_approval_response` where the choice is known (attempted
+  ≠ approved).
+
 ## Key invariants
 
-- **Exactly 146 achievements** — `tests/test_plugin.py` enforces this.
+- **Exactly 151 achievements** — `tests/test_plugin.py` enforces this.
 - **All achievement IDs must be detectable** — every def needs a path in
   `_TOOL_ACHIEVEMENTS`, `_TOOL_THRESHOLDS`, `TERMINAL_PATTERNS`,
   `_check_tool_args()`, `_check_counter_achievements()`, or an explicit
@@ -75,7 +104,7 @@ using Hermes. Pure Python stdlib, no external dependencies.
 ## Testing
 
 ```bash
-python3 -m pytest tests/ -q    # 350 tests, no deps beyond pytest
+python3 -m pytest tests/ -q    # 361 tests, no deps beyond pytest
 python3 -m pytest tests/ --cov=. --cov-fail-under=99 -q   # CI coverage gate
 ruff check .                   # CI lint gate — must pass before push
 ```
@@ -90,7 +119,7 @@ ruff check .                   # CI lint gate — must pass before push
 
 - `tests/test_detection.py::TestEveryAchievementUnlockable` — full-grind
   simulation: drives every hook with escalating synthetic gateway data and
-  asserts **all 146 defs actually unlock**. This is the enforcement of the
+  asserts **all 151 defs actually unlock**. This is the enforcement of the
   "every def must be detectable" invariant — after any swap, a dead def
   (impossible threshold, typo'd key, missing path) fails the run with its
   ID listed. Keep the grind's tool/command data broad enough to cover

@@ -157,6 +157,10 @@
       "name": "Coupé Court",
       "description": "Atteignez la limite de tokens de sortie du modèle (finish_reason=length)"
     },
+    "danger_collector": {
+      "name": "Collectionneur de Dangers",
+      "description": "Approuvez des commandes dans 15 catégories de danger différentes"
+    },
     "data_flood": {
       "name": "Déluge de Données",
       "description": "Produisez 1MB+ de sortie d'une seule commande terminale"
@@ -253,9 +257,17 @@
       "name": "Discuteur Légendaire",
       "description": "Envoyer 1 000 messages au total"
     },
+    "living_on_the_edge": {
+      "name": "Vivre sur le Fil",
+      "description": "Approuvez des commandes dans 25 catégories de danger différentes"
+    },
     "local_first": {
       "name": "Local d'Abord",
       "description": "Exécutez Hermes sur un endpoint de modèle local"
+    },
+    "long_distance_operator": {
+      "name": "Opérateur Longue Distance",
+      "description": "Approuvez 10 commandes dangereuses depuis une plateforme de chat"
     },
     "manual_override": {
       "name": "Contrôle Manuel",
@@ -397,9 +409,17 @@
       "name": "Lecteur de Notes de Version",
       "description": "Lire les dernières notes de version d'Hermes"
     },
+    "remote_warden": {
+      "name": "Gardien à Distance",
+      "description": "Approuvez une commande dangereuse depuis une plateforme de chat"
+    },
     "resilient": {
       "name": "Résilient",
       "description": "Terminez une tâche après l'échec d'un sous-agent"
+    },
+    "risk_explorer": {
+      "name": "Explorateur de Risques",
+      "description": "Approuvez des commandes dans 5 catégories de danger différentes"
     },
     "self_hosted": {
       "name": "Auto-Hébergé",
@@ -639,6 +659,8 @@
     "recent_unlocked_section": "**🔥 Récemment débloqués :**",
     "stats_api_errors": "Erreurs d'API surmontées : {count}",
     "stats_approval_requests": "Approbations demandées :  {count}",
+    "stats_approvals_gateway": "Approbations à distance : {count}",
+    "stats_approved_patterns": "Catégories de danger approuvées : {count}",
     "stats_approvals_always": "Approbations permanentes: {count}",
     "stats_approvals_denied": "Approbations refusées:    {count}",
     "stats_config": "Modifs de configuration :  {count}",

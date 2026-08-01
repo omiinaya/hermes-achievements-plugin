@@ -1,5 +1,41 @@
 # Changelog
 
+## [2.17.0] — 2026-08-01
+
+### Added
+
+- **Approval-context dimension** — the plugin was registered on
+  `post_approval_response` but read only `choice`, silently ignoring the
+  7 other kwargs the gateway delivers. Now reads `surface` and
+  `pattern_keys` (the gateway's ~40 dangerous-command classes: rm, chmod,
+  mkfs, dd, DROP TABLE, systemctl, kill -9, curl|sh, docker down, git
+  push --force, sudo -S...):
+  - **Remote Warden** 🛰️ (uncommon, Expert) — approve a dangerous command
+    from a chat platform (`surface="gateway"`); **Long-Distance Operator**
+    🚁 (rare, Expert) at 10. Approving remotely is bolder than at the CLI —
+    a dimension the choice itself cannot express.
+  - **Risk Explorer** 🧨 (uncommon, Expert) — approve commands in 5
+    distinct danger classes; **Danger Collector** ⚗️ (rare) at 15;
+    **Living on the Edge** ☢️ (epic) at 25. DISTINCT classes, deduped in a
+    persisted set — approving `rm` 10 times counts as 1, not 10; breadth
+    of risk appetite vs Under Scrutiny's total prompt volume.
+  - `approvals_gateway` counter + `approved_patterns` set (JSON-safe,
+    normalized on load), stats-view lines, es/fr/pt translations. 5 new
+    achievements (146 → 151, Expert 35 → 40).
+
+### Fixed
+
+- **check_plugin.py blind spot** — the gateway-contract scan skipped
+  registered hooks whose handlers read zero kwargs (`if not keys:
+  continue`), which is exactly how `pre_approval_request`'s 6 delivered
+  kwargs and `post_approval_response`'s 7 went unread and unnoticed. The
+  checker now lists every zero-read hook with what the gateway delivers,
+  so a delivered-but-ignored kwarg is visible (34 keys now checked across
+  13 hooks; 5 zero-read hooks reported and each justified in AGENTS.md).
+- **render_readme.py count drift** — the README header badge count was
+  hardcoded ("139") and had silently drifted two releases behind (144 at
+  v2.14.0). The script now rewrites the count from `ACHIEVEMENT_DEFS`.
+
 ## [2.16.0] — 2026-08-01
 
 ### Added

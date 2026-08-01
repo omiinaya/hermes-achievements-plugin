@@ -4,7 +4,7 @@
 Verifies the full integrity chain of the plugin:
   1. The plugin loads cleanly (plugin.yaml manifest + __init__.py)
   2. Manifest hooks ↔ register() hooks agree (no drift)
-  3. Exactly 146 achievement defs, all with name/description/rarity/group
+  3. Exactly 151 achievement defs, all with name/description/rarity/group
   4. Locale parity: every def key exists in all 4 locale files
   5. Detection maps contain no dead references (IDs not in defs)
   6. Live state.json (if --live) reconciles: no stale entries, real
@@ -222,7 +222,7 @@ def main():
 
     print("── 3. Achievement defs ──")
     defs = mod.ACHIEVEMENT_DEFS
-    check("exactly 146 defs", len(defs) == 146, f"{len(defs)} found")
+    check("exactly 151 defs", len(defs) == 151, f"{len(defs)} found")
     bad_defs = [aid for aid, d in defs.items()
                 if not d.get("name") or not d.get("description")
                 or not d.get("rarity") or not d.get("group")]
@@ -338,10 +338,16 @@ def main():
             reads = plugin_kwargs_per_hook(_read(PLUGIN_FILE))
             total_read = 0
             total_missing = 0
+            zero_read = []
             for hook in sorted(reads):
                 keys = reads[hook]
                 if not keys:
-                    continue  # handler counts without reading kwargs (fine)
+                    # A registered hook whose handler reads NO kwargs may be
+                    # intentional (live counters like subagent_start) or a
+                    # blind spot (delivered kwargs ignored). Report it so the
+                    # choice is visible instead of silently skipping.
+                    zero_read.append(hook)
+                    continue
                 total_read += len(keys)
                 passed = gateway_kwargs_per_hook(hook, source_root)
                 missing = [k for k in keys if k not in passed]
@@ -351,6 +357,13 @@ def main():
                     not missing,
                     "missing: " + ", ".join(missing) if missing else ", ".join(keys),
                 )
+            if zero_read:
+                for hook in zero_read:
+                    delivered = gateway_kwargs_per_hook(hook, source_root)
+                    note = "reads no kwargs"
+                    if delivered:
+                        note += f" (gateway delivers: {', '.join(sorted(delivered))})"
+                    print(f"  [note] {hook} {note}")
             check(
                 "all read kwargs delivered by gateway",
                 total_missing == 0,

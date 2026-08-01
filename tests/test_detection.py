@@ -473,6 +473,127 @@ class TestApprovalResponse(HookTestBase):
         self.assertTrue(self.unlocked("yolo_champion"))
 
 
+class TestApprovalContext(HookTestBase):
+    """post_approval_response surface + pattern_keys: remote approvals
+    and danger-class diversity — the two kwargs the old handler ignored."""
+
+    def test_gateway_surface_unlocks_remote_warden(self):
+        self.mod._on_approval_response(
+            command="rm -rf /tmp/x", description="dangerous",
+            pattern_key="rm_rf", pattern_keys=["rm_rf"],
+            session_key="s", surface="gateway", choice="once",
+        )
+        self.assertTrue(self.unlocked("remote_warden"))
+        self.assertEqual(self.stats()["approvals_gateway"], 1)
+        # CLI approvals are NOT remote — no unlock.
+        self.mod._on_approval_response(
+            command="chmod 777 /tmp/x", description="dangerous",
+            pattern_key="chmod", pattern_keys=["chmod"],
+            session_key="s", surface="cli", choice="once",
+        )
+        self.assertEqual(self.stats()["approvals_gateway"], 1)
+        self.assertFalse(self.unlocked("long_distance_operator"))
+
+    def test_ten_gateway_approvals_unlock_long_distance(self):
+        for i in range(10):
+            self.mod._on_approval_response(
+                command=f"cmd {i}", description="d", pattern_key=f"k{i}",
+                pattern_keys=[f"k{i}"], session_key="s",
+                surface="gateway", choice="once",
+            )
+        self.assertTrue(self.unlocked("long_distance_operator"))
+
+    def test_deny_does_not_count_surface(self):
+        self.mod._on_approval_response(
+            command="rm -rf /", description="dangerous", pattern_key="rm",
+            pattern_keys=["rm"], session_key="s", surface="gateway",
+            choice="deny",
+        )
+        self.assertEqual(self.stats()["approvals_gateway"], 0)
+        self.assertFalse(self.unlocked("remote_warden"))
+
+    def test_timeout_does_not_count_surface(self):
+        self.mod._on_approval_response(
+            command="rm -rf /", description="dangerous", pattern_key="rm",
+            pattern_keys=["rm"], session_key="s", surface="gateway",
+            choice="timeout",
+        )
+        self.assertEqual(self.stats()["approvals_gateway"], 0)
+        self.assertFalse(self.unlocked("remote_warden"))
+
+    def test_pattern_diversity_unlocks_risk_explorer(self):
+        for i in range(5):
+            self.mod._on_approval_response(
+                command=f"cmd {i}", description="d", pattern_key=f"k{i}",
+                pattern_keys=[f"k{i}"], session_key="s",
+                surface="cli", choice="once",
+            )
+        self.assertTrue(self.unlocked("risk_explorer"))
+        self.assertEqual(len(self.stats()["approved_patterns"]), 5)
+
+    def test_repeated_same_class_adds_nothing(self):
+        for _ in range(10):
+            self.mod._on_approval_response(
+                command="cmd", description="d", pattern_key="same",
+                pattern_keys=["same"], session_key="s",
+                surface="cli", choice="once",
+            )
+        self.assertFalse(self.unlocked("risk_explorer"))
+        self.assertEqual(len(self.stats()["approved_patterns"]), 1)
+
+    def test_multi_key_command_counts_all_classes(self):
+        self.mod._on_approval_response(
+            command="cmd", description="d", pattern_key="a",
+            pattern_keys=["a", "b", "c"], session_key="s",
+            surface="cli", choice="once",
+        )
+        self.assertEqual(len(self.stats()["approved_patterns"]), 3)
+
+    def test_pattern_diversity_cascades_to_25(self):
+        for i in range(25):
+            self.mod._on_approval_response(
+                command=f"cmd {i}", description="d", pattern_key=f"k{i}",
+                pattern_keys=[f"k{i}"], session_key="s",
+                surface="cli", choice="once",
+            )
+        self.assertTrue(self.unlocked("risk_explorer"))
+        self.assertTrue(self.unlocked("danger_collector"))
+        self.assertTrue(self.unlocked("living_on_the_edge"))
+
+    def test_lower_tier_unlocks_when_higher_reached(self):
+        # Jump straight to 15 distinct classes — all three must unlock
+        # (non-elif cascade).
+        for i in range(15):
+            self.mod._on_approval_response(
+                command=f"cmd {i}", description="d", pattern_key=f"k{i}",
+                pattern_keys=[f"k{i}"], session_key="s",
+                surface="cli", choice="once",
+            )
+        self.assertTrue(self.unlocked("risk_explorer"))
+        self.assertTrue(self.unlocked("danger_collector"))
+        self.assertFalse(self.unlocked("living_on_the_edge"))
+
+    def test_pattern_keys_absent_is_safe(self):
+        self.mod._on_approval_response(
+            command="cmd", description="d", pattern_key="k",
+            session_key="s", surface="gateway", choice="once",
+        )
+        self.assertTrue(self.unlocked("remote_warden"))
+        self.assertFalse(self.unlocked("risk_explorer"))
+
+    def test_persisted_list_is_normalized_to_set(self):
+        # Simulate a state.json written before v2.17.0: approved_patterns
+        # persisted as a JSON list, not a set. The handler must normalize.
+        self.mod._load_state()
+        self.mod._state["stats"]["approved_patterns"] = ["a", "b"]
+        self.mod._on_approval_response(
+            command="cmd", description="d", pattern_key="c",
+            pattern_keys=["c"], session_key="s",
+            surface="cli", choice="once",
+        )
+        self.assertEqual(len(self.stats()["approved_patterns"]), 3)
+
+
 class TestSessionReset(HookTestBase):
     """on_session_reset: /new rotations drive Fresh Start."""
 
@@ -1887,7 +2008,7 @@ class TestStreakEdgeCases(HookTestBase):
         self.mod._locales_cache = {}
         try:
             cache = self.mod._load_locales()
-            self.assertEqual(len(cache.get("en", {}).get("achievement", {})), 146)
+            self.assertEqual(len(cache.get("en", {}).get("achievement", {})), 151)
         finally:
             self.mod._LOCALES_DIR = old_dir
             self.mod._WHEEL_DATA_DIR = old_wheel
@@ -2579,12 +2700,19 @@ class TestCommandHandlers(HookTestBase):
             command="cmd", description="d", pattern_key="k",
             session_key="s", surface="cli", choice="deny",
         )
+        self.mod._on_approval_response(
+            command="cmd", description="d", pattern_key="k",
+            pattern_keys=["k"], session_key="s", surface="gateway",
+            choice="once",
+        )
         self.mod._on_session_reset(session_id="new", platform="discord")
         out = self.mod._handle_achievements("stats")
         self.assertIn("Subagents spawned:", out)
         self.assertIn("Permanent approvals:", out)
         self.assertIn("Approvals denied:", out)
         self.assertIn("Session resets:", out)
+        self.assertIn("Remote approvals:", out)
+        self.assertIn("Danger classes approved:", out)
         # 3 children, not the legacy parallel_spawns counter
         self.assertIn("3", out)
 
@@ -3159,7 +3287,7 @@ class TestReadmeSync(unittest.TestCase):
         result = subprocess.run([_sys.executable, script], capture_output=True, text=True,
                                 cwd=PLUGIN_DIR, check=False)
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertIn("OK: 146 achievements", result.stdout)
+        self.assertIn("OK: 151 achievements", result.stdout)
 
     def test_health_check_script_passes(self):
         # The health check must pass against the repo checkout (defs,
@@ -3195,7 +3323,7 @@ class TestReadmeSync(unittest.TestCase):
 
 
 class TestEveryAchievementUnlockable(HookTestBase):
-    """Full-grind simulation: prove all 146 achievement defs can unlock.
+    """Full-grind simulation: prove all 151 achievement defs can unlock.
 
     After several rounds of achievement swaps (v2.3.0, v2.4.0, v2.4.1),
     a def could sit in a detection map with an impossible condition (wrong
@@ -3515,6 +3643,22 @@ class TestEveryAchievementUnlockable(HookTestBase):
                 mod._on_approval_request(command="terminal", surface="cli")
             mod._on_approval_response(choice="deny")
             mod._on_approval_response(choice="always")
+            # Approval context: 12 gateway-surface approvals → Remote Warden
+            # (1) + Long-Distance Operator (10); 30 distinct danger classes
+            # approved → Risk Explorer (5) + Danger Collector (15) + Living
+            # on the Edge (25). Same classes repeated must NOT double-count.
+            for i in range(12):
+                mod._on_approval_response(
+                    command=f"dangerous cmd {i}", description="d",
+                    pattern_key=f"class-{i}", pattern_keys=[f"class-{i}"],
+                    session_key="g", surface="gateway", choice="once",
+                )
+            for i in range(30):
+                mod._on_approval_response(
+                    command=f"dangerous cmd {i}", description="d",
+                    pattern_key=f"class-{i}", pattern_keys=[f"class-{i}"],
+                    session_key="g", surface="cli", choice="once",
+                )
             for i in range(10):
                 mod._on_pre_gateway_dispatch(
                     event=self._gateway_event("discord", f"g-user-{i}"),
@@ -3545,7 +3689,7 @@ class TestEveryAchievementUnlockable(HookTestBase):
             )
             mod._check_completionist()
 
-    def test_all_146_achievements_can_unlock(self):
+    def test_all_151_achievements_can_unlock(self):
         """Every def in ACHIEVEMENT_DEFS must unlock through real hooks."""
         self._grind()
         state = self.mod._load_state()
@@ -3559,7 +3703,7 @@ class TestEveryAchievementUnlockable(HookTestBase):
             f"{locked}",
         )
 
-    def test_completionist_unlocks_as_146th(self):
+    def test_completionist_unlocks_as_151st(self):
         """Completionist requires every other achievement first."""
         self._grind()
         state = self.mod._load_state()
@@ -3569,7 +3713,7 @@ class TestEveryAchievementUnlockable(HookTestBase):
             1 for aid in self.mod.ACHIEVEMENT_DEFS
             if state["achievements"].get(aid, {}).get("unlocked")
         )
-        self.assertEqual(unlocked, 146)
+        self.assertEqual(unlocked, 151)
 
 
 if __name__ == "__main__":

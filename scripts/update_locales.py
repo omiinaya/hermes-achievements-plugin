@@ -261,6 +261,31 @@ NEW = {
         "fr": {"name": "Inébranlable", "description": "Survivez à une requête API qui a échoué 4+ fois d'affilée"},
         "pt": {"name": "Inabalável", "description": "Sobreviva a uma solicitação de API que falhou 4+ vezes seguidas"},
     },
+    "remote_warden": {
+        "es": {"name": "Guardián Remoto", "description": "Aprueba un comando peligroso desde una plataforma de chat"},
+        "fr": {"name": "Gardien à Distance", "description": "Approuvez une commande dangereuse depuis une plateforme de chat"},
+        "pt": {"name": "Guardião Remoto", "description": "Aprove um comando perigoso de uma plataforma de chat"},
+    },
+    "long_distance_operator": {
+        "es": {"name": "Operador de Larga Distancia", "description": "Aprueba 10 comandos peligrosos desde una plataforma de chat"},
+        "fr": {"name": "Opérateur Longue Distance", "description": "Approuvez 10 commandes dangereuses depuis une plateforme de chat"},
+        "pt": {"name": "Operador de Longa Distância", "description": "Aprove 10 comandos perigosos de uma plataforma de chat"},
+    },
+    "risk_explorer": {
+        "es": {"name": "Explorador de Riesgos", "description": "Aprueba comandos en 5 clases de peligro diferentes"},
+        "fr": {"name": "Explorateur de Risques", "description": "Approuvez des commandes dans 5 catégories de danger différentes"},
+        "pt": {"name": "Explorador de Riscos", "description": "Aprove comandos em 5 classes de perigo diferentes"},
+    },
+    "danger_collector": {
+        "es": {"name": "Coleccionista de Peligros", "description": "Aprueba comandos en 15 clases de peligro diferentes"},
+        "fr": {"name": "Collectionneur de Dangers", "description": "Approuvez des commandes dans 15 catégories de danger différentes"},
+        "pt": {"name": "Colecionador de Perigos", "description": "Aprove comandos em 15 classes de perigo diferentes"},
+    },
+    "living_on_the_edge": {
+        "es": {"name": "Viviendo al Límite", "description": "Aprueba comandos en 25 clases de peligro diferentes"},
+        "fr": {"name": "Vivre sur le Fil", "description": "Approuvez des commandes dans 25 catégories de danger différentes"},
+        "pt": {"name": "Vivendo no Limite", "description": "Aprove comandos em 25 classes de perigo diferentes"},
+    },
 }
 
 

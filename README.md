@@ -6,7 +6,7 @@
 [![CI](https://github.com/omiinaya/hermes-achievements-plugin/actions/workflows/test.yml/badge.svg)](https://github.com/omiinaya/hermes-achievements-plugin/actions/workflows/test.yml)
 [![Coverage](https://img.shields.io/badge/coverage-99%25-brightgreen.svg)](https://github.com/omiinaya/hermes-achievements-plugin/actions/workflows/test.yml)
 
-**139 Steam-style achievement badges** for [Hermes Agent](https://hermes-agent.nousresearch.com). Unlock achievements as you use Hermes — run commands, search the web, schedule cron jobs, create skills, and explore the platform. Achievements are tracked silently and delivered to your Discord home channel the moment they unlock.
+**151 Steam-style achievement badges** for [Hermes Agent](https://hermes-agent.nousresearch.com). Unlock achievements as you use Hermes — run commands, search the web, schedule cron jobs, create skills, and explore the platform. Achievements are tracked silently and delivered to your Discord home channel the moment they unlock.
 
 ## Quick Start
 
@@ -229,7 +229,7 @@ unlock them, Steam-style. Currently secret: `Fresh Start`, `Cautious`,
 | 🧩 | Plugin Developer | Create your own Hermes plugin | Legendary |
 | 🧰 | Tool Torrent | Emit 20 tool calls in a single response | Legendary |
 
-### 👑 Expert (35)
+### 👑 Expert (40)
 
 | Icon | Name | Description | Rarity |
 |------|------|-------------|--------|
@@ -238,6 +238,8 @@ unlock them, Steam-style. Currently secret: `Fresh Start`, `Cautious`,
 | 📚 | Doc Diver | Read the Hermes documentation | Uncommon |
 | ✋ | Manual Override | Interrupt a running tool call — take manual control | Uncommon |
 | 🚧 | Dead End | Hit a tool call blocked by policy before it ran | Uncommon |
+| 🛰️ | Remote Warden | Approve a dangerous command from a chat platform | Uncommon |
+| 🧨 | Risk Explorer | Approve commands in 5 different danger classes | Uncommon |
 | 📖 | Novelist | Send a single message of 1500+ words | Rare |
 | 📦 | Big Haul | Receive a 1MB+ result from a single tool call | Rare |
 | 🛑 | Token Wall | Hit the model's output token limit 25 times (finish_reason=length) | Rare |
@@ -251,6 +253,8 @@ unlock them, Steam-style. Currently secret: `Fresh Start`, `Cautious`,
 | 🔬 | Trial and Error | Persist through 25 tool calls that errored | Rare |
 | 🗣️ | Backseat Driver | Interrupt 5 tool calls while they run | Rare |
 | 🧱 | Brick Wall | Hit 10 tool calls blocked by policy | Rare |
+| 🚁 | Long-Distance Operator | Approve 10 dangerous commands from a chat platform | Rare |
+| ⚗️ | Danger Collector | Approve commands in 15 different danger classes | Rare |
 | 🏛️ | Context Colossus | Make one API request with 100+ messages in context | Epic |
 | 🧠 | Context Monster | Send one API request with 200K+ input tokens | Epic |
 | 🗄️ | Colossal Result | Receive a 10MB+ result from a single tool call | Epic |
@@ -263,6 +267,7 @@ unlock them, Steam-style. Currently secret: `Fresh Start`, `Cautious`,
 | 🛡️ | Indestructible | Survive 10 LLM API errors without quitting | Epic |
 | ⛰️ | Undeterred | Survive an API request that failed 4+ times in a row | Epic |
 | 🎛️ | Control Freak | Interrupt 15 tool calls — you like to be in charge | Epic |
+| ☢️ | Living on the Edge | Approve commands in 25 different danger classes | Epic |
 | 🌊 | Token Tsunami | Send one API request with 500K+ input tokens | Legendary |
 | 📡📡 | Cross-Platform Veteran | Chat with Hermes from 5+ different platforms | Legendary |
 | 🪝 | Hook Master | Create a plugin using 3+ different hook types | Legendary |
@@ -359,7 +364,7 @@ State data is stored at `~/.hermes/achievements/state.json` (user-local, not par
 vim ~/.hermes/plugins/achievements/__init__.py
 
 # Run the test suite (static + functional) — includes the full-grind
-# simulation that proves all 139 achievements can unlock
+# simulation that proves all 151 achievements can unlock
 python3 -m pytest tests/ -q
 
 # Run the one-shot health check (defs, locales, manifest↔register hooks,
