@@ -1986,7 +1986,10 @@ def _handle_achievements(raw_args: str) -> str:
             return _t("ui.no_achievements", locale)
         lines = [_t("ui.recent_title", locale) + "\n"]
         if newly:
-            recent_ids = newly
+            # Cap at 10 — the default view shows 3, but the explicit
+            # 'recent' command may show more. Still bounded so the output
+            # never exceeds Discord's 2000-char message cap.
+            recent_ids = newly[-10:]
         else:
             # Fall back to the most recently unlocked by unlocked_at
             recent_ids = sorted(

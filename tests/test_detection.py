@@ -1746,6 +1746,19 @@ class TestCommandHandlers(HookTestBase):
         self.assertIn("First Steps", out)
         self.assertIn("Terminal Jockey", out)
 
+    def test_recent_caps_output_at_10(self):
+        # 20 new unlocks → recent view shows at most 10 (Discord 2000-char cap)
+        ids = list(self.mod.ACHIEVEMENT_DEFS.keys())[:20]
+        state = self.mod._load_state()
+        state["newly_unlocked"] = ids
+        for aid in ids:
+            self.mod._unlock(aid)
+        out = self.mod._handle_achievements("recent")
+        self.assertLessEqual(len(out), 2000, f"recent view is {len(out)} chars")
+        # First (oldest) of the 20 must be excluded; last 10 present
+        first_name = self.mod._t(f"achievement.{ids[0]}.name", "en")
+        self.assertNotIn(first_name, out)
+
 
 class TestSecretAchievements(HookTestBase):
     """Locked secret achievements hide name/description/progress."""
