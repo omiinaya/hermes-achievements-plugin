@@ -1541,6 +1541,18 @@ class TestCommandHandlers(HookTestBase):
         self.assertIn("Hermes Achievements", out)
         self.assertIn("0/10", out)  # Getting Started progress summary
 
+    def test_achievements_unknown_args_fall_through_to_default(self):
+        # Unrecognized args must fall through to the default view, not crash
+        for arg in ("foo", "bogus_group"):
+            out = self.mod._handle_achievements(arg)
+            self.assertIn("Hermes Achievements", out, f"arg {arg!r}")
+        # Uppercase known commands still work (args are case-insensitive)
+        out = self.mod._handle_achievements("STATS")
+        self.assertIn("Achievement Stats", out)
+        self.mod._set_progress("terminal_jockey", 5, 25)
+        out = self.mod._handle_achievements("Next")
+        self.assertIn("Next Up", out)
+
     def test_achievements_list_under_discord_limit(self):
         # Discord caps messages at 2000 chars — the default view must fit
         out = self.mod._handle_achievements("")

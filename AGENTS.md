@@ -62,7 +62,7 @@ using Hermes. Pure Python stdlib, no external dependencies.
 ## Testing
 
 ```bash
-python3 -m pytest tests/ -q    # 219 tests, no deps beyond pytest
+python3 -m pytest tests/ -q    # 220 tests, no deps beyond pytest
 ```
 
 ## Committing
