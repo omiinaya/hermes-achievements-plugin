@@ -66,20 +66,20 @@ Notifications are rarity-colored Discord embeds (gray → gold) posted asynchron
   ✅ **First Steps** — Send your first message to Hermes
   ✅ **Web Walker** — Search the web using Hermes
 
-🚀 **Getting Started** (2/10) ██░░░░░░░░
-🛠️ **Tools & Skills** (2/28) █░░░░░░░░░
-⚡ **Power User** (0/23) ░░░░░░░░░░
-👑 **Expert** (0/18) ░░░░░░░░░░
-🎯 **Milestones** (0/15) ░░░░░░░░░░
+🚀 **Getting Started** (2/16) █░░░░░░░░░
+🛠️ **Tools & Skills** (2/28) ░░░░░░░░░░
+⚡ **Power User** (0/44) ░░░░░░░░░░
+👑 **Expert** (0/40) ░░░░░░░░░░
+🎯 **Milestones** (0/19) ░░░░░░░░░░
 🤝 **Community** (0/6) ░░░░░░░░░░
 
-🔮 Closest to unlock: **Deep Diver** ████░░░░░░ 2/5 (40%)
+🔮 Closest to unlock: **Deep Diver** ██░░░░░░░░ 5/25 (20%)
 
 /achievements next
 
 🎯 **Next Up** — closest to unlocking:
 
-🟩 **Deep Diver** — ████░░░░░░ 2/5 (40%)
+🟩 **Deep Diver** — ██░░░░░░░░ 5/25 (20%)
 🟦 **Config Guru** — █░░░░░░░░░ 2/15 (13%)
 🟩 **Terminal Jockey** — █░░░░░░░░░ 3/25 (12%)
 ```

@@ -1,5 +1,34 @@
 # Changelog
 
+## [2.18.2] — 2026-08-01
+
+### Fixed
+
+- **README example block rotted twice** — the illustrative `/achievements`
+  preview under `### Example output` is hand-maintained and nothing
+  validated it: group denominators showed `(0/18)` for Expert (now 40),
+  `(0/15)` for Milestones (now 19), `(0/23)` Power User (now 44),
+  `(2/10)` Getting Started (now 16), and Deep Diver displayed `2/5 (40%)`
+  after the def moved to 25 web searches. The renderer now OWNS the whole
+  block: group denominators/bars, next-up thresholds/bars/percents and
+  the closest-to-unlock hint are all derived from `ACHIEVEMENT_DEFS` +
+  the recognition maps, and it fails loudly if a line is missing.
+- **`_check_counter_achievements` de-magic-numbered** — 12 hardcoded
+  thresholds (config_changes 15, skills_installed 1/5/15, cron_jobs 5/15,
+  yolo_tasks 25, …) moved into a literal-evaluable `_COUNTER_THRESHOLDS`
+  map. Behavior-preserving, but the thresholds are now introspectable
+  (which is what lets the renderer derive the example block) and
+  testable.
+- Stale `_format_badge` docstring ("Power User is 33" → 44).
+
+### Tests
+
+- `test_render_script_matches_readme` now diff-gates locally (runs the
+  renderer and asserts the committed README is unchanged), mirroring the
+  CI git-diff gate so drift fails pytest instead of only the workflow.
+- New `test_example_block_matches_defs` validates every DERIVED number in
+  the example block against the module's real recognition maps.
+
 ## [2.18.1] — 2026-08-01
 
 ### Fixed

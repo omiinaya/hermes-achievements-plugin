@@ -14,8 +14,13 @@ using Hermes. Pure Python stdlib, no external dependencies.
 - `tests/test_plugin.py` — static validation (defs, locales, file integrity)
 - `tests/test_detection.py` — functional tests driving the hooks with
   synthetic gateway kwargs
-- `scripts/render_readme.py` — regenerates README achievement tables from
-  `ACHIEVEMENT_DEFS`
+- `scripts/render_readme.py` — regenerates every DERIVED section of
+  README.md from `ACHIEVEMENT_DEFS` + the recognition maps: the group
+  tables, the header badge count, and the `### Example output` block
+  (group denominators/bars, next-up thresholds/bars/percents, closest
+  hint — the numerators are the only hand-picked numbers, pinned in
+  `EXAMPLE_GROUP_PROGRESS`/`EXAMPLE_NEXT_UP`). Fails loudly if a line is
+  missing; the suite diff-gates the result locally.
 - `scripts/update_locales.py` — auto-syncs achievement keys across all 4
   locales from `ACHIEVEMENT_DEFS` (source of truth): prunes dead keys,
   backfills missing translations (WARN + English fallback)
@@ -90,8 +95,11 @@ Current zero-read hooks and why that's correct:
   `_unlock()` call. Undetectable achievements are bugs.
 - **Locale parity** — every def name/description must exist in all 4
   locales with identical key sets (enforced by tests).
-- **README sync** — after changing `ACHIEVEMENT_DEFS`, run
-  `python3 scripts/render_readme.py`.
+- **README sync** — after changing `ACHIEVEMENT_DEFS`, `GROUPS`, the
+  group/rarity emoji maps, or any recognition threshold map
+  (`_TOOL_THRESHOLDS`, `_TOTAL_TOOL_THRESHOLDS`, `_MESSAGE_THRESHOLDS`,
+  `_COUNTER_THRESHOLDS`), run `python3 scripts/render_readme.py` — the
+  example-output block's derived numbers come from these too.
 - **`turn_id` from Hermes is a string** (`session:task:hex`) — never treat
   it as an int counter. Message counts come from counting `post_llm_call`
   firings.

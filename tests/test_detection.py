@@ -10,6 +10,7 @@ Run with:  python3 -m pytest tests/  -xvs
 """
 import importlib.util
 import os
+import re
 import shutil
 import sys
 import tempfile
@@ -3504,14 +3505,91 @@ class TestReadmeSync(unittest.TestCase):
                           f"achievement '{adef['name']}' ({aid}) missing from README")
 
     def test_render_script_matches_readme(self):
-        # Regenerate the table section in memory and compare with the file
+        # Regenerate the derived sections in place and require zero diff —
+        # the committed README must already be what the renderer produces
+        # (a local mirror of the CI git-diff gate, so drift fails pytest
+        # instead of only the workflow).
         import subprocess
         import sys as _sys
         script = os.path.join(PLUGIN_DIR, "scripts", "render_readme.py")
+        with open(os.path.join(PLUGIN_DIR, "README.md"), encoding="utf-8") as f:
+            before = f.read()
         result = subprocess.run([_sys.executable, script], capture_output=True, text=True,
                                 cwd=PLUGIN_DIR, check=False)
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("OK: 153 achievements", result.stdout)
+        with open(os.path.join(PLUGIN_DIR, "README.md"), encoding="utf-8") as f:
+            after = f.read()
+        self.assertEqual(after, before,
+                         "README.md is out of sync — run: python scripts/render_readme.py")
+
+    def test_example_block_matches_defs(self):
+        # The example-output block is illustrative, but every DERIVED
+        # number (group denominators, next-up thresholds/bars/percents,
+        # the closest-to-unlock hint) must match the recognition maps.
+        # These rotted twice before the renderer owned them (group sizes
+        # 10→16/23→44/18→40/15→19 and Deep Diver 2/5 after the def moved
+        # to 25 web searches). Numerators are hand-picked; this test
+        # validates everything derived from them.
+        with open(os.path.join(PLUGIN_DIR, "README.md"), encoding="utf-8") as f:
+            readme = f.read()
+        example = readme[readme.index("### Example output"):
+                         readme.index("### Multi-Language Support")]
+        mod = self.mod
+
+        # Group summary lines: {emoji} **{group}** ({num}/{size}) {bar}
+        for group in mod.GROUPS:
+            size = sum(1 for d in mod.ACHIEVEMENT_DEFS.values() if d["group"] == group)
+            m = re.search(
+                rf"^{re.escape(mod.GROUP_EMOJIS[group])} \*\*{re.escape(group)}\*\* \((\d+)/(\d+)\) ([█░]+)$",
+                example, re.MULTILINE)
+            self.assertIsNotNone(m, f"example block missing group line for '{group}'")
+            num, den, bar = int(m.group(1)), int(m.group(2)), m.group(3)
+            self.assertEqual(den, size, f"example denominator for '{group}' stale")
+            self.assertEqual(bar, mod._progress_bar(num, size),
+                             f"example bar for '{group}' stale")
+
+        # Recognition thresholds: aid → lowest threshold across all maps
+        thresholds = {}
+        for const in ("_TOOL_THRESHOLDS", "_TOTAL_TOOL_THRESHOLDS",
+                      "_MESSAGE_THRESHOLDS", "_COUNTER_THRESHOLDS"):
+            value = getattr(mod, const, {}) or {}
+            entries = value.items() if isinstance(value, dict) else [(None, value)]
+            for _stat, tiers in entries:
+                for threshold, aid in tiers:
+                    if aid not in thresholds or threshold < thresholds[aid]:
+                        thresholds[aid] = threshold
+
+        # Next-up lines: {color} **{name}** — {bar} {cur}/{tgt} ({pct}%)
+        for name in ("Deep Diver", "Config Guru", "Terminal Jockey"):
+            aid = next((a for a, d in mod.ACHIEVEMENT_DEFS.items() if d["name"] == name), None)
+            self.assertIsNotNone(aid, f"example next-up references unknown achievement '{name}'")
+            tgt = thresholds[aid]
+            color = mod.RARITY_EMOJIS.get(mod.ACHIEVEMENT_DEFS[aid]["rarity"], "⬜")
+            m = re.search(
+                rf"^{re.escape(color)} \*\*{re.escape(name)}\*\* — ([█░]+) (\d+)/(\d+) \((\d+)%\)$",
+                example, re.MULTILINE)
+            self.assertIsNotNone(m, f"example block missing next-up line for '{name}'")
+            bar, cur, den, pct = m.group(1), int(m.group(2)), int(m.group(3)), int(m.group(4))
+            self.assertEqual(den, tgt, f"example threshold for '{name}' stale")
+            self.assertTrue(0 < cur < tgt, f"example progress for '{name}' implausible")
+            self.assertEqual(bar, mod._progress_bar(cur, tgt),
+                             f"example bar for '{name}' stale")
+            self.assertEqual(pct, int(cur / tgt * 100),
+                             f"example percent for '{name}' stale")
+
+        # Closest-to-unlock hint mirrors the top next-up entry
+        name = "Deep Diver"
+        aid = next((a for a, d in mod.ACHIEVEMENT_DEFS.items() if d["name"] == name), None)
+        tgt = thresholds[aid]
+        m = re.search(
+            rf"^🔮 Closest to unlock: \*\*{re.escape(name)}\*\* ([█░]+) (\d+)/(\d+) \((\d+)%\)$",
+            example, re.MULTILINE)
+        self.assertIsNotNone(m, "example block missing closest-to-unlock hint")
+        bar, cur, den, pct = m.group(1), int(m.group(2)), int(m.group(3)), int(m.group(4))
+        self.assertEqual(den, tgt, "closest-to-unlock threshold stale")
+        self.assertEqual(bar, mod._progress_bar(cur, tgt), "closest-to-unlock bar stale")
+        self.assertEqual(pct, int(cur / tgt * 100), "closest-to-unlock percent stale")
 
     def test_health_check_script_passes(self):
         # The health check must pass against the repo checkout (defs,

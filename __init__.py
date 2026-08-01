@@ -1905,60 +1905,32 @@ def _count_user_commands(user_commands, stats, now):
     _check_counter_achievements(stats, now)
 
 
+# Counter-stat → [(threshold, achievement_id)] for stats-backed
+# achievements. Data-driven so the thresholds are introspectable
+# (render_readme.py literal-evals this to keep the README example block
+# in sync) and testable, instead of 12 magic numbers scattered through
+# the check function.
+_COUNTER_THRESHOLDS = {
+    "config_changes": [(15, "config_guru")],
+    "plugins_enabled": [(5, "plugin_pack")],
+    "profiles_created": [(5, "profile_collector")],
+    "mcp_servers_connected": [(3, "mcp_networker")],
+    "skills_installed": [(1, "skill_finder"), (5, "skill_apprentice"), (15, "skill_master")],
+    "yolo_tasks": [(25, "yolo_champion")],
+    "cron_jobs_created": [(5, "cron_master"), (15, "cron_overlord")],
+    "session_resumes": [(10, "session_surfer")],
+}
+
+
 def _check_counter_achievements(stats, now):
-    """Tiered achievements backed by stats counters."""
-    cc = stats.get("config_changes", 0)
-    if cc >= 15:
-        _unlock("config_guru", now)
-    else:
-        _set_progress("config_guru", cc, 15)
-    pe = stats.get("plugins_enabled", 0)
-    if pe >= 5:
-        _unlock("plugin_pack", now)
-    else:
-        _set_progress("plugin_pack", pe, 5)
-    pc = stats.get("profiles_created", 0)
-    if pc >= 5:
-        _unlock("profile_collector", now)
-    else:
-        _set_progress("profile_collector", pc, 5)
-    mc = stats.get("mcp_servers_connected", 0)
-    if mc >= 3:
-        _unlock("mcp_networker", now)
-    else:
-        _set_progress("mcp_networker", mc, 3)
-    si = stats.get("skills_installed", 0)
-    if si >= 1:
-        _unlock("skill_finder", now)
-    else:
-        _set_progress("skill_finder", si, 1)
-    if si >= 5:
-        _unlock("skill_apprentice", now)
-    else:
-        _set_progress("skill_apprentice", si, 5)
-    if si >= 15:
-        _unlock("skill_master", now)
-    else:
-        _set_progress("skill_master", si, 15)
-    yt = stats.get("yolo_tasks", 0)
-    if yt >= 25:
-        _unlock("yolo_champion", now)
-    else:
-        _set_progress("yolo_champion", yt, 25)
-    cj = stats.get("cron_jobs_created", 0)
-    if cj >= 5:
-        _unlock("cron_master", now)
-    else:
-        _set_progress("cron_master", cj, 5)
-    if cj >= 15:
-        _unlock("cron_overlord", now)
-    else:
-        _set_progress("cron_overlord", cj, 15)
-    sr = stats.get("session_resumes", 0)
-    if sr >= 10:
-        _unlock("session_surfer", now)
-    else:
-        _set_progress("session_surfer", sr, 10)
+    """Tiered achievements backed by stats counters (data-driven)."""
+    for stat, tiers in _COUNTER_THRESHOLDS.items():
+        value = stats.get(stat, 0)
+        for threshold, aid in tiers:
+            if value >= threshold:
+                _unlock(aid, now)
+            else:
+                _set_progress(aid, value, threshold)
 
 
 # ── Hook: pre_tool_call ────────────────────────────────────────────────
@@ -2870,7 +2842,7 @@ def _format_badge(a_id, a_def, state, compact=False) -> str:
     """Render one achievement badge line.
 
     compact=True drops the description and full progress bar — used by the
-    group-filter view so large groups (Power User is 33) stay under
+    group-filter view so large groups (Power User is 44) stay under
     Discord's 2000-char cap in every locale. Details remain available via
     ``/achievement <id>``.
     """
