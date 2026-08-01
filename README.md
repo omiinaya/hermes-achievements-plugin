@@ -72,15 +72,15 @@ Notifications are rarity-colored Discord embeds (gray → gold) posted asynchron
 🎯 **Milestones** (0/15) ░░░░░░░░░░
 🤝 **Community** (0/6) ░░░░░░░░░░
 
-🔮 Closest to unlock: **Terminal Jockey** ███░░░░░░░ 3/25 (12%)
+🔮 Closest to unlock: **Deep Diver** ████░░░░░░ 2/5 (40%)
 
 /achievements next
 
 🎯 **Next Up** — closest to unlocking:
 
 🟩 **Deep Diver** — ████░░░░░░ 2/5 (40%)
-🟦 **Terminal Jockey** — █░░░░░░░░░ 3/25 (12%)
 🟦 **Config Guru** — █░░░░░░░░░ 2/15 (13%)
+🟩 **Terminal Jockey** — █░░░░░░░░░ 3/25 (12%)
 ```
 
 ### Multi-Language Support (i18n) 🌐
