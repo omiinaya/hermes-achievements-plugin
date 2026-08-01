@@ -106,8 +106,6 @@ def _send_discord_notification_sync(ach_def):
         targets.append(("home", home_channel, home_thread or None))
     if origin_channel and origin_channel != home_channel:
         targets.append(("origin", origin_channel, None))
-    if not targets and origin_channel:
-        targets.append(("origin", origin_channel, None))
 
     for label, channel_id, thread_id in targets:
         # Discord threads: the thread ID IS the channel ID in the API —

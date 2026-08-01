@@ -633,6 +633,70 @@ class TestStatePersistence(HookTestBase):
             self.mod.urllib.request.urlopen = old
         self.assertEqual(calls, [])
 
+    def test_send_notification_sync_swallows_network_error(self):
+        # A URLError from Discord must be logged, not raised
+        self.mod._load_env_var = lambda key, fallback="": {
+            "DISCORD_BOT_TOKEN": "test-token",
+            "DISCORD_HOME_CHANNEL": "123",
+        }.get(key, fallback)
+
+        def boom(req, timeout=None):
+            raise self.mod.urllib.error.URLError("network down")
+
+        old = self.mod.urllib.request.urlopen
+        self.mod.urllib.request.urlopen = boom
+        try:
+            self.mod._send_discord_notification_sync(
+                self.mod.ACHIEVEMENT_DEFS["first_steps"])  # must not raise
+        finally:
+            self.mod.urllib.request.urlopen = old
+
+    def test_send_notification_sync_swallows_http_error(self):
+        self.mod._load_env_var = lambda key, fallback="": {
+            "DISCORD_BOT_TOKEN": "test-token",
+            "DISCORD_HOME_CHANNEL": "123",
+        }.get(key, fallback)
+
+        def boom(req, timeout=None):
+            raise self.mod.urllib.error.HTTPError(
+                "https://discord.com/api/v10/channels/123/messages",
+                429, "rate limited", None, None)
+
+        old = self.mod.urllib.request.urlopen
+        self.mod.urllib.request.urlopen = boom
+        try:
+            self.mod._send_discord_notification_sync(
+                self.mod.ACHIEVEMENT_DEFS["first_steps"])  # must not raise
+        finally:
+            self.mod.urllib.request.urlopen = old
+
+    def test_send_notification_sync_sends_once_when_home_equals_origin(self):
+        # home == origin → only one POST (dedup)
+        self.mod._load_env_var = lambda key, fallback="": {
+            "DISCORD_BOT_TOKEN": "test-token",
+            "DISCORD_HOME_CHANNEL": "456",
+        }.get(key, fallback)
+        os.environ["HERMES_SESSION_CHAT_ID"] = "456"  # same as home
+        calls = []
+
+        class FakeResp:
+            def __enter__(self): return self
+            def __exit__(self, *a): return False
+
+        def fake_urlopen(req, timeout=None):
+            calls.append(req.full_url)
+            return FakeResp()
+
+        old = self.mod.urllib.request.urlopen
+        self.mod.urllib.request.urlopen = fake_urlopen
+        try:
+            self.mod._send_discord_notification_sync(
+                self.mod.ACHIEVEMENT_DEFS["first_steps"])
+        finally:
+            self.mod.urllib.request.urlopen = old
+            os.environ.pop("HERMES_SESSION_CHAT_ID", None)
+        self.assertEqual(len(calls), 1)
+
     def test_discord_notification_uses_rarity_embed(self):
         import json as _json
         captured = {}
