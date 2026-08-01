@@ -4,6 +4,7 @@
 
 ### Fixed
 
+- **Notification origin target skipped for non-Discord platforms** — `HERMES_SESSION_CHAT_ID` is used as the origin delivery channel, but WhatsApp/Telegram chat IDs aren't Discord snowflakes, so the plugin was POSTing to a bogus `discord.com/.../channels/<whatsapp-id>/messages` URL (wasted request + missed origin notification). Origin is now only used when it's all digits.
 - **`/achievement` ambiguity list could exceed Discord's cap** — a generic query (e.g. "the") matched dozens of names and produced a >2000-char "Multiple:" line. Now capped at 10 with an "and N more" suffix + "Be more specific" hint.
 
 ### Added

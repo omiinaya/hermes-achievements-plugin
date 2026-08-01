@@ -132,11 +132,14 @@ def _send_discord_notification_batch(batch):
     # Discord caps embeds at 10 per message — chunk larger bursts
     MAX_EMBEDS = 10
 
-    # Build unique target set — dedup home vs origin
+    # Build unique target set — dedup home vs origin. Origin is only used
+    # when it looks like a Discord channel (numeric snowflake); other
+    # platforms (WhatsApp chat IDs, Telegram IDs) would POST to a bogus
+    # URL and fail.
     targets = []
     if home_channel:
         targets.append(("home", home_channel, home_thread or None))
-    if origin_channel and origin_channel != home_channel:
+    if origin_channel and origin_channel != home_channel and str(origin_channel).isdigit():
         targets.append(("origin", origin_channel, None))
 
     for start in range(0, len(embeds), MAX_EMBEDS):

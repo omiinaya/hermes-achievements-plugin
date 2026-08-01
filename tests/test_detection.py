@@ -1362,6 +1362,39 @@ class TestStatePersistence(HookTestBase):
         # The thread ID is the channel ID in the Discord API
         self.assertIn("/channels/222/messages", captured["url"])
 
+    def test_origin_skipped_when_not_discord_snowflake(self):
+        # Non-Discord origin (WhatsApp/Telegram chat ID) must not POST to
+        # the Discord API with a bogus channel ID — only home is targeted
+        captured = []
+
+        class FakeResp:
+            def __enter__(self): return self
+            def __exit__(self, *a): return False
+
+        def fake_urlopen(req, timeout=None):
+            captured.append(req.full_url)
+            return FakeResp()
+
+        self.mod._load_env_var = lambda key, fallback="": {
+            "DISCORD_BOT_TOKEN": "test-token",
+            "DISCORD_HOME_CHANNEL": "456",
+        }.get(key, fallback)
+        old_origin = os.environ.pop("HERMES_SESSION_CHAT_ID", None)
+        os.environ["HERMES_SESSION_CHAT_ID"] = "40196666064944@lid"  # whatsapp
+        old = self.mod.urllib.request.urlopen
+        self.mod.urllib.request.urlopen = fake_urlopen
+        try:
+            self.mod._send_discord_notification_sync(self.mod.ACHIEVEMENT_DEFS["first_steps"])
+        finally:
+            self.mod.urllib.request.urlopen = old
+            if old_origin is not None:
+                os.environ["HERMES_SESSION_CHAT_ID"] = old_origin
+            else:
+                os.environ.pop("HERMES_SESSION_CHAT_ID", None)
+        # Only the home channel POST — no bogus origin POST
+        self.assertEqual(len(captured), 1)
+        self.assertIn("/channels/456/messages", captured[0])
+
 
 class TestSessionEndStreaks(HookTestBase):
     """on_session_end daily-streak logic (Week Warrior / Monthly Master)."""
