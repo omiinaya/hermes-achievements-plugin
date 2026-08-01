@@ -19,9 +19,9 @@ import re
 import shutil
 import threading
 import time
-from datetime import datetime, timezone, date
-import urllib.request
 import urllib.error
+import urllib.request
+from datetime import UTC, date, datetime
 
 # ── Paths ────────────────────────────────────────────────────────────────
 
@@ -61,7 +61,7 @@ def _send_discord_notification(ach_def):
     def _worker():
         try:
             _send_discord_notification_sync(ach_def)
-        except Exception as exc:  # never let a notification thread crash the process
+        except Exception as exc:  # noqa: BLE001 — never let a notification thread crash
             import logging
             logging.getLogger(__name__).warning(
                 "Achievement notification thread failed: %s", exc
@@ -154,7 +154,7 @@ def _save_state(force=False):
             def _convert(v):
                 return sorted(v) if isinstance(v, set) else v
             state_copy = json.loads(json.dumps(_state, default=_convert))
-            state_copy["last_updated"] = datetime.now(timezone.utc).isoformat()
+            state_copy["last_updated"] = datetime.now(UTC).isoformat()
             # Keep a rolling backup so a crash mid-write never loses progress
             try:
                 if os.path.exists(_STATE_PATH):
@@ -164,7 +164,7 @@ def _save_state(force=False):
             with open(_STATE_PATH, "w") as f:
                 json.dump(state_copy, f, indent=2, default=str)
             _last_save_ts = now
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001 — state save must never crash hooks
             import logging
             logging.getLogger(__name__).warning("Failed to save state: %s", exc)
 
@@ -997,7 +997,7 @@ TERMINAL_PATTERNS = {
 def _unlock(ach_id, now=None):
     """Unlock an achievement if not already. Returns True if newly unlocked."""
     if now is None:
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
     state = _load_state()
     a = state["achievements"].get(ach_id, {})
     if a.get("unlocked"):
@@ -1170,7 +1170,7 @@ def _post_tool_call(**kwargs):
 
     state = _load_state()
     stats = state.setdefault("stats", {})
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(UTC).isoformat()
 
     # ── Cumulative per-tool usage ──────────────────────────────
     tc_counts = stats.setdefault("tools_used", {})
@@ -1378,7 +1378,7 @@ def _post_llm_call(**kwargs):
 
     state = _load_state()
     stats = state.setdefault("stats", {})
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(UTC).isoformat()
 
     conversation_history = kwargs.get("conversation_history", [])
     user_message = kwargs.get("user_message", "")
@@ -1464,7 +1464,7 @@ def _post_llm_call(**kwargs):
         _unlock("gateway_guru", now)
 
     # ── Early Bird / Night Owl ──────────────────────────────────
-    local_hour = datetime.now().hour
+    local_hour = datetime.now().hour  # noqa: DTZ005 — local-time achievements
     if local_hour < 6:
         _unlock("early_bird", now)
     if 0 <= local_hour < 5:
@@ -1527,7 +1527,7 @@ def _on_session_end(**kwargs):
         stats.setdefault("platforms", set()).add("cli")
 
     # ── Streak tracking (daily consecutive usage) ───────────────
-    today = date.today().isoformat()
+    today = date.today().isoformat()  # noqa: DTZ011 — streaks are local-calendar
     last_active = stats.get("last_active_date")
     current_streak = stats.get("current_streak", 0)
 
@@ -1538,7 +1538,7 @@ def _on_session_end(**kwargs):
         from datetime import timedelta
         try:
             last_date = date.fromisoformat(last_active) if isinstance(last_active, str) else last_active
-            yesterday = date.today() - timedelta(days=1)
+            yesterday = date.today() - timedelta(days=1)  # noqa: DTZ011
             if last_date == yesterday:
                 current_streak += 1
             elif last_date < yesterday:
@@ -1555,7 +1555,7 @@ def _on_session_end(**kwargs):
     stats["longest_streak"] = max(stats.get("longest_streak", 0), current_streak)
 
     # ── Check streak achievements ───────────────────────────────
-    _check_streaks(stats, datetime.now(timezone.utc).isoformat())
+    _check_streaks(stats, datetime.now(UTC).isoformat())
 
     # ── Group completions (re-check after session milestones) ───
     _check_group_completions()
@@ -1605,7 +1605,7 @@ def _handle_next_up(state) -> str:
     locale = state.get("locale", "en")
     ach_state = state.get("achievements", {})
     candidates = []
-    for aid, adef in ACHIEVEMENT_DEFS.items():
+    for aid in ACHIEVEMENT_DEFS:
         s = ach_state.get(aid, {})
         if s.get("unlocked"):
             continue

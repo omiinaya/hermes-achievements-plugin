@@ -37,7 +37,7 @@ def load_defs():
                 continue
             try:
                 value = ast.literal_eval(node.value)
-            except Exception:  # noqa: BLE001 — skip non-literal assigns
+            except Exception:  # noqa: BLE001, S112 — skip non-literal assigns
                 continue
             if target.id == "ACHIEVEMENT_DEFS":
                 defs = value

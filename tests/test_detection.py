@@ -357,6 +357,77 @@ class TestStatePersistence(HookTestBase):
         self.assertIn("Completionist", embed["title"])
 
 
+class TestSessionEndStreaks(HookTestBase):
+    """on_session_end daily-streak logic (Week Warrior / Monthly Master)."""
+
+    def _set_last_active(self, days_ago):
+        from datetime import date, timedelta
+        self.stats()["last_active_date"] = (date.today() - timedelta(days=days_ago)).isoformat()  # noqa: DTZ011
+
+    def test_first_session_starts_streak(self):
+        self.mod._on_session_end(model="m1", platform="cli")
+        self.assertEqual(self.stats()["current_streak"], 1)
+        self.assertEqual(self.stats()["longest_streak"], 1)
+
+    def test_same_day_does_not_double_count(self):
+        self.mod._on_session_end(model="m1", platform="cli")
+        self.mod._on_session_end(model="m1", platform="cli")
+        self.assertEqual(self.stats()["current_streak"], 1)
+
+    def test_yesterday_increments_streak(self):
+        self.stats()["current_streak"] = 1
+        self._set_last_active(1)
+        self.mod._on_session_end(model="m1", platform="cli")
+        self.assertEqual(self.stats()["current_streak"], 2)
+
+    def test_gap_resets_streak(self):
+        self.stats()["current_streak"] = 5
+        self.stats()["longest_streak"] = 5
+        self._set_last_active(3)
+        self.mod._on_session_end(model="m1", platform="cli")
+        self.assertEqual(self.stats()["current_streak"], 1)
+        # longest_streak preserved
+        self.assertEqual(self.stats()["longest_streak"], 5)
+
+    def test_week_warrior_at_7_days(self):
+        self.stats()["current_streak"] = 6
+        self._set_last_active(1)
+        self.mod._on_session_end(model="m1", platform="cli")
+        self.assertTrue(self.unlocked("week_warrior"))
+        self.assertFalse(self.unlocked("monthly_master"))
+
+    def test_monthly_master_at_30_days(self):
+        self.stats()["current_streak"] = 29
+        self._set_last_active(1)
+        self.mod._on_session_end(model="m1", platform="cli")
+        self.assertTrue(self.unlocked("monthly_master"))
+
+    def test_session_end_tracks_model_platform(self):
+        self.mod._on_session_end(model="model-x", platform="telegram")
+        st = self.stats()
+        self.assertIn("model-x", st["models_used"])
+        self.assertIn("telegram", st["platforms"])
+
+
+class TestEnvLoading(HookTestBase):
+    """_load_env_var reads from the Hermes .env file."""
+
+    def test_loads_from_dotenv(self):
+        env_path = os.path.join(self._tmp, ".env")
+        with open(env_path, "w") as f:
+            f.write("DISCORD_BOT_TOKEN=abc123\n")
+            f.write('DISCORD_HOME_CHANNEL="999"\n')
+        self.assertEqual(self.mod._load_env_var("DISCORD_BOT_TOKEN"), "abc123")
+        self.assertEqual(self.mod._load_env_var("DISCORD_HOME_CHANNEL"), "999")
+        self.assertEqual(self.mod._load_env_var("MISSING_KEY"), "")
+
+    def test_ignores_comments_and_blank_lines(self):
+        env_path = os.path.join(self._tmp, ".env")
+        with open(env_path, "w") as f:
+            f.write("# comment\n\nKEY=value\n")
+        self.assertEqual(self.mod._load_env_var("KEY"), "value")
+
+
 class TestRemainingGaps(HookTestBase):
     """Achievements that previously had no detection path at all."""
 
