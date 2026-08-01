@@ -1193,6 +1193,25 @@ class TestCommandHandlers(HookTestBase):
         self.assertNotIn("%", out)
         self.assertIn("Locked", out)
 
+    def test_recent_falls_back_to_unlocked_at_when_newly_empty(self):
+        # newly_unlocked empty but achievements exist → sorted by unlocked_at
+        self.mod._unlock("first_steps")
+        self.mod._unlock("terminal_jockey")
+        self.mod._state["newly_unlocked"] = []
+        out = self.mod._handle_achievements("recent")
+        self.assertIn("First Steps", out)
+        self.assertIn("Terminal Jockey", out)
+
+    def test_progress_bar_zero_target(self):
+        self.assertEqual(self.mod._progress_bar(5, 0), "░" * 10)
+
+    def test_progress_bar_clamps_at_width(self):
+        self.assertEqual(self.mod._progress_bar(50, 10), "█" * 10)
+
+    def test_next_up_empty_state(self):
+        out = self.mod._handle_achievements("next")
+        self.assertIn("No progress tracked yet", out)
+
 
 class TestSecretAchievements(HookTestBase):
     """Locked secret achievements hide name/description/progress."""
