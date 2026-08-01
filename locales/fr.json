@@ -13,6 +13,10 @@
       "name": "Général en Chef",
       "description": "Invoquer 25 sous-agents avec delegate_task"
     },
+    "batch_artist": {
+      "name": "Artiste du Lot",
+      "description": "Émettez 5 appels d'outil en une seule réponse"
+    },
     "cautious": {
       "name": "Prudent",
       "description": "Refusez une demande d'approbation"
@@ -149,6 +153,10 @@
       "name": "Bilan de Santé",
       "description": "Lancer `hermes doctor` pour vérifier l'état du système"
     },
+    "double_time": {
+      "name": "Double Temps",
+      "description": "Émettez 2 appels d'outil en une seule réponse"
+    },
     "early_bird": {
       "name": "Lève-Tôt",
       "description": "Utiliser Hermes avant 6 h du matin"
@@ -268,6 +276,10 @@
     "orchestrator": {
       "name": "Orchestrateur",
       "description": "Utilisez un sous-agent avec le rôle d'orchestrateur"
+    },
+    "parallel_barrage": {
+      "name": "Rafale Parallèle",
+      "description": "Émettez 10 appels d'outil en une seule réponse"
     },
     "parallel_master": {
       "name": "Maître du Parallèle",
@@ -445,6 +457,10 @@
       "name": "Obsédé des Outils",
       "description": "Accumuler 1 000 appels d'outils au total"
     },
+    "tool_torrent": {
+      "name": "Torrent d'Outils",
+      "description": "Émettez 20 appels d'outil en une seule réponse"
+    },
     "trial_and_error": {
       "name": "Essais et Erreurs",
       "description": "Persévérez à travers 25 appels d'outils qui ont échoué"
@@ -513,6 +529,7 @@
     "all_subtitle": "*Les succès se débloquent automatiquement au fur et à mesure que tu utilises Hermes*",
     "all_title": "**🎮 Succès Hermes**",
     "badge_format": "{icon} **{name}** — {description}{progress}",
+    "badge_compact_format": "{icon} **{name}**{progress}",
     "batch_unlocked": "🎉 {count} succès débloqués !",
     "completionist_unlocked": "\n🎉 **COMPLÉTISTE DÉBLOQUÉ !**",
     "detail_group": "**Groupe :** {group}",
@@ -554,6 +571,7 @@
     "stats_platforms": "Plateformes :             {platforms}",
     "stats_session_resets": "Réinitialisations:        {count}",
     "stats_conversations": "Conversations démarrées:   {count}",
+    "stats_peak_batch": "Pic d'outils par réponse:  {count}",
     "stats_media": "Messages média:           {count}",
     "stats_peak_context": "Contexte le plus profond: {count} msgs",
     "stats_peak_input": "Pic de tokens d'entrée:   {count}",

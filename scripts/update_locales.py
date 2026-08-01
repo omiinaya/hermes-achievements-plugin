@@ -141,6 +141,26 @@ NEW = {
         "fr": {"name": "Colosse de la Conversation", "description": "Démarrez 100 conversations"},
         "pt": {"name": "Colosso da Conversa", "description": "Inicie 100 conversas"},
     },
+    "double_time": {
+        "es": {"name": "Doble Turno", "description": "Emite 2 llamadas de herramienta en una sola respuesta"},
+        "fr": {"name": "Double Temps", "description": "Émettez 2 appels d'outil en une seule réponse"},
+        "pt": {"name": "Dupla Jornada", "description": "Emita 2 chamadas de ferramenta em uma única resposta"},
+    },
+    "batch_artist": {
+        "es": {"name": "Artista de Lotes", "description": "Emite 5 llamadas de herramienta en una sola respuesta"},
+        "fr": {"name": "Artiste du Lot", "description": "Émettez 5 appels d'outil en une seule réponse"},
+        "pt": {"name": "Artista de Lotes", "description": "Emita 5 chamadas de ferramenta em uma única resposta"},
+    },
+    "parallel_barrage": {
+        "es": {"name": "Ráfaga Paralela", "description": "Emite 10 llamadas de herramienta en una sola respuesta"},
+        "fr": {"name": "Rafale Parallèle", "description": "Émettez 10 appels d'outil en une seule réponse"},
+        "pt": {"name": "Rajada Paralela", "description": "Emita 10 chamadas de ferramenta em uma única resposta"},
+    },
+    "tool_torrent": {
+        "es": {"name": "Torrente de Herramientas", "description": "Emite 20 llamadas de herramienta en una sola respuesta"},
+        "fr": {"name": "Torrent d'Outils", "description": "Émettez 20 appels d'outil en une seule réponse"},
+        "pt": {"name": "Torrente de Ferramentas", "description": "Emita 20 chamadas de ferramenta em uma única resposta"},
+    },
 }
 
 

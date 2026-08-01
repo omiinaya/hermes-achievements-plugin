@@ -13,6 +13,10 @@
       "name": "Comandante do Exército",
       "description": "Invocar 25 subagentes com delegate_task"
     },
+    "batch_artist": {
+      "name": "Artista de Lotes",
+      "description": "Emita 5 chamadas de ferramenta em uma única resposta"
+    },
     "cautious": {
       "name": "Cauteloso",
       "description": "Negue uma solicitação de aprovação"
@@ -149,6 +153,10 @@
       "name": "Atestado de Saúde",
       "description": "Executar `hermes doctor` para verificar a saúde do sistema"
     },
+    "double_time": {
+      "name": "Dupla Jornada",
+      "description": "Emita 2 chamadas de ferramenta em uma única resposta"
+    },
     "early_bird": {
       "name": "Madrugador",
       "description": "Usar o Hermes antes das 6h"
@@ -268,6 +276,10 @@
     "orchestrator": {
       "name": "Orquestrador",
       "description": "Use um subagente com função de orquestrador"
+    },
+    "parallel_barrage": {
+      "name": "Rajada Paralela",
+      "description": "Emita 10 chamadas de ferramenta em uma única resposta"
     },
     "parallel_master": {
       "name": "Mestre do Paralelismo",
@@ -445,6 +457,10 @@
       "name": "Obcecado por Ferramentas",
       "description": "Acumular 1.000 chamadas de ferramenta no total"
     },
+    "tool_torrent": {
+      "name": "Torrente de Ferramentas",
+      "description": "Emita 20 chamadas de ferramenta em uma única resposta"
+    },
     "trial_and_error": {
       "name": "Tentativa e Erro",
       "description": "Persista através de 25 chamadas de ferramenta que falharam"
@@ -513,6 +529,7 @@
     "all_subtitle": "*As conquistas são desbloqueadas automaticamente conforme você usa o Hermes*",
     "all_title": "**🎮 Conquistas do Hermes**",
     "badge_format": "{icon} **{name}** — {description}{progress}",
+    "badge_compact_format": "{icon} **{name}**{progress}",
     "batch_unlocked": "🎉 {count} conquistas desbloqueadas!",
     "completionist_unlocked": "\n🎉 **COMPLETISTA DESBLOQUEADO!**",
     "detail_group": "**Grupo:** {group}",
@@ -554,6 +571,7 @@
     "stats_platforms": "Plataformas:               {platforms}",
     "stats_session_resets": "Reinicializações:         {count}",
     "stats_conversations": "Conversas iniciadas:       {count}",
+    "stats_peak_batch": "Pico de ferramentas por resposta: {count}",
     "stats_media": "Mensagens de mídia:       {count}",
     "stats_peak_context": "Contexto mais profundo:   {count} msgs",
     "stats_peak_input": "Pico de tokens de entrada: {count}",

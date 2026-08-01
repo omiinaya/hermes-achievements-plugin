@@ -1,5 +1,32 @@
 # Changelog
 
+## [2.11.0] — 2026-08-01
+
+### Added
+
+- **16th plugin hook: `pre_tool_call`** — fires once per tool call
+  *before* execution, carrying `api_request_id` (the ID of the assistant
+  response that emitted the call). Every tool call from one response
+  shares that ID, so counting consecutive calls per ID reveals how many
+  tools the model batched into a single step — a dimension `post_tool_call`
+  cannot see (it has no `api_request_id`). New dimension (122 → 126):
+  - **Single-response tool batching** — Double Time 🤹 (uncommon, Power
+    User) on 2 tool calls in one response; Batch Artist 🎪 (rare) at 5;
+    Parallel Barrage 💥 (epic) at 10; Tool Torrent 🧰 (legendary) at 20.
+    `peak_tools_per_response` stat (max, not last) surfaced in the stats
+    view (`ui.stats_peak_batch`, all 4 locales).
+- **Compact group views** — the group-filter command (`/achievements
+  power_user` etc.) now renders compact badges (icon + name + short
+  progress) instead of full descriptions, keeping every locale's largest
+  group (Power User, 33) under Discord's 2000-char cap. Descriptions stay
+  one `/achievement <id>` away. New `ui.badge_compact_format` key in all
+  4 locales.
+- New `TestPreToolCall` suite (10 tests: batch thresholds, cross-response
+  reset, missing-id no-op, peak-max, progress tracking). Grind extended
+  with a 25-call response plus a smaller second response proving all four
+  new defs unlock and the reset path works. check_plugin.py gateway scan
+  now also covers `hermes_cli/plugins.py` (where pre_tool_call dispatches).
+
 ## [2.10.0] — 2026-08-01
 
 ### Added

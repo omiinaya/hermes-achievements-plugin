@@ -276,6 +276,7 @@ def _new_state():
             "longest_streak": 0,
             "total_sessions": 0,
             "conversations_started": 0,
+            "peak_tools_per_response": 0,
             # Live per-session tracking (reset whenever session_id changes)
             "active_session": {
                 "id": None,
@@ -635,7 +636,7 @@ ACHIEVEMENT_DEFS = {
     },
 
     # ═══════════════════════════════════════════════════════════════════════
-    # ⚡ POWER USER  (23)
+    # ⚡ POWER USER  (33)
     # ═══════════════════════════════════════════════════════════════════════
     "cron_commander": {
         "id": "cron_commander", "name": "Cron Commander", "emoji": "⏰",
@@ -772,6 +773,26 @@ ACHIEVEMENT_DEFS = {
         "id": "parallel_master", "name": "Parallel Master", "emoji": "⚡⚡",
         "description": "Run 3 subagents in parallel with a single delegate_task",
         "rarity": "rare", "group": "Power User",
+    },
+    "double_time": {
+        "id": "double_time", "name": "Double Time", "emoji": "🤹",
+        "description": "Emit 2 tool calls in a single response",
+        "rarity": "uncommon", "group": "Power User",
+    },
+    "batch_artist": {
+        "id": "batch_artist", "name": "Batch Artist", "emoji": "🎪",
+        "description": "Emit 5 tool calls in a single response",
+        "rarity": "rare", "group": "Power User",
+    },
+    "parallel_barrage": {
+        "id": "parallel_barrage", "name": "Parallel Barrage", "emoji": "💥",
+        "description": "Emit 10 tool calls in a single response",
+        "rarity": "epic", "group": "Power User",
+    },
+    "tool_torrent": {
+        "id": "tool_torrent", "name": "Tool Torrent", "emoji": "🧰",
+        "description": "Emit 20 tool calls in a single response",
+        "rarity": "legendary", "group": "Power User",
     },
     "conductor": {
         "id": "conductor", "name": "Conductor", "emoji": "🎻",
@@ -1156,6 +1177,19 @@ _CONVERSATION_THRESHOLDS = [
     (10, "conversation_habit"),
     (50, "serial_starter"),
     (100, "conversation_colossus"),
+]
+
+# Single-response tool-batch thresholds (api_request_id from pre_tool_call):
+# every tool call the model emitted in ONE assistant response shares the
+# same api_request_id, so counting consecutive calls per id measures how
+# many tools the model chose to run in parallel in a single step — a
+# genuinely distinct dimension from cumulative tool counts and from
+# delegate_task parallelism (Parallel Master).
+_BATCH_THRESHOLDS = [
+    (2, "double_time"),
+    (5, "batch_artist"),
+    (10, "parallel_barrage"),
+    (20, "tool_torrent"),
 ]
 _LOCAL_SUFFIXES = (".local", ".internal", ".lan", ".home.arpa")
 
@@ -1645,6 +1679,47 @@ def _check_counter_achievements(stats, now):
         _unlock("session_surfer", now)
     else:
         _set_progress("session_surfer", sr, 10)
+
+
+# ── Hook: pre_tool_call ────────────────────────────────────────────────
+# Fires once per tool call BEFORE execution (block evaluation). Every tool
+# call the model emitted in ONE assistant response shares the same
+# api_request_id (set once per API call in conversation_loop), so counting
+# consecutive calls per id reveals how many tools the model batched into a
+# single step — a dimension post_tool_call cannot see (it has no
+# api_request_id and cannot distinguish one response's batch from another).
+#
+# The tracker is transient (module-level, not persisted): the running
+# count per response resets when the id changes. The persisted stat is the
+# peak batch size, which is what the achievements threshold on.
+
+_current_batch = {"id": None, "count": 0}
+
+
+def _pre_tool_call(**kwargs):
+    """Count tool calls batched into a single response via api_request_id."""
+    req_id = kwargs.get("api_request_id") or ""
+    if not req_id:
+        return
+    global _current_batch
+    if _current_batch["id"] != req_id:
+        _current_batch = {"id": req_id, "count": 1}
+    else:
+        _current_batch["count"] += 1
+    n = _current_batch["count"]
+    state = _load_state()
+    stats = state.setdefault("stats", {})
+    now = datetime.now(UTC).isoformat()
+    stats["peak_tools_per_response"] = max(
+        stats.get("peak_tools_per_response", 0), n
+    )
+    for threshold, ach_id in _BATCH_THRESHOLDS:
+        if n >= threshold:
+            _unlock(ach_id, now)
+        else:
+            _set_progress(ach_id, n, threshold)
+            break
+    _save_state()
 
 
 # ── Hook: pre_llm_call ────────────────────────────────────────────────
@@ -2288,10 +2363,16 @@ def _progress_bar(current, target, width=10):
     filled = min(int(current / target * width), width)
     return "█" * filled + "░" * (width - filled)
 
+def _format_badge(a_id, a_def, state, compact=False) -> str:
+    """Render one achievement badge line.
 
-def _format_badge(a_id, a_def, state):
+    compact=True drops the description and full progress bar — used by the
+    group-filter view so large groups (Power User is 33) stay under
+    Discord's 2000-char cap in every locale. Details remain available via
+    ``/achievement <id>``.
+    """
     a_state = state.get("achievements", {}).get(a_id, {})
-    unlocked = a_state.get("unlocked", False)
+    unlocked = bool(a_state.get("unlocked"))
     progress = a_state.get("progress")
     secret = a_def.get("secret", False) or a_def.get("hidden", False)
     locale = state.get("locale", "en")
@@ -2315,9 +2396,14 @@ def _format_badge(a_id, a_def, state):
     if progress and not unlocked:
         cur = progress.get("current", 0)
         tgt = progress.get("target", 1)
-        bar = _progress_bar(cur, tgt)
-        prog_str = _t("ui.detail_progress", locale, bar=bar, current=cur, target=tgt, percent=int(cur/tgt*100))
+        if compact:
+            prog_str = f" — {cur}/{tgt}"
+        else:
+            bar = _progress_bar(cur, tgt)
+            prog_str = _t("ui.detail_progress", locale, bar=bar, current=cur, target=tgt, percent=int(cur/tgt*100))
 
+    if compact:
+        return _t("ui.badge_compact_format", locale, icon=icon, name=name_str, progress=prog_str)
     return _t("ui.badge_format", locale, icon=icon, name=name_str, description=desc_str, progress=prog_str)
 
 
@@ -2478,6 +2564,8 @@ def _handle_achievements(raw_args: str) -> str:
                 lines.append(_t("ui.stats_session_resets", locale, count=stats.get("session_resets", 0)))
             if stats.get("conversations_started"):
                 lines.append(_t("ui.stats_conversations", locale, count=stats.get("conversations_started", 0)))
+            if stats.get("peak_tools_per_response"):
+                lines.append(_t("ui.stats_peak_batch", locale, count=stats.get("peak_tools_per_response", 0)))
             if stats.get("media_messages"):
                 lines.append(_t("ui.stats_media", locale, count=stats.get("media_messages", 0)))
             if stats.get("peak_context_messages"):
@@ -2522,7 +2610,7 @@ def _handle_achievements(raw_args: str) -> str:
             lines = [_t("ui.group_filter_header", locale, emoji=GROUP_EMOJIS.get(g, "🎮"), group=group_name) + "\n"]
             for a_id, a_def in ACHIEVEMENT_DEFS.items():
                 if a_def.get("group") == g:
-                    lines.append(_format_badge(a_id, a_def, state))
+                    lines.append(_format_badge(a_id, a_def, state, compact=True))
             return "\n".join(lines)
 
     # Default: compact group-summary view (full badge lists stay available
@@ -2671,6 +2759,8 @@ def register(ctx) -> None:
 
     # Detection: pre_llm_call counts fresh conversations (is_first_turn)
     ctx.register_hook("pre_llm_call", _pre_llm_call)
+    # Detection: pre_tool_call counts single-response tool batching
+    ctx.register_hook("pre_tool_call", _pre_tool_call)
     # Detection: post_llm_call has conversation_history → tool calls
     ctx.register_hook("post_llm_call", _post_llm_call)
     ctx.register_hook("post_api_request", _post_api_request)

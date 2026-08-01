@@ -930,6 +930,73 @@ class TestPreLlmCall(HookTestBase):
         self.assertEqual(st["progress"]["target"], 10)
 
 
+class TestPreToolCall(HookTestBase):
+    """pre_tool_call: single-response tool batching via api_request_id."""
+
+    def _fire(self, req_id, tool="terminal"):
+        self.mod._pre_tool_call(
+            tool_name=tool, args={}, task_id="t", session_id="s",
+            tool_call_id="tc", turn_id="turn", api_request_id=req_id,
+        )
+
+    def test_double_time_at_two_calls_same_response(self):
+        self._fire("api-1")
+        self.assertFalse(self.unlocked("double_time"))
+        self._fire("api-1")
+        self.assertTrue(self.unlocked("double_time"))
+        self.assertEqual(self.stats()["peak_tools_per_response"], 2)
+
+    def test_single_call_no_unlock(self):
+        self._fire("api-1")
+        self.assertFalse(self.unlocked("double_time"))
+        self.assertEqual(self.stats()["peak_tools_per_response"], 1)
+
+    def test_new_response_resets_batch(self):
+        # 2 calls across DIFFERENT responses must NOT count as a batch
+        self._fire("api-1")
+        self._fire("api-2")
+        self.assertFalse(self.unlocked("double_time"))
+        self.assertEqual(self.stats()["peak_tools_per_response"], 1)
+
+    def test_missing_api_request_id_is_noop(self):
+        self.mod._pre_tool_call(tool_name="terminal", args={})
+        self.assertFalse(self.unlocked("double_time"))
+        self.assertEqual(self.stats().get("peak_tools_per_response", 0), 0)
+
+    def test_batch_artist_at_5(self):
+        for _ in range(5):
+            self._fire("api-1")
+        self.assertTrue(self.unlocked("double_time"))
+        self.assertTrue(self.unlocked("batch_artist"))
+        self.assertFalse(self.unlocked("parallel_barrage"))
+
+    def test_parallel_barrage_at_10(self):
+        for _ in range(10):
+            self._fire("api-1")
+        self.assertTrue(self.unlocked("parallel_barrage"))
+        self.assertFalse(self.unlocked("tool_torrent"))
+
+    def test_tool_torrent_at_20(self):
+        for _ in range(20):
+            self._fire("api-1")
+        self.assertTrue(self.unlocked("tool_torrent"))
+        self.assertEqual(self.stats()["peak_tools_per_response"], 20)
+
+    def test_peak_keeps_max_across_responses(self):
+        for _ in range(3):
+            self._fire("api-small")
+        for _ in range(12):
+            self._fire("api-big")
+        self.assertEqual(self.stats()["peak_tools_per_response"], 12)
+
+    def test_progress_tracks_current_batch(self):
+        self._fire("api-1")
+        self._fire("api-1")
+        st = self.mod._load_state()["achievements"]["batch_artist"]
+        self.assertEqual(st["progress"]["current"], 2)
+        self.assertEqual(st["progress"]["target"], 5)
+
+
 class TestApprovalRequest(HookTestBase):
     """pre_approval_request: approval gates drive Under Scrutiny."""
 
@@ -1282,7 +1349,7 @@ class TestStreakEdgeCases(HookTestBase):
         self.mod._locales_cache = {}
         try:
             cache = self.mod._load_locales()
-            self.assertEqual(len(cache.get("en", {}).get("achievement", {})), 122)
+            self.assertEqual(len(cache.get("en", {}).get("achievement", {})), 126)
         finally:
             self.mod._LOCALES_DIR = old_dir
             self.mod._WHEEL_DATA_DIR = old_wheel
@@ -1885,7 +1952,8 @@ class TestPluginRegistration(unittest.TestCase):
         self.mod.register(ctx)
         hook_names = {n for n, _ in ctx.hooks}
         self.assertEqual(hook_names,
-                         {"pre_llm_call", "post_llm_call", "post_api_request",
+                         {"pre_llm_call", "pre_tool_call",
+                          "post_llm_call", "post_api_request",
                           "pre_api_request",
                           "post_tool_call",
                           "on_session_start", "on_session_end", "on_session_reset",
@@ -2117,11 +2185,19 @@ class TestCommandHandlers(HookTestBase):
         self.assertIn("Unsupported language", out)  # ui.lang_invalid
 
     def test_group_view_badge_shows_progress(self):
-        # A locked achievement with progress renders a bar in group view
+        # A locked achievement with progress renders a compact count in the
+        # group view (current/target — descriptions live in /achievement)
         self.mod._set_progress("terminal_jockey", 20, 25)
         out = self.mod._handle_achievements("tools_skills")
         self.assertIn("Terminal Jockey", out)
-        self.assertIn("80%", out)
+        self.assertIn("20/25", out)
+
+    def test_group_view_compact_no_description(self):
+        # Compact group rendering drops descriptions so big groups stay
+        # under Discord's 2000-char cap in every locale
+        self.mod._set_progress("terminal_jockey", 20, 25)
+        out = self.mod._handle_achievements("tools_skills")
+        self.assertNotIn("Run 25 terminal commands", out)  # description
 
     def test_stats_models_shows_more_suffix(self):
         # More than 3 models → "and N more" suffix
@@ -2335,6 +2411,13 @@ class TestCommandHandlers(HookTestBase):
         self.assertIn("Conversations started:", out)
         self.assertIn("4", out)
 
+    def test_stats_shows_peak_batch(self):
+        st = self.mod._load_state()["stats"]
+        st["peak_tools_per_response"] = 9
+        out = self.mod._handle_achievements("stats")
+        self.assertIn("Peak tools per response:", out)
+        self.assertIn("9", out)
+
     def test_stats_new_dimensions_hidden_when_absent(self):
         out = self.mod._handle_achievements("stats")
         self.assertNotIn("Media messages:", out)
@@ -2343,6 +2426,7 @@ class TestCommandHandlers(HookTestBase):
         self.assertNotIn("Peak input tokens:", out)
         self.assertNotIn("Local endpoint calls:", out)
         self.assertNotIn("Conversations started:", out)
+        self.assertNotIn("Peak tools per response:", out)
 
     def test_stats_completionist_unlocked_line(self):
         # All achievements unlocked → completionist line appears
@@ -2401,8 +2485,10 @@ class TestSecretAchievements(HookTestBase):
         self.mod._state["newly_unlocked"] = []
         adef = self.mod.ACHIEVEMENT_DEFS[pu_secret]
         out = self.mod._handle_achievements("power_user")
+        # Compact group view reveals the name (description lives in detail)
         self.assertIn(adef["name"], out)
-        self.assertIn(adef["description"], out)
+        detail = self.mod._handle_achievement_detail(pu_secret)
+        self.assertIn(adef["description"], detail)
 
     def test_locked_secret_detail_is_masked(self):
         for aid in self.secrets:
@@ -2455,7 +2541,7 @@ class TestReadmeSync(unittest.TestCase):
         result = subprocess.run([_sys.executable, script], capture_output=True, text=True,
                                 cwd=PLUGIN_DIR, check=False)
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertIn("OK: 122 achievements", result.stdout)
+        self.assertIn("OK: 126 achievements", result.stdout)
 
     def test_health_check_script_passes(self):
         # The health check must pass against the repo checkout (defs,
@@ -2491,7 +2577,7 @@ class TestReadmeSync(unittest.TestCase):
 
 
 class TestEveryAchievementUnlockable(HookTestBase):
-    """Full-grind simulation: prove all 122 achievement defs can unlock.
+    """Full-grind simulation: prove all 126 achievement defs can unlock.
 
     After several rounds of achievement swaps (v2.3.0, v2.4.0, v2.4.1),
     a def could sit in a detection map with an impossible condition (wrong
@@ -2596,6 +2682,23 @@ class TestEveryAchievementUnlockable(HookTestBase):
                     conversation_history=[],
                     model=models[0],
                     platform="cli",
+                )
+
+            # ── Tool batching: one 25-call response → Double Time (2),
+            # Batch Artist (5), Parallel Barrage (10), Tool Torrent (20).
+            # Same api_request_id = same assistant response. A second
+            # response with fewer calls exercises the reset + peak-max.
+            for i in range(25):
+                mod._pre_tool_call(
+                    tool_name="terminal", args={}, task_id="t",
+                    session_id="s-main", tool_call_id=f"tc-{i}",
+                    turn_id="turn", api_request_id="g-api-big",
+                )
+            for i in range(3):
+                mod._pre_tool_call(
+                    tool_name="read_file", args={}, task_id="t",
+                    session_id="s-main", tool_call_id=f"tc2-{i}",
+                    turn_id="turn", api_request_id="g-api-small",
                 )
 
             # ── Tool grind: one big session covering every tool type ──
@@ -2743,7 +2846,7 @@ class TestEveryAchievementUnlockable(HookTestBase):
             )
             mod._check_completionist()
 
-    def test_all_122_achievements_can_unlock(self):
+    def test_all_126_achievements_can_unlock(self):
         """Every def in ACHIEVEMENT_DEFS must unlock through real hooks."""
         self._grind()
         state = self.mod._load_state()
@@ -2757,7 +2860,7 @@ class TestEveryAchievementUnlockable(HookTestBase):
             f"{locked}",
         )
 
-    def test_completionist_unlocks_as_122th(self):
+    def test_completionist_unlocks_as_126th(self):
         """Completionist requires every other achievement first."""
         self._grind()
         state = self.mod._load_state()
@@ -2767,7 +2870,7 @@ class TestEveryAchievementUnlockable(HookTestBase):
             1 for aid in self.mod.ACHIEVEMENT_DEFS
             if state["achievements"].get(aid, {}).get("unlocked")
         )
-        self.assertEqual(unlocked, 122)
+        self.assertEqual(unlocked, 126)
 
 
 if __name__ == "__main__":

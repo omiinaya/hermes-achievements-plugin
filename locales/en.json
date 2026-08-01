@@ -13,6 +13,10 @@
       "name": "Army Commander",
       "description": "Spawn 25 subagents with delegate_task"
     },
+    "batch_artist": {
+      "name": "Batch Artist",
+      "description": "Emit 5 tool calls in a single response"
+    },
     "cautious": {
       "name": "Cautious",
       "description": "Deny an approval request"
@@ -149,6 +153,10 @@
       "name": "Clean Bill of Health",
       "description": "Run `hermes doctor` to check system health"
     },
+    "double_time": {
+      "name": "Double Time",
+      "description": "Emit 2 tool calls in a single response"
+    },
     "early_bird": {
       "name": "Early Bird",
       "description": "Use Hermes before 6 AM"
@@ -268,6 +276,10 @@
     "orchestrator": {
       "name": "Orchestrator",
       "description": "Use an orchestrator-role subagent"
+    },
+    "parallel_barrage": {
+      "name": "Parallel Barrage",
+      "description": "Emit 10 tool calls in a single response"
     },
     "parallel_master": {
       "name": "Parallel Master",
@@ -445,6 +457,10 @@
       "name": "Tool Obsessed",
       "description": "Accumulate 1,000 total tool calls"
     },
+    "tool_torrent": {
+      "name": "Tool Torrent",
+      "description": "Emit 20 tool calls in a single response"
+    },
     "trial_and_error": {
       "name": "Trial and Error",
       "description": "Persist through 25 tool calls that errored"
@@ -513,6 +529,7 @@
     "all_subtitle": "*Achievements unlock automatically as you use Hermes*",
     "all_title": "**🎮 Hermes Achievements**",
     "badge_format": "{icon} **{name}** — {description}{progress}",
+    "badge_compact_format": "{icon} **{name}**{progress}",
     "batch_unlocked": "🎉 {count} achievements unlocked!",
     "completionist_unlocked": "\n🎉 **COMPLETIONIST UNLOCKED!**",
     "detail_group": "**Group:** {group}",
@@ -555,6 +572,7 @@
     "stats_providers": "Providers:                {providers}{more}",
     "stats_session_resets": "Session resets:           {count}",
     "stats_conversations": "Conversations started:     {count}",
+    "stats_peak_batch": "Peak tools per response:  {count}",
     "stats_media": "Media messages:           {count}",
     "stats_peak_context": "Deepest context:          {count} msgs",
     "stats_peak_input": "Peak input tokens:        {count}",

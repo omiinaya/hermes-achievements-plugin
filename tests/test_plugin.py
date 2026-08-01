@@ -104,16 +104,16 @@ def _parse_groups_and_rarities():
 
 
 class TestAchievementDefinitions(unittest.TestCase):
-    """Validate that all 122 achievement definitions are complete and valid."""
+    """Validate that all 126 achievement definitions are complete and valid."""
 
     def setUp(self):
         self.achievements = _parse_achievement_defs()
         self.groups, self.rarities = _parse_groups_and_rarities()
 
     def test_exact_count(self):
-        """There should be exactly 122 achievements."""
-        self.assertEqual(len(self.achievements), 122,
-                         f"Expected 122 achievements, got {len(self.achievements)}")
+        """There should be exactly 126 achievements."""
+        self.assertEqual(len(self.achievements), 126,
+                         f"Expected 126 achievements, got {len(self.achievements)}")
 
     def test_required_fields(self):
         """Every achievement must have id, name, description, emoji, rarity, group."""
@@ -151,7 +151,7 @@ class TestAchievementDefinitions(unittest.TestCase):
         expected = {
             "Getting Started": 16,
             "Tools & Skills": 28,
-            "Power User": 29,
+            "Power User": 33,
             "Expert": 24,
             "Milestones": 19,
             "Community": 6,
@@ -364,6 +364,7 @@ class TestTranslationFunction(unittest.TestCase):
             "stats_users_seen": {"count": 4},
             "stats_session_resets": {"count": 3},
             "stats_conversations": {"count": 4},
+            "stats_peak_batch": {"count": 7},
             "stats_media": {"count": 12},
             "stats_peak_context": {"count": 67},
             "stats_peak_input": {"count": 250000},
@@ -392,6 +393,7 @@ class TestTranslationFunction(unittest.TestCase):
             "batch_unlocked": {"count": 3},
             "next_hint": {"name": "Test", "bar": "█████░░░░░", "current": 5, "target": 10, "percent": 50},
             "badge_format": {"icon": "⬜", "name": "Test", "description": "Test", "progress": ""},
+            "badge_compact_format": {"icon": "⬜", "name": "Test", "progress": ""},
             "stats_header": {},
             "stats_footer": {},
             "newly_prefix": {},
