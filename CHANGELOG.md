@@ -1,5 +1,38 @@
 # Changelog
 
+## [2.16.0] — 2026-08-01
+
+### Added
+
+- **Sustained-failure resilience** — `api_request_error` now reads
+  `retry_count` (consecutive failures the SAME request survived before the
+  hook fired; the gateway retry loop fires the hook once per failed
+  attempt, incrementing depth): Tenacious 🪨 (rare, Expert) at depth 2
+  (reachable on default `api_max_retries=3`), Undeterred ⛰️ (epic, Expert)
+  at depth 4 (requires raising `api_max_retries`). Distinct from
+  Indestructible's total-error breadth — 10 requests failing once each
+  never reach depth 2 (tested). `max_retry_depth` stat + stats-view line.
+
+### Fixed
+
+- **Def-id collision (found in this release)** — a new Expert achievement
+  accidentally reused the id `persistent`, which already existed as a
+  Getting Started achievement ("Send messages across 3 different
+  sessions"). Python dict-literal duplicate keys collapse silently (last
+  wins), so the old def was shadowed, its handler redirected to the new
+  def, and three locale translations were clobbered. Renamed the new
+  achievement to `tenacious` and restored the old translations. Two
+  regression guards added: `test_no_duplicate_id_keys_in_source` counts
+  raw `"id":` keys in the defs literal (the parsed `test_unique_ids`
+  cannot see literal collisions), and `update_locales.py` now only lets
+  NEW translations overwrite stale English fallbacks — a real translation
+  is never clobbered (WARN instead).
+- **Gateway scan gap** — `run_agent.py` added to check_plugin.py's
+  gateway source candidates: `api_request_error` dispatches there
+  (`invoke_hook("api_request_error", ...)` with `retry_count`), so the
+  kwarg contract check was silently missing it. 32 keys now checked
+  across 13 hooks.
+
 ## [2.15.0] — 2026-08-01
 
 ### Changed

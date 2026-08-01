@@ -694,6 +694,70 @@ class TestApiRequestError(HookTestBase):
         self.assertEqual(self.stats()["api_errors"], 1)
 
 
+class TestRetryDepth(HookTestBase):
+    """api_request_error retry_count: sustained-failure resilience.
+
+    retry_count is the number of consecutive failures the SAME request
+    survived before the hook fired (the gateway retry loop fires the hook
+    on every failed attempt, incrementing depth). Distinct from api_errors
+    breadth: three requests failing once each never reach depth 2.
+    """
+
+    def _error(self, retry_count):
+        self.mod._on_api_request_error(
+            error_type="Timeout", error_message="slow",
+            status_code=500, retry_count=retry_count, retryable=True,
+        )
+
+    def test_depth_zero_no_retry_achievements(self):
+        self._error(0)
+        self.assertFalse(self.unlocked("tenacious"))
+        self.assertFalse(self.unlocked("undeterred"))
+        self.assertEqual(self.stats().get("max_retry_depth", 0), 0)
+
+    def test_depth_one_sets_progress(self):
+        self._error(1)
+        self.assertFalse(self.unlocked("tenacious"))
+        st = self.mod._load_state()["achievements"]["tenacious"]
+        self.assertEqual(st["progress"]["current"], 1)
+        self.assertEqual(st["progress"]["target"], 2)
+        self.assertEqual(self.stats()["max_retry_depth"], 1)
+
+    def test_depth_two_unlocks_tenacious(self):
+        self._error(2)
+        self.assertTrue(self.unlocked("tenacious"))
+        self.assertFalse(self.unlocked("undeterred"))
+        self.assertEqual(self.stats()["max_retry_depth"], 2)
+
+    def test_depth_four_unlocks_both(self):
+        self._error(4)
+        self.assertTrue(self.unlocked("tenacious"))
+        self.assertTrue(self.unlocked("undeterred"))
+        self.assertEqual(self.stats()["max_retry_depth"], 4)
+
+    def test_max_depth_keeps_deepest(self):
+        self._error(1)
+        self._error(3)
+        self._error(2)
+        self.assertEqual(self.stats()["max_retry_depth"], 3)
+
+    def test_shallow_errors_never_reach_depth(self):
+        # Breadth without depth: 10 single failures ≠ sustained outage.
+        for _ in range(10):
+            self._error(0)
+        self.assertFalse(self.unlocked("tenacious"))
+        self.assertFalse(self.unlocked("undeterred"))
+        self.assertEqual(self.stats().get("max_retry_depth", 0), 0)
+
+    def test_bad_retry_count_ignored(self):
+        self.mod._on_api_request_error(
+            error_type="Timeout", error_message="x",
+            status_code=500, retry_count="garbage", retryable=True,
+        )
+        self.assertEqual(self.stats().get("max_retry_depth", 0), 0)
+        self.assertFalse(self.unlocked("tenacious"))
+
+
 class TestPostApiRequest(HookTestBase):
     """post_api_request: tokens, fast responses, providers, context depth."""
 
@@ -1823,7 +1887,7 @@ class TestStreakEdgeCases(HookTestBase):
         self.mod._locales_cache = {}
         try:
             cache = self.mod._load_locales()
-            self.assertEqual(len(cache.get("en", {}).get("achievement", {})), 144)
+            self.assertEqual(len(cache.get("en", {}).get("achievement", {})), 146)
         finally:
             self.mod._LOCALES_DIR = old_dir
             self.mod._WHEEL_DATA_DIR = old_wheel
@@ -2950,6 +3014,14 @@ class TestCommandHandlers(HookTestBase):
         out = self.mod._handle_achievements("stats")
         self.assertNotIn("Tool calls interrupted:", out)
         self.assertNotIn("Tool calls blocked:", out)
+        self.assertNotIn("Deepest API retry depth:", out)
+
+    def test_stats_shows_max_retry_depth(self):
+        st = self.mod._load_state()["stats"]
+        st["max_retry_depth"] = 4
+        out = self.mod._handle_achievements("stats")
+        self.assertIn("Deepest API retry depth:", out)
+        self.assertIn("4", out)
 
     def test_stats_shows_longest_subagent(self):
         st = self.mod._load_state()["stats"]
@@ -3087,7 +3159,7 @@ class TestReadmeSync(unittest.TestCase):
         result = subprocess.run([_sys.executable, script], capture_output=True, text=True,
                                 cwd=PLUGIN_DIR, check=False)
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertIn("OK: 144 achievements", result.stdout)
+        self.assertIn("OK: 146 achievements", result.stdout)
 
     def test_health_check_script_passes(self):
         # The health check must pass against the repo checkout (defs,
@@ -3123,7 +3195,7 @@ class TestReadmeSync(unittest.TestCase):
 
 
 class TestEveryAchievementUnlockable(HookTestBase):
-    """Full-grind simulation: prove all 144 achievement defs can unlock.
+    """Full-grind simulation: prove all 146 achievement defs can unlock.
 
     After several rounds of achievement swaps (v2.3.0, v2.4.0, v2.4.1),
     a def could sit in a detection map with an impossible condition (wrong
@@ -3431,6 +3503,14 @@ class TestEveryAchievementUnlockable(HookTestBase):
             # ── API errors, approvals, distinct users, media, reset ──
             for i in range(12):
                 mod._on_api_request_error(error_type="timeout", status_code=429)
+            # Retry depth: one request failing 4× in a row (depths 0-4)
+            # → Tenacious (2) + Undeterred (4). The gateway fires the hook
+            # once per failed attempt with the current depth.
+            for depth in range(5):
+                mod._on_api_request_error(
+                    error_type="Timeout", status_code=500,
+                    retry_count=depth, retryable=True,
+                )
             for i in range(12):
                 mod._on_approval_request(command="terminal", surface="cli")
             mod._on_approval_response(choice="deny")
@@ -3465,7 +3545,7 @@ class TestEveryAchievementUnlockable(HookTestBase):
             )
             mod._check_completionist()
 
-    def test_all_144_achievements_can_unlock(self):
+    def test_all_146_achievements_can_unlock(self):
         """Every def in ACHIEVEMENT_DEFS must unlock through real hooks."""
         self._grind()
         state = self.mod._load_state()
@@ -3479,7 +3559,7 @@ class TestEveryAchievementUnlockable(HookTestBase):
             f"{locked}",
         )
 
-    def test_completionist_unlocks_as_144th(self):
+    def test_completionist_unlocks_as_146th(self):
         """Completionist requires every other achievement first."""
         self._grind()
         state = self.mod._load_state()
@@ -3489,7 +3569,7 @@ class TestEveryAchievementUnlockable(HookTestBase):
             1 for aid in self.mod.ACHIEVEMENT_DEFS
             if state["achievements"].get(aid, {}).get("unlocked")
         )
-        self.assertEqual(unlocked, 144)
+        self.assertEqual(unlocked, 146)
 
 
 if __name__ == "__main__":

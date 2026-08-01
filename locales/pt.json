@@ -473,6 +473,10 @@
       "name": "Falante",
       "description": "Enviar 500 mensagens no total"
     },
+    "tenacious": {
+      "name": "Tenaz",
+      "description": "Sobreviva a uma solicitação de API que falhou 2+ vezes seguidas"
+    },
     "terminal_jockey": {
       "name": "Jóquei do Terminal",
       "description": "Executar 25 comandos no terminal"
@@ -544,6 +548,10 @@
     "under_scrutiny": {
       "name": "Sob Escrutínio",
       "description": "Dispare 10 solicitações de aprovação"
+    },
+    "undeterred": {
+      "name": "Inabalável",
+      "description": "Sobreviva a uma solicitação de API que falhou 4+ vezes seguidas"
     },
     "verbose_output": {
       "name": "Saída Verbosa",
@@ -656,6 +664,7 @@
     "stats_longest_subagent": "Subagente mais longo:      {duration}",
     "stats_interrupts": "Chamadas de ferramenta interrompidas: {count}",
     "stats_blocks": "Chamadas de ferramenta bloqueadas:     {count}",
+    "stats_max_retry_depth": "Maior profundidade de nova tentativa: {count}",
     "stats_longest_message": "Mensagem mais longa:      {count} palavras",
     "stats_hooks_used": "Hooks de plugin criados:  {count}",
     "stats_session_tools": "Esta sessão:               {calls} chamadas · {tools} tipos",

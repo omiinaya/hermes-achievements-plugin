@@ -251,6 +251,16 @@ NEW = {
         "fr": {"name": "Mur de Briques", "description": "Touchez 10 appels d'outil bloqués par la politique"},
         "pt": {"name": "Muro de Tijolos", "description": "Encontre 10 chamadas de ferramenta bloqueadas por política"},
     },
+    "tenacious": {
+        "es": {"name": "Tenaz", "description": "Sobrevive a una solicitud de API que falló 2+ veces seguidas"},
+        "fr": {"name": "Tenace", "description": "Survivez à une requête API qui a échoué 2+ fois d'affilée"},
+        "pt": {"name": "Tenaz", "description": "Sobreviva a uma solicitação de API que falhou 2+ vezes seguidas"},
+    },
+    "undeterred": {
+        "es": {"name": "Imparable", "description": "Sobrevive a una solicitud de API que falló 4+ veces seguidas"},
+        "fr": {"name": "Inébranlable", "description": "Survivez à une requête API qui a échoué 4+ fois d'affilée"},
+        "pt": {"name": "Inabalável", "description": "Sobreviva a uma solicitação de API que falhou 4+ vezes seguidas"},
+    },
 }
 
 
@@ -268,15 +278,31 @@ def main():
                 ach.pop(key, None)
 
         # Add any missing achievements (English from defs, others from NEW).
-        # NEW translations are authoritative — overwrite stale English
-        # fallbacks left by a previous run.
+        # NEW translations are authoritative ONLY over stale English
+        # fallbacks left by a previous run — a real (non-English)
+        # translation is never clobbered, so reusing a def id by accident
+        # cannot silently corrupt another def's translations.
         for key, adef in defs.items():
             if code == "en":
-                if key not in ach:
-                    ach[key] = {"name": adef["name"], "description": adef["description"]}
+                expected = {"name": adef["name"], "description": adef["description"]}
+                if ach.get(key) != expected:
+                    ach[key] = expected
             elif key in NEW:
-                if key not in ach or ach[key] != NEW[key][code]:
+                if key not in ach:
                     ach[key] = NEW[key][code]
+                else:
+                    existing = ach[key]
+                    is_english_fallback = (
+                        existing.get("name") == adef["name"]
+                        and existing.get("description") == adef["description"]
+                    )
+                    if existing == NEW[key][code]:
+                        pass  # already up to date
+                    elif is_english_fallback:
+                        ach[key] = NEW[key][code]
+                    else:
+                        print(f"WARN: keeping existing {code} translation for '{key}' "
+                              f"(differs from NEW — update NEW if the def changed)")
             elif key not in ach:
                 print(f"WARN: no {code} translation for '{key}' — falling back to English")
                 ach[key] = {"name": adef["name"], "description": adef["description"]}

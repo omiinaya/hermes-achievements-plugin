@@ -473,6 +473,10 @@
       "name": "Talkative",
       "description": "Send 500 messages total"
     },
+    "tenacious": {
+      "name": "Tenacious",
+      "description": "Survive an API request that failed 2+ times in a row"
+    },
     "terminal_jockey": {
       "name": "Terminal Jockey",
       "description": "Run 25 terminal commands"
@@ -544,6 +548,10 @@
     "under_scrutiny": {
       "name": "Under Scrutiny",
       "description": "Trigger 10 approval requests"
+    },
+    "undeterred": {
+      "name": "Undeterred",
+      "description": "Survive an API request that failed 4+ times in a row"
     },
     "verbose_output": {
       "name": "Verbose Output",
@@ -657,6 +665,7 @@
     "stats_longest_subagent": "Longest subagent:          {duration}",
     "stats_interrupts": "Tool calls interrupted:     {count}",
     "stats_blocks": "Tool calls blocked:         {count}",
+    "stats_max_retry_depth": "Deepest API retry depth:  {count}",
     "stats_longest_message": "Longest message:           {count} words",
     "stats_hooks_used": "Plugin hooks authored:   {count}",
     "stats_session_tools": "This session:             {calls} calls · {tools} tool types",

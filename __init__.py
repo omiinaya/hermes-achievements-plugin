@@ -285,6 +285,7 @@ def _new_state():
             "longest_subagent_ms": 0,
             "tool_interrupts": 0,
             "tool_blocks": 0,
+            "max_retry_depth": 0,
             # Live per-session tracking (reset whenever session_id changes)
             "active_session": {
                 "id": None,
@@ -912,7 +913,7 @@ ACHIEVEMENT_DEFS = {
     },
 
     # ═══════════════════════════════════════════════════════════════════════
-    # 👑 EXPERT  (33)
+    # 👑 EXPERT  (35)
     # ═══════════════════════════════════════════════════════════════════════
     "the_90_turn_club": {
         "id": "the_90_turn_club", "name": "The 90-Turn Club", "emoji": "🤖",
@@ -998,6 +999,16 @@ ACHIEVEMENT_DEFS = {
     "indestructible": {
         "id": "indestructible", "name": "Indestructible", "emoji": "🛡️",
         "description": "Survive 10 LLM API errors without quitting",
+        "rarity": "epic", "group": "Expert",
+    },
+    "tenacious": {
+        "id": "tenacious", "name": "Tenacious", "emoji": "🪨",
+        "description": "Survive an API request that failed 2+ times in a row",
+        "rarity": "rare", "group": "Expert",
+    },
+    "undeterred": {
+        "id": "undeterred", "name": "Undeterred", "emoji": "⛰️",
+        "description": "Survive an API request that failed 4+ times in a row",
         "rarity": "epic", "group": "Expert",
     },
     "under_scrutiny": {
@@ -1295,6 +1306,16 @@ _BLOCK_THRESHOLDS = [
     (1, "dead_end"),
     (10, "brick_wall"),
 ]
+
+# Retry-depth thresholds (retry_count from api_request_error): the number
+# of consecutive failures the SAME request survived before the hook fired.
+# The gateway's retry loop fires the hook on every failed attempt with the
+# current depth (0 = first attempt), so depth measures sustained-outage
+# resilience — distinct from api_errors (total breadth of failures, feeds
+# Indestructible). Default api_max_retries=3 reaches depth 2; depth 4
+# requires raising api_max_retries (an intentional resilience config).
+_TENACIOUS_RETRY_DEPTH = 2
+_UNDETERRED_RETRY_DEPTH = 4
 
 
 # Single-response tool-batch thresholds (api_request_id from pre_tool_call):
@@ -2494,7 +2515,7 @@ def _on_subagent_start(**kwargs):
 # rewards surviving these without quitting.
 
 def _on_api_request_error(**kwargs):
-    """Count LLM API errors the agent survived."""
+    """Count LLM API errors the agent survived + sustained-failure depth."""
     state = _load_state()
     stats = state.setdefault("stats", {})
     now = datetime.now(UTC).isoformat()
@@ -2506,6 +2527,22 @@ def _on_api_request_error(**kwargs):
         _unlock("indestructible", now)
     else:
         _set_progress("indestructible", errors, 10)
+
+    # Sustained-failure depth: retry_count = consecutive failures of the
+    # SAME request before this hook fired. Track the deepest one seen.
+    retry_depth = 0
+    try:
+        retry_depth = int(kwargs.get("retry_count") or 0)
+    except (TypeError, ValueError):
+        retry_depth = 0
+    if retry_depth > 0:
+        stats["max_retry_depth"] = max(stats.get("max_retry_depth", 0), retry_depth)
+        if retry_depth >= _UNDETERRED_RETRY_DEPTH:
+            _unlock("undeterred", now)
+        if retry_depth >= _TENACIOUS_RETRY_DEPTH:
+            _unlock("tenacious", now)
+        else:
+            _set_progress("tenacious", retry_depth, _TENACIOUS_RETRY_DEPTH)
 
     _check_group_completions()
     _check_completionist()
@@ -2945,6 +2982,9 @@ def _handle_achievements(raw_args: str) -> str:
                 lines.append(_t("ui.stats_interrupts", locale, count=stats.get("tool_interrupts", 0)))
             if stats.get("tool_blocks"):
                 lines.append(_t("ui.stats_blocks", locale, count=stats.get("tool_blocks", 0)))
+            if stats.get("max_retry_depth"):
+                lines.append(_t("ui.stats_max_retry_depth", locale,
+                                count=stats.get("max_retry_depth", 0)))
             if stats.get("longest_message_words"):
                 lines.append(_t("ui.stats_longest_message", locale, count=stats.get("longest_message_words", 0)))
             hooks_used = stats.get("hooks_used", set())

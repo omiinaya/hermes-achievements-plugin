@@ -2,7 +2,7 @@
 
 ## What this is
 
-A Hermes Agent plugin that awards 144 Steam-style achievement badges for
+A Hermes Agent plugin that awards 146 Steam-style achievement badges for
 using Hermes. Pure Python stdlib, no external dependencies.
 
 ## Repo layout
@@ -22,7 +22,7 @@ using Hermes. Pure Python stdlib, no external dependencies.
 - `scripts/bump_version.py` — updates the version in all 4 places that
   carry it (pyproject.toml, plugin.yaml, setup.sh ×2) in one shot
 - `scripts/check_plugin.py` — health check: module loads, manifest↔register()
-  hook agreement, exactly-144 defs, locale parity, no dead detection-map
+  hook agreement, exactly-146 defs, locale parity, no dead detection-map
   references, live state.json reconciliation (--live), real PluginManager
   load (--manifest), and hook kwarg contract vs the installed Hermes
   source (--gateway — catches silent no-op drift if Hermes renames a
@@ -49,12 +49,12 @@ using Hermes. Pure Python stdlib, no external dependencies.
 | `pre_approval_request` | an approval prompt is raised (has `command`, `surface`) | approval-gate counting (Under Scrutiny) |
 | `on_session_reset` | gateway swaps session key (`/new`, `/reset`) | Fresh Start, session-resets counter |
 | `on_session_finalize` | agent shutdown / session reset-policy expiry | force-flush debounced state save + synchronously deliver queued notifications (nothing lost on exit) |
-| `api_request_error` | LLM provider call fails (has `error_type`, `status_code`, `retry_count`) | API-error resilience (Indestructible) |
+| `api_request_error` | LLM provider call fails (has `error_type`, `status_code`, `retry_count`, `max_retries`, `retryable`) | API-error resilience (Indestructible — 10 total errors survived), sustained-failure depth (Tenacious 2 / Undeterred 4 — `retry_count` is how many consecutive times the SAME request failed before the hook fired; breadth≠depth: 10 single failures never reach depth 2). `max_retry_depth` stat |
 | `pre_gateway_dispatch` | once per incoming user-originated message (has `event`, `gateway`, `session_store`; event carries `media_urls`/`media_types`/`message_type`) | distinct-sender counting (Social Butterfly 3 users, Party Host 10), media-message counting (Show and Tell 1, Visual Storyteller 25) — the ONLY hook that sees other users' messages |
 
 ## Key invariants
 
-- **Exactly 144 achievements** — `tests/test_plugin.py` enforces this.
+- **Exactly 146 achievements** — `tests/test_plugin.py` enforces this.
 - **All achievement IDs must be detectable** — every def needs a path in
   `_TOOL_ACHIEVEMENTS`, `_TOOL_THRESHOLDS`, `TERMINAL_PATTERNS`,
   `_check_tool_args()`, `_check_counter_achievements()`, or an explicit
@@ -75,7 +75,7 @@ using Hermes. Pure Python stdlib, no external dependencies.
 ## Testing
 
 ```bash
-python3 -m pytest tests/ -q    # 341 tests, no deps beyond pytest
+python3 -m pytest tests/ -q    # 350 tests, no deps beyond pytest
 python3 -m pytest tests/ --cov=. --cov-fail-under=99 -q   # CI coverage gate
 ruff check .                   # CI lint gate — must pass before push
 ```
@@ -90,7 +90,7 @@ ruff check .                   # CI lint gate — must pass before push
 
 - `tests/test_detection.py::TestEveryAchievementUnlockable` — full-grind
   simulation: drives every hook with escalating synthetic gateway data and
-  asserts **all 144 defs actually unlock**. This is the enforcement of the
+  asserts **all 146 defs actually unlock**. This is the enforcement of the
   "every def must be detectable" invariant — after any swap, a dead def
   (impossible threshold, typo'd key, missing path) fails the run with its
   ID listed. Keep the grind's tool/command data broad enough to cover

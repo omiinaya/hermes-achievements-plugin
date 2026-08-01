@@ -473,6 +473,10 @@
       "name": "Locuaz",
       "description": "Envía 500 mensajes en total"
     },
+    "tenacious": {
+      "name": "Tenaz",
+      "description": "Sobrevive a una solicitud de API que falló 2+ veces seguidas"
+    },
     "terminal_jockey": {
       "name": "Jinete de Terminal",
       "description": "Ejecuta 25 comandos de terminal"
@@ -544,6 +548,10 @@
     "under_scrutiny": {
       "name": "Bajo Escrutinio",
       "description": "Provoca 10 solicitudes de aprobación"
+    },
+    "undeterred": {
+      "name": "Imparable",
+      "description": "Sobrevive a una solicitud de API que falló 4+ veces seguidas"
     },
     "verbose_output": {
       "name": "Salida Verbosa",
@@ -656,6 +664,7 @@
     "stats_longest_subagent": "Subagente más largo:       {duration}",
     "stats_interrupts": "Llamadas de tool interrumpidas: {count}",
     "stats_blocks": "Llamadas de tool bloqueadas:     {count}",
+    "stats_max_retry_depth": "Mayor profundidad de reintento: {count}",
     "stats_longest_message": "Mensaje más largo:        {count} palabras",
     "stats_hooks_used": "Hooks de plugin creados: {count}",
     "stats_session_tools": "Esta sesión:              {calls} llamadas · {tools} tipos",

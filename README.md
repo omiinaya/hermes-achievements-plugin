@@ -229,7 +229,7 @@ unlock them, Steam-style. Currently secret: `Fresh Start`, `Cautious`,
 | 🧩 | Plugin Developer | Create your own Hermes plugin | Legendary |
 | 🧰 | Tool Torrent | Emit 20 tool calls in a single response | Legendary |
 
-### 👑 Expert (33)
+### 👑 Expert (35)
 
 | Icon | Name | Description | Rarity |
 |------|------|-------------|--------|
@@ -246,6 +246,7 @@ unlock them, Steam-style. Currently secret: `Fresh Start`, `Cautious`,
 | 🔧 | Config Guru | Modify 15 different configuration settings | Rare |
 | 🎯 | Precision Scheduler | Schedule a one-shot cron job for a specific time | Rare |
 | ⚙️ | Environment Tuner | Configure custom environment variables for a cron job | Rare |
+| 🪨 | Tenacious | Survive an API request that failed 2+ times in a row | Rare |
 | 🔍 | Under Scrutiny | Trigger 10 approval requests | Rare |
 | 🔬 | Trial and Error | Persist through 25 tool calls that errored | Rare |
 | 🗣️ | Backseat Driver | Interrupt 5 tool calls while they run | Rare |
@@ -260,6 +261,7 @@ unlock them, Steam-style. Currently secret: `Fresh Start`, `Cautious`,
 | 🔷 | Rare Collector | Unlock every Rare achievement | Epic |
 | 🧗 | Resilient | Complete a task after a subagent failed | Epic |
 | 🛡️ | Indestructible | Survive 10 LLM API errors without quitting | Epic |
+| ⛰️ | Undeterred | Survive an API request that failed 4+ times in a row | Epic |
 | 🎛️ | Control Freak | Interrupt 15 tool calls — you like to be in charge | Epic |
 | 🌊 | Token Tsunami | Send one API request with 500K+ input tokens | Legendary |
 | 📡📡 | Cross-Platform Veteran | Chat with Hermes from 5+ different platforms | Legendary |

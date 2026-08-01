@@ -104,16 +104,16 @@ def _parse_groups_and_rarities():
 
 
 class TestAchievementDefinitions(unittest.TestCase):
-    """Validate that all 144 achievement definitions are complete and valid."""
+    """Validate that all 146 achievement definitions are complete and valid."""
 
     def setUp(self):
         self.achievements = _parse_achievement_defs()
         self.groups, self.rarities = _parse_groups_and_rarities()
 
     def test_exact_count(self):
-        """There should be exactly 144 achievements."""
-        self.assertEqual(len(self.achievements), 144,
-                         f"Expected 144 achievements, got {len(self.achievements)}")
+        """There should be exactly 146 achievements."""
+        self.assertEqual(len(self.achievements), 146,
+                         f"Expected 146 achievements, got {len(self.achievements)}")
 
     def test_required_fields(self):
         """Every achievement must have id, name, description, emoji, rarity, group."""
@@ -131,6 +131,34 @@ class TestAchievementDefinitions(unittest.TestCase):
         ids = [a["id"] for a in self.achievements]
         dupes = {i for i in ids if ids.count(i) > 1}
         self.assertEqual(len(dupes), 0, f"Duplicate IDs: {dupes}")
+
+    def test_no_duplicate_id_keys_in_source(self):
+        """Duplicate `\"id\":` keys in the defs literal silently collapse
+        (last one wins) BEFORE the dict is parsed — so test_unique_ids
+        cannot see them. Count raw occurrences in the source region:
+        reusing an existing id (e.g. adding a def named after an old one
+        in another group) corrupts the defs dict and is caught here."""
+        import re as _re
+        with open(PLUGIN_FILE, encoding="utf-8") as f:
+            content = f.read()
+        start = content.find("ACHIEVEMENT_DEFS = {")
+        self.assertGreaterEqual(start, 0, "ACHIEVEMENT_DEFS not found")
+        defs_start = content.index("{", start) + 1
+        depth = 1
+        i = defs_start
+        while depth > 0 and i < len(content):
+            if content[i] == "{":
+                depth += 1
+            elif content[i] == "}":
+                depth -= 1
+            i += 1
+        region = content[defs_start : i - 1]
+        raw_ids = _re.findall(r'"id":\s*"([^"]+)"', region)
+        self.assertEqual(len(raw_ids), len(self.achievements),
+                         f"{len(raw_ids)} raw id keys vs {len(self.achievements)} parsed "
+                         f"defs — duplicate id keys collapse silently")
+        dupes = {x for x in raw_ids if raw_ids.count(x) > 1}
+        self.assertEqual(len(dupes), 0, f"Duplicate id keys in source: {dupes}")
 
     def test_valid_groups(self):
         """Every achievement's group must be one of the defined GROUPS."""
@@ -152,7 +180,7 @@ class TestAchievementDefinitions(unittest.TestCase):
             "Getting Started": 16,
             "Tools & Skills": 28,
             "Power User": 42,
-            "Expert": 33,
+            "Expert": 35,
             "Milestones": 19,
             "Community": 6,
         }
@@ -377,6 +405,7 @@ class TestTranslationFunction(unittest.TestCase):
             "stats_longest_subagent": {"duration": "12m 30s"},
             "stats_interrupts": {"count": 3},
             "stats_blocks": {"count": 2},
+            "stats_max_retry_depth": {"count": 4},
             "stats_longest_message": {"count": 340},
             "stats_hooks_used": {"count": 4},
             "stats_platforms": {"platforms": "discord, telegram"},

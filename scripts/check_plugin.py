@@ -4,7 +4,7 @@
 Verifies the full integrity chain of the plugin:
   1. The plugin loads cleanly (plugin.yaml manifest + __init__.py)
   2. Manifest hooks ↔ register() hooks agree (no drift)
-  3. Exactly 144 achievement defs, all with name/description/rarity/group
+  3. Exactly 146 achievement defs, all with name/description/rarity/group
   4. Locale parity: every def key exists in all 4 locale files
   5. Detection maps contain no dead references (IDs not in defs)
   6. Live state.json (if --live) reconciles: no stale entries, real
@@ -46,6 +46,7 @@ GATEWAY_SOURCE_CANDIDATES = [
     "model_tools.py",
     "agent/tool_executor.py",
     "hermes_cli/plugins.py",
+    "run_agent.py",  # api_request_error dispatches here (invoke_hook literal)
 ]
 HERMES_SOURCE_CANDIDATES = [
     "/usr/local/lib/hermes-agent",
@@ -221,7 +222,7 @@ def main():
 
     print("── 3. Achievement defs ──")
     defs = mod.ACHIEVEMENT_DEFS
-    check("exactly 144 defs", len(defs) == 144, f"{len(defs)} found")
+    check("exactly 146 defs", len(defs) == 146, f"{len(defs)} found")
     bad_defs = [aid for aid, d in defs.items()
                 if not d.get("name") or not d.get("description")
                 or not d.get("rarity") or not d.get("group")]

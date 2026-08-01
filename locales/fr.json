@@ -473,6 +473,10 @@
       "name": "Volubile",
       "description": "Envoyer 500 messages au total"
     },
+    "tenacious": {
+      "name": "Tenace",
+      "description": "Survivez à une requête API qui a échoué 2+ fois d'affilée"
+    },
     "terminal_jockey": {
       "name": "Jockey du Terminal",
       "description": "Exécuter 25 commandes terminal"
@@ -544,6 +548,10 @@
     "under_scrutiny": {
       "name": "Sous Surveillance",
       "description": "Déclenchez 10 demandes d'approbation"
+    },
+    "undeterred": {
+      "name": "Inébranlable",
+      "description": "Survivez à une requête API qui a échoué 4+ fois d'affilée"
     },
     "verbose_output": {
       "name": "Sortie Verbouse",
@@ -656,6 +664,7 @@
     "stats_longest_subagent": "Sous-agent le plus long:   {duration}",
     "stats_interrupts": "Appels d'outil interrompus :     {count}",
     "stats_blocks": "Appels d'outil bloqués :          {count}",
+    "stats_max_retry_depth": "Profondeur de nouvelle tentative max : {count}",
     "stats_longest_message": "Message le plus long:     {count} mots",
     "stats_hooks_used": "Hooks de plugin écrits :  {count}",
     "stats_session_tools": "Cette session :            {calls} appels · {tools} types",
