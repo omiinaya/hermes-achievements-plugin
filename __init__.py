@@ -2,7 +2,7 @@
 Hermes Achievements Plugin
 ===========================
 Steam-style achievement badges for using and learning about Hermes Agent.
-100 achievements across 6 categories.
+105 achievements across 6 categories.
 
 Hooks:
   - post_llm_call:  detects tool calls from conversation_history → unlocks achievements
