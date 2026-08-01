@@ -268,8 +268,13 @@ def _normalize_state():
 
 
 def _init_achievements():
+    # Prune stale entries for achievements that no longer exist (removed
+    # or renamed across versions) — keeps state.json clean.
+    for aid in list(_state.setdefault("achievements", {})):
+        if aid not in ACHIEVEMENT_DEFS:
+            del _state["achievements"][aid]
     for aid in ACHIEVEMENT_DEFS:
-        if aid not in _state.setdefault("achievements", {}):
+        if aid not in _state["achievements"]:
             _state["achievements"][aid] = {"unlocked": False}
 
 

@@ -564,6 +564,17 @@ class TestStatePersistence(HookTestBase):
         self.assertEqual(st["slash_commands_used"], set())
         self.assertEqual(st["active_session"]["tool_names"], set())
 
+    def test_stale_achievement_entries_pruned(self):
+        # Entries for removed/renamed achievements must not linger in state
+        state = self.mod._load_state()
+        state["achievements"]["star_gazer"] = {"unlocked": True}  # removed def
+        state["achievements"]["made_up_old_id"] = {"unlocked": True}
+        self.mod._state = None
+        st = self.mod._load_state()["achievements"]
+        self.assertNotIn("star_gazer", st)
+        self.assertNotIn("made_up_old_id", st)
+        self.assertEqual(len(st), len(self.mod.ACHIEVEMENT_DEFS))
+
     def test_state_save_failure_is_swallowed(self):
         # If the state dir can't be written, _save_state must not raise
         self.tool_call("terminal", {}, session_id="sess-savefail")
