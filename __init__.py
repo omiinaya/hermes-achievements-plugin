@@ -91,11 +91,14 @@ def _send_discord_notification_sync(ach_def):
     rarity_label = _t(f"rarity.{ach_def['rarity']}", locale)
     group_key = ach_def["group"].lower().replace(" & ", "_").replace(" ", "_")
     group_label = _t(f"group.{group_key}", locale)
-    content = (
-        f"{emoji} {ach_def['emoji']} **{ach_name}** — {ach_desc}\n"
-        f"*{rarity_label} · {group_label}*"
-    )
-    payload = json.dumps({"content": content}).encode()
+    # Rarity-colored embed for a polished notification card
+    embed = {
+        "title": f"{emoji} {ach_def['emoji']} {ach_name}",
+        "description": ach_desc,
+        "color": _RARITY_COLORS.get(ach_def.get("rarity", "common"), 0x9CA3AF),
+        "footer": {"text": f"{rarity_label} · {group_label}"},
+    }
+    payload = json.dumps({"content": "", "embeds": [embed]}).encode()
 
     # Build unique target set — dedup home vs origin
     targets = []
@@ -871,6 +874,14 @@ RARITY_EMOJIS = {
     "common": "⬜", "uncommon": "🟩", "rare": "🟦",
     "epic": "🟣", "legendary": "🟡",
 }
+# Discord embed accent colors per rarity (decimal RGB)
+_RARITY_COLORS = {
+    "common": 0x9CA3AF,
+    "uncommon": 0x22C55E,
+    "rare": 0x3B82F6,
+    "epic": 0xA855F7,
+    "legendary": 0xF59E0B,
+}
 NON_COMPLETIONIST_IDS = [aid for aid in ACHIEVEMENT_DEFS if aid != "completionist"]
 
 # ── Recognition thresholds ──────────────────────────────────────────────
@@ -932,7 +943,6 @@ _TOOL_ACHIEVEMENTS = {
     "web_extract": "web_walker",
     "delegate_task": "agent_swarm",
     "vision_analyze": "visionary",
-    "memory": "memory_holder",
     "execute_code": "code_wizard",
     "session_search": "session_detective",
 }
@@ -1255,6 +1265,12 @@ def _check_tool_args(tool_name, args, stats, now):
             _unlock("skill_virtuoso", now)
         else:
             _set_progress("skill_virtuoso", created, 15)
+
+    elif tool_name == "memory":
+        # Memory Keeper is about *saving* facts — remove shouldn't count
+        action = str(args.get("action", ""))
+        if action in ("add", "replace") or not action:
+            _unlock("memory_holder", now)
 
     elif tool_name in ("write_file", "patch"):
         path = str(args.get("path", "") or args.get("file_path", ""))

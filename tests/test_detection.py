@@ -173,6 +173,12 @@ class TestArgumentBased(HookTestBase):
         self.assertTrue(self.unlocked("skill_author"))
         self.assertEqual(self.stats()["skills_created"], 1)
 
+    def test_memory_holder_only_saves(self):
+        self.tool_call("memory", {"action": "remove", "target": "user", "old_text": "x"})
+        self.assertFalse(self.unlocked("memory_holder"))
+        self.tool_call("memory", {"action": "add", "target": "user", "content": "fact"})
+        self.assertTrue(self.unlocked("memory_holder"))
+
     def test_skill_artisan_five_creates(self):
         for i in range(5):
             self.tool_call("skill_manage", {"action": "create", "name": f"s{i}"})
@@ -318,6 +324,37 @@ class TestStatePersistence(HookTestBase):
         self.mod._state = None
         st = self.mod._load_state()["stats"]
         self.assertEqual(st["tools_used"]["terminal"], 1)
+
+    def test_discord_notification_uses_rarity_embed(self):
+        import json as _json
+        captured = {}
+
+        class FakeResp:
+            def __enter__(self): return self
+            def __exit__(self, *a): return False
+
+        def fake_urlopen(req, timeout=None):
+            captured["data"] = req.data
+            captured["url"] = req.full_url
+            return FakeResp()
+
+        self.mod._load_env_var = lambda key, fallback="": {
+            "DISCORD_BOT_TOKEN": "test-token",
+            "DISCORD_HOME_CHANNEL": "123",
+        }.get(key, fallback)
+        old = self.mod.urllib.request.urlopen
+        self.mod.urllib.request.urlopen = fake_urlopen
+        try:
+            ach_def = self.mod.ACHIEVEMENT_DEFS["completionist"]  # legendary
+            self.mod._send_discord_notification_sync(ach_def)
+        finally:
+            self.mod.urllib.request.urlopen = old
+
+        payload = _json.loads(captured["data"])
+        self.assertIn("embeds", payload)
+        embed = payload["embeds"][0]
+        self.assertEqual(embed["color"], self.mod._RARITY_COLORS["legendary"])
+        self.assertIn("Completionist", embed["title"])
 
 
 class TestRemainingGaps(HookTestBase):
