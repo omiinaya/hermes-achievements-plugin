@@ -322,6 +322,14 @@ python3 -m pytest tests/ -q
 # live state) — add --manifest to also load through the real PluginManager
 python3 scripts/check_plugin.py --live --manifest
 
+# Release: bump version, update CHANGELOG.md, commit, push, tag.
+# Pushing a v* tag triggers .github/workflows/release.yml, which re-runs
+# tests, builds the wheel, and publishes the GitHub Release automatically.
+python3 scripts/bump_version.py 2.7.0
+# ... edit CHANGELOG.md with the new entry ...
+git add -A && git commit -m "release: v2.7.0 — ..."
+git tag v2.7.0 && git push origin main && git push origin v2.7.0
+
 # Changes take effect on gateway restart (kills MCP connections — get
 # explicit user approval first)
 hermes gateway restart
