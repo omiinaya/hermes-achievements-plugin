@@ -1352,6 +1352,56 @@ class TestTransformToolResult(HookTestBase):
         self.assertFalse(self.unlocked("big_haul"))
 
 
+class TestMeasureUtf8Bytes(HookTestBase):
+    """_measure_utf8_bytes: byte-length proxy that avoids full copies.
+
+    Regression tests for the perf fix: the old code did
+    len(result.encode("utf-8")) on EVERY result, allocating a full copy of
+    the string (24ms for a 10MB result). The helper returns char count when
+    it can PROVE the byte count is below the threshold (UTF-8 ≤ 4 bytes per
+    char), and only pays for the encode when the threshold could be crossed.
+    """
+
+    def test_ascii_small_fast_path(self):
+        self.assertEqual(self.mod._measure_utf8_bytes("hello", 1000), 5)
+
+    def test_multibyte_small_fast_path_chars(self):
+        # 5 chars * 4 max = 20 < 1000 → provably below, no encode: chars.
+        self.assertEqual(self.mod._measure_utf8_bytes("héllo", 1000), 5)
+
+    def test_ascii_huge_exact_path(self):
+        big = "x" * (10 * 1024 * 1024)
+        self.assertEqual(
+            self.mod._measure_utf8_bytes(big, 1024 * 1024),
+            len(big.encode("utf-8")),
+        )
+
+    def test_multibyte_exact_when_near_threshold(self):
+        # 400K 2-byte chars → 800KB. n*4 = 1.6M ≥ 1M → encode → exact 800KB.
+        s = "é" * 400000
+        self.assertEqual(self.mod._measure_utf8_bytes(s, 1024 * 1024), 800000)
+
+    def test_four_byte_chars_exact_when_near_threshold(self):
+        # 300K 4-byte emoji → 1.2MB ≥ 1MB threshold → exact bytes.
+        e = "😀" * 300000
+        self.assertEqual(self.mod._measure_utf8_bytes(e, 1024 * 1024), 1200000)
+
+    def test_four_byte_chars_fast_path_when_provably_below(self):
+        # 100K 4-byte emoji → worst case 400KB < 1MB → chars, no encode.
+        e = "😀" * 100000
+        self.assertEqual(self.mod._measure_utf8_bytes(e, 1024 * 1024), 100000)
+
+    def test_boundary_exactly_four_times_threshold_encodes(self):
+        # n*4 == threshold exactly: could reach it → must encode for truth.
+        half = "😀" * (1024 * 1024 // 4)
+        self.assertEqual(
+            self.mod._measure_utf8_bytes(half, 1024 * 1024), 1024 * 1024
+        )
+
+    def test_empty_string(self):
+        self.assertEqual(self.mod._measure_utf8_bytes("", 1024), 0)
+
+
 class TestModelResponseVerbosity(HookTestBase):
     """post_llm_call assistant_response: model-output word count."""
 
@@ -2252,6 +2302,48 @@ class TestPerTurnSignals(HookTestBase):
         self.turn("/new")
         self.assertTrue(self.unlocked("slash_commander"))
 
+    def _fake_now(self, hour):
+        """Replace mod.datetime with a stub whose now() returns `hour`."""
+        from datetime import datetime as _real_dt
+
+        class _FakeDT:
+            @classmethod
+            def now(cls, tz=None):
+                return _real_dt(2026, 7, 31, hour, 0, tzinfo=tz)
+
+        real = self.mod.datetime
+        self.mod.datetime = _FakeDT
+        return real
+
+    def test_early_bird_before_6am(self):
+        # Hour < 6 → early_bird unlocks, night_owl unlocks only below 5.
+        real = self._fake_now(5)
+        try:
+            self.turn("up early")
+            self.assertTrue(self.unlocked("early_bird"))
+            self.assertFalse(self.unlocked("night_owl"))
+        finally:
+            self.mod.datetime = real
+
+    def test_night_owl_before_5am(self):
+        real = self._fake_now(3)
+        try:
+            self.turn("night shift")
+            self.assertTrue(self.unlocked("early_bird"))
+            self.assertTrue(self.unlocked("night_owl"))
+        finally:
+            self.mod.datetime = real
+
+    def test_neither_hour_achievement_in_daytime(self):
+        # Hour >= 6 → neither early_bird nor night_owl (False branches).
+        real = self._fake_now(14)
+        try:
+            self.turn("afternoon")
+            self.assertFalse(self.unlocked("early_bird"))
+            self.assertFalse(self.unlocked("night_owl"))
+        finally:
+            self.mod.datetime = real
+
     def test_post_llm_call_empty_user_message(self):
         # post_llm_call must tolerate missing/empty user_message
         self.mod._post_llm_call(
@@ -2578,6 +2670,33 @@ class TestStatePersistence(HookTestBase):
             else:
                 os.environ["HERMES_SESSION_CHAT_ID"] = old
 
+    def test_session_chat_id_env_fallback_when_gateway_raises(self):
+        # The gateway module may exist but get_session_env itself can fail
+        # (import-time error, version drift) — the accessor must degrade to
+        # os.environ rather than propagate the exception into a hook.
+        import sys as _sys
+        import types as _types
+        gw = _types.ModuleType("gateway")
+        gsc = _types.ModuleType("gateway.session_context")
+
+        def _explode(name, default=""):
+            raise RuntimeError("simulated gateway failure")
+        gsc.get_session_env = _explode
+        gw.session_context = gsc
+        _sys.modules["gateway"] = gw
+        _sys.modules["gateway.session_context"] = gsc
+        old = os.environ.get("HERMES_SESSION_CHAT_ID")
+        os.environ["HERMES_SESSION_CHAT_ID"] = "env-after-explode"
+        try:
+            self.assertEqual(self.mod._session_chat_id(), "env-after-explode")
+        finally:
+            _sys.modules.pop("gateway", None)
+            _sys.modules.pop("gateway.session_context", None)
+            if old is None:
+                os.environ.pop("HERMES_SESSION_CHAT_ID", None)
+            else:
+                os.environ["HERMES_SESSION_CHAT_ID"] = old
+
     def test_notification_origin_captured_at_enqueue_time(self):
         # The flush runs 3s after the unlock in a Timer thread whose
         # context has no session vars. The origin must be captured when
@@ -2735,6 +2854,21 @@ class TestStatePersistence(HookTestBase):
         self.assertEqual(st["fast_streak"], 0)
         self.assertEqual(st["tool_names"], {"terminal"})
 
+    def test_save_state_serializes_non_set_non_json_values(self):
+        # _convert must handle values that are neither sets nor natively
+        # JSON-serializable (e.g. a datetime) — single-pass serialization
+        # stringifies them instead of raising TypeError mid-save.
+        import datetime as _dt
+        state = self.mod._load_state()
+        state["stats"]["last_benchmark_ran"] = _dt.datetime(
+            2026, 7, 31, 12, 0, 0, tzinfo=_dt.timezone.utc
+        )
+        self.mod._save_state(force=True)  # must not raise
+        self.mod._state = None
+        st = self.mod._load_state()["stats"]
+        self.assertIn("last_benchmark_ran", st)
+        self.assertIsInstance(st["last_benchmark_ran"], str)
+
     def test_stale_achievement_entries_pruned(self):
         # Entries for removed/renamed achievements must not linger in state
         state = self.mod._load_state()
@@ -2787,16 +2921,17 @@ class TestStatePersistence(HookTestBase):
         self.mod._save_state(force=True)
         with open(self.mod._STATE_PATH) as f:
             good = f.read()
-        # Simulate a crash mid-write: dump some bytes, then raise
-        orig_dump = self.mod.json.dump
+        # Simulate a crash mid-write: temp is written, then the process dies
+        # before the atomic rename (fsync is the last thing before replace).
+        orig_fsync = self.mod.os.fsync
         def _boom(*args, **kwargs):
-            orig_dump(*args, **kwargs)
+            orig_fsync(*args, **kwargs)
             raise OSError("simulated crash mid-write")
-        self.mod.json.dump = _boom
+        self.mod.os.fsync = _boom
         try:
             self.mod._save_state(force=True)  # must not raise
         finally:
-            self.mod.json.dump = orig_dump
+            self.mod.os.fsync = orig_fsync
         with open(self.mod._STATE_PATH) as f:
             self.assertEqual(f.read(), good)
         self.assertFalse(os.path.exists(self.mod._STATE_PATH + ".tmp"))
@@ -2811,16 +2946,16 @@ class TestStatePersistence(HookTestBase):
             if path.endswith(".tmp"):
                 raise OSError("simulated remove failure")
             return orig_remove(path)
-        orig_dump = self.mod.json.dump
+        orig_fsync = self.mod.os.fsync
         def _boom(*args, **kwargs):
-            orig_dump(*args, **kwargs)
+            orig_fsync(*args, **kwargs)
             raise OSError("simulated crash mid-write")
-        self.mod.json.dump = _boom
+        self.mod.os.fsync = _boom
         self.mod.os.remove = _no_remove
         try:
             self.mod._save_state(force=True)  # must not raise
         finally:
-            self.mod.json.dump = orig_dump
+            self.mod.os.fsync = orig_fsync
             self.mod.os.remove = orig_remove
         with open(self.mod._STATE_PATH) as f:
             json.load(f)  # previous complete state intact
@@ -4119,6 +4254,11 @@ class TestReadmeSync(unittest.TestCase):
         # --gateway validates the hook kwarg contract against the installed
         # Hermes source. In CI (no Hermes source) it must skip gracefully
         # with exit 0; on the deployment host it must pass fully.
+        # Under mutmut the whole repo is copied into mutants/ and the copy's
+        # __init__.py is mutated/instrumented — the contract legitimately
+        # diverges there, so skip (mutation testing, not a real drift).
+        if "mutants" in PLUGIN_DIR.split(os.sep):
+            self.skipTest("running from a mutmut working copy")
         import subprocess
         import sys as _sys
         script = os.path.join(PLUGIN_DIR, "scripts", "check_plugin.py")

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta:__legacy__"
 
 [project]
 name = "hermes-achievements-plugin"
-version = "2.18.9"
+version = "2.19.0"
 description = "153 Steam-style achievement badges for Hermes Agent"
 readme = "README.md"
 license = { text = "MIT" }
@@ -67,6 +67,10 @@ achievements = "achievements"
 # surprises. `no:` prefix is a safe no-op when the plugin isn't installed.
 [tool.pytest.ini_options]
 addopts = "-p no:asyncio"
+# Only collect the real test dir — mutmut copies the whole repo into
+# mutants/ and plain `pytest` (no args) would otherwise collect those
+# copies and fail (they import the mutated/instrumented module).
+testpaths = ["tests"]
 
 # Mutation testing (run: uvx mutmut run)
 [tool.mutmut]

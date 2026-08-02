@@ -1,5 +1,53 @@
 # Changelog
 
+## [2.19.0] — 2026-08-02
+
+### Performance
+
+- **`transform_tool_result` 5.3× faster on large results.** The hook did
+  `len(result.encode("utf-8"))` on EVERY tool result, allocating a full
+  copy of the string — 24ms for a 10MB result, paid on every call. New
+  `_measure_utf8_bytes()` helper: UTF-8 is ≤4 bytes/char, so when
+  `len(s)*4 < threshold` the byte count provably can't reach the
+  achievement threshold and the char count is returned without any
+  allocation; the encode only runs when the threshold could actually be
+  crossed. 24,009 µs → 4,564 µs (10MB), small results ~5 µs.
+- **`transform_terminal_output` same fix** — the 1MB output path no
+  longer allocates a copy when below threshold.
+- **`_save_state` 2.4× faster (post_llm_call).** The old code did a full
+  JSON round-trip (`dumps` → `loads` → `dumps`) just to turn sets into
+  sorted lists, on every force save — and `post_llm_call` force-saves
+  once per turn. Single-pass serialization with a combined `default`
+  (sets → sorted, everything else → str) eliminates both wasted passes:
+  12,827 µs → 5,338 µs per turn. Same durability: atomic temp+replace,
+  fsync, rolling backup preserved.
+- **New `scripts/bench_hooks.py`** — per-hook latency benchmark with
+  realistic payloads (1MB output, 10MB result, 1500-word responses) so
+  performance regressions are measurable, not invisible.
+
+### Mutation testing
+
+- **mutmut now actually runs.** Two harness fixes: pytest config gained
+  `testpaths = ["tests"]` so the `mutants/` working copies are never
+  collected by plain runs; and `check_plugin.py` detects
+  mutmut-instrumented source (`_mutmut_mutated` / `MutantDict` markers —
+  function names get mangled to `x__name__mutmut_N`) and skips
+  source-text checks (wrapper regex, session-env regex, kwarg contract)
+  that would false-fail on the trampoline-instrumented copy. Runtime
+  checks still run and count.
+
+### Coverage
+
+- **421 tests, 100% line + 100% branch coverage** (1420 stmts, 686
+  branches, 0 missed). Closed the last gaps:
+  - `_measure_utf8_bytes` boundary behavior (fast path vs exact path,
+    4-byte chars at threshold, empty string)
+  - Early Bird / Night Owl hour branches — the suite only exercised the
+    True paths at test time; hour is now mocked for both sides
+  - `_get_session_env` fallback when the gateway module exists but
+    `get_session_env` raises
+  - `_convert` stringifying non-set non-JSON values (datetimes in state)
+
 ## [2.18.9] — 2026-08-02
 
 ### Fixed

@@ -220,21 +220,35 @@ def main():
     # so every hook/command handler MUST be wrapped in _synchronized (the
     # state lock) — an unwrapped handler risks lost updates on counters.
     source = _read(PLUGIN_FILE)
-    unwrapped = sorted(
-        set(re.findall(r'register_hook\(\s*["\']([\w]+)["\']\s*,\s*(?!_synchronized\()(\w+)', source))
-        | set(re.findall(r'register_command\(\s*["\']([\w-]+)["\']\s*,\s*handler=\s*(?!_synchronized\()(\w+)', source))
-    )
-    check("all handlers wrapped in _synchronized (thread safety)",
-          not unwrapped,
-          f"unwrapped: {unwrapped}" if unwrapped else "")
-    # Session context: HERMES_SESSION_* live in ContextVars, not os.environ.
-    # A raw os.environ read of a session var would silently return "" in
-    # gateway contexts (v2.18.9 bug) — require the ContextVar-aware accessor.
-    session_env_reads = re.findall(r'os\.environ\.get\("HERMES_SESSION_[\w]+"', source)
-    check("session vars read via ContextVar accessor (not raw os.environ)",
-          "from gateway.session_context import get_session_env" in source,
-          f"raw os.environ session reads: {session_env_reads}" if session_env_reads else
-          "missing get_session_env import")
+    # Under mutation testing (mutmut) the repo is copied to mutants/ and the
+    # copy's __init__.py is trampoline-instrumented (function names mangled to
+    # x__name__mutmut_N, MutantDict injected). Every source-TEXT check below
+    # (wrapper regex, session-env regex, kwarg contract) would false-fail on
+    # that mangled source — it's not real code drift, it's the harness. Skip
+    # the whole block when instrumentation is detected; the runtime checks
+    # (module load, defs, locales) still run and still count.
+    if "_mutmut_mutated" in source or "MutantDict" in source:
+        print("  [note] mutmut-instrumented source — skipping source-text "
+              "checks (wrapper/session/kwarg-contract); runtime checks still run")
+        _mutmut_instrumented = True
+    else:
+        _mutmut_instrumented = False
+    if not _mutmut_instrumented:
+        unwrapped = sorted(
+            set(re.findall(r'register_hook\(\s*["\']([\w]+)["\']\s*,\s*(?!_synchronized\()(\w+)', source))
+            | set(re.findall(r'register_command\(\s*["\']([\w-]+)["\']\s*,\s*handler=\s*(?!_synchronized\()(\w+)', source))
+        )
+        check("all handlers wrapped in _synchronized (thread safety)",
+              not unwrapped,
+              f"unwrapped: {unwrapped}" if unwrapped else "")
+        # Session context: HERMES_SESSION_* live in ContextVars, not os.environ.
+        # A raw os.environ read of a session var would silently return "" in
+        # gateway contexts (v2.18.9 bug) — require the ContextVar-aware accessor.
+        session_env_reads = re.findall(r'os\.environ\.get\("HERMES_SESSION_[\w]+"', source)
+        check("session vars read via ContextVar accessor (not raw os.environ)",
+              "from gateway.session_context import get_session_env" in source,
+              f"raw os.environ session reads: {session_env_reads}" if session_env_reads else
+              "missing get_session_env import")
     m = re.search(r"^version:\s*([\d.]+)", yaml_text, re.MULTILINE)
     manifest_version = m.group(1) if m else None
     check("manifest version matches pyproject",
@@ -366,6 +380,9 @@ def main():
         if source_root is None:
             print("  [note] Hermes source not found — skipping (run on the "
                   "deployment host: /usr/local/lib/hermes-agent)")
+        elif _mutmut_instrumented:
+            print("  [note] mutmut-instrumented source — kwarg-contract "
+                  "parser cannot read mangled handler names; skipping")
         else:
             reads = plugin_kwargs_per_hook(_read(PLUGIN_FILE))
             total_read = 0

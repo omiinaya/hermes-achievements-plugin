@@ -223,11 +223,23 @@ def _save_state(force=False):
             return
         try:
             os.makedirs(os.path.dirname(_STATE_PATH), exist_ok=True)
+
             def _convert(v):
-                return sorted(v) if isinstance(v, set) else v
-            state_copy = json.loads(json.dumps(_state, default=_convert))
+                if isinstance(v, set):
+                    return sorted(v)
+                # datetimes / anything else non-serializable
+                return str(v)
+
+            # Single-pass serialization: the old code did dumps→loads→dumps
+            # (a full JSON round-trip) just to turn sets into sorted lists —
+            # post_llm_call force-saves once per turn, so that was 2 wasted
+            # serializations of the whole state on every turn.
+            state_copy = dict(_state)
             state_copy["last_updated"] = datetime.now(UTC).isoformat()
-            # Keep a rolling backup so a crash mid-write never loses progress
+            payload = json.dumps(state_copy, default=_convert, indent=2)
+            # Keep a rolling backup so a crash mid-write never loses progress.
+            # (Always one save behind by design; atomic temp+replace keeps the
+            # main file intact on failure, the backup covers disk corruption.)
             try:
                 if os.path.exists(_STATE_PATH):
                     shutil.copy2(_STATE_PATH, _STATE_BAK_PATH)
@@ -240,7 +252,7 @@ def _save_state(force=False):
             tmp_path = _STATE_PATH + ".tmp"
             try:
                 with open(tmp_path, "w") as f:
-                    json.dump(state_copy, f, indent=2, default=str)
+                    f.write(payload)
                     f.flush()
                     os.fsync(f.fileno())
                 os.replace(tmp_path, _STATE_PATH)
@@ -2058,6 +2070,22 @@ def _pre_llm_call(**kwargs):
 # IMPORTANT: this is a TRANSFORM hook — returning a string would REPLACE
 # the output. We are observers: always return None.
 
+def _measure_utf8_bytes(s: str, threshold: int) -> int:
+    """Byte length of ``s`` without allocating a full UTF-8 copy.
+
+    UTF-8 encodes a char in at most 4 bytes, so `len(s) * 4 >= threshold`
+    is a *necessary* condition for the byte size to reach ``threshold``.
+    When it can't (the common case — most outputs/results are far below the
+    achievement thresholds), we return the char count directly and never
+    pay for `s.encode()` (which copies the entire string; a 10MB result
+    used to allocate+encode 10MB on every hook call).
+    """
+    n = len(s)
+    if n * 4 < threshold:
+        return n  # provably below threshold; chars ≈ bytes is good enough
+    return len(s.encode("utf-8", errors="ignore"))
+
+
 def _transform_terminal_output(**kwargs):
     """Observe raw pre-truncation output, env diversity, and exit codes."""
     output = kwargs.get("output") or ""
@@ -2069,7 +2097,7 @@ def _transform_terminal_output(**kwargs):
     now = datetime.now(UTC).isoformat()
 
     # Raw output volume (bytes of the pre-truncation string)
-    size = len(output.encode("utf-8", errors="ignore"))
+    size = _measure_utf8_bytes(output, _DATA_FLOOD_BYTES)
     stats["peak_terminal_output_bytes"] = max(
         stats.get("peak_terminal_output_bytes", 0), size
     )
@@ -2116,7 +2144,7 @@ def _transform_tool_result(**kwargs):
     stats = state.setdefault("stats", {})
     now = datetime.now(UTC).isoformat()
 
-    size = len(result.encode("utf-8", errors="ignore"))
+    size = _measure_utf8_bytes(result, _BIG_HAUL_BYTES)
     stats["peak_tool_result_bytes"] = max(
         stats.get("peak_tool_result_bytes", 0), size
     )
