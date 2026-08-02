@@ -2,7 +2,7 @@
 
 ## What this is
 
-A Hermes Agent plugin that awards 153 Steam-style achievement badges for
+A Hermes Agent plugin that awards 154 Steam-style achievement badges for
 using Hermes. Pure Python stdlib, no external dependencies.
 
 ## Repo layout
@@ -37,7 +37,7 @@ using Hermes. Pure Python stdlib, no external dependencies.
   `<sys.prefix>/achievements/` — see `_WHEEL_DATA_DIR`. Regression-guarded
   by `tests/test_plugin.py::test_wheel_ships_entry_point_for_pip_discovery`.
 - `scripts/check_plugin.py` — health check: module loads, manifest↔register()
-  hook agreement, exactly-153 defs, locale parity, no dead detection-map
+  hook agreement, exactly-154 defs, locale parity, no dead detection-map
   references, live state.json reconciliation (--live), real PluginManager
   load (--manifest), and hook kwarg contract vs the installed Hermes
   source (--gateway — catches silent no-op drift if Hermes renames a
@@ -58,7 +58,7 @@ using Hermes. Pure Python stdlib, no external dependencies.
   mutants (weakened asserts, off-by-one thresholds). `mutants/` is
   gitignored and excluded from pytest via `testpaths = ["tests"]`.
 
-## Detection architecture (18 hooks)
+## Detection architecture (19 hooks)
 
 | Hook | Fires | Owns |
 |------|-------|------|
@@ -66,6 +66,7 @@ using Hermes. Pure Python stdlib, no external dependencies.
 | `transform_terminal_output` | per terminal command with the FULL raw output BEFORE the tool truncates it (has `output`, `returncode`, `env_type` local/ssh/docker/singularity/modal/daytona) | raw output volume (Verbose Output 100KB, Data Flood 1MB) — the only hook that sees what the model was NOT handed; env diversity (Multi-Environment 2, Omnipresent 5); exit code 127 (Ghost Command). TRANSFORM hook — observer returns None, never a string |
 | `pre_llm_call` | once per turn BEFORE the LLM is invoked (has `is_first_turn` — True only when run_conversation was handed no prior history) | fresh-conversation counting (Icebreaker 1, Conversation Habit 10, Serial Starter 50, Conversation Colossus 100) — the only signal that counts natural context starts |
 | `transform_tool_result` | per tool call with the FULL result string (has `result`, `api_request_id`, `error_message`) | result-size / context bloat (Big Haul 1MB, Colossal Result 10MB) — post_tool_call only gets status, never the content. TRANSFORM hook — observer returns None, never a string |
+| `transform_llm_output` | once per turn AFTER the tool-calling loop, BEFORE other plugins transform the reply (has `response_text` — the pre-rewrite final text, `session_id`, `model`, `platform`) | output-rewrite detection — paired with post_llm_call (which fires AFTER the transform loop): if `post_llm_call.assistant_response` != the pre-transform `response_text` seen here, another plugin rewrote the model's output (Remixed Output achievement). TRANSFORM hook — observer returns None, never a string |
 | `post_tool_call` | every tool execution (has `tool_name`, `args`, `session_id`, `duration_ms`, `status` ok/cancelled/blocked/error, `error_type`) | per-tool counts, per-session tracking, argument-based achievements (cron chaining, parallel delegation, skill/plugin authoring), Quick Draw, tool-status counting (Trial and Error — 25 failed calls; Manual Override 1 / Backseat Driver 5 / Control Freak 15 — user interrupts, `status="cancelled"` with `error_type` keyboard_interrupt, the user pressing stop mid-tool; Dead End 1 / Brick Wall 10 — policy blocks, `status="blocked"` when scope/plugin/guardrail policy denies the tool BEFORE it runs). Distinct from approvals (consent prompts the user answers) — an interrupt is active user control, a block is environmental policy |
 | `post_llm_call` | once per turn (has `assistant_response` — the model's own output text) | cumulative message counts, model/platform diversity, user-command patterns, tiered counters, group/rarity completions, message verbosity (Wordsmith 300 words, Novelist 1500), model-response verbosity (Essayist 1000 words, Novel Author 5000 — a mirror dimension measuring what the MODEL wrote, distinct from user input) |
 | `post_api_request` | once per successful provider API request (has `usage` token buckets, `api_duration` in seconds, `finish_reason`, `message_count`) | cumulative token milestones (Token Tyro/Wizard/Whale), fast-response counting (Speed Demon), `total_tokens` stat, per-request context depth (Deep Context 50 msgs, Context Colossus 100), output-cap truncation (Cut Short 1, Token Wall 25 — `finish_reason="length"` means the model hit its max output tokens and was cut off, a signal usage buckets cannot express) |
@@ -81,17 +82,17 @@ using Hermes. Pure Python stdlib, no external dependencies.
 | `api_request_error` | LLM provider call fails (has `error_type`, `status_code`, `retry_count`, `max_retries`, `retryable`) | API-error resilience (Indestructible — 10 total errors survived), sustained-failure depth (Tenacious 2 / Undeterred 4 — `retry_count` is how many consecutive times the SAME request failed before the hook fired; breadth≠depth: 10 single failures never reach depth 2). `max_retry_depth` stat |
 | `pre_gateway_dispatch` | once per incoming user-originated message (has `event`, `gateway`, `session_store`; event carries `media_urls`/`media_types`/`message_type`, `is_command()`/`get_command()`, `text`, `source`) | distinct-sender counting (Social Butterfly 3 users, Party Host 10), media-message counting (Show and Tell 1, Visual Storyteller 25), gateway-intercepted slash commands (Command Center 10 / Command General 25 — `/new`, `/reset`, `/title`, `/achievements` are intercepted BEFORE the LLM so post_llm_call can never see them; only the platform's PRIMARY user — first non-bot seen = the owner — counts, so strangers' commands in shared channels don't unlock the user's achievements) — the ONLY hook that sees other users' messages |
 
-### Why 18 of Hermes' 19 valid hooks are registered
+### Why all 19 of Hermes' valid hooks are registered
 
-`transform_llm_output` is deliberately NOT registered. Hermes exposes it
-for transforming the final response text (first non-empty string return
-wins). The plugin is a strict observer (every transform handler returns
-None), and the hook's delivered kwargs (`response_text`, `session_id`,
-`model`, `platform`) are a **strict subset** of `post_llm_call`'s
-(`assistant_response` + the same session/model/platform), fired under the
-identical `if final_response and not interrupted` guard. Registering it
-would add zero observability and invite confusion about transform
-semantics — so 18/19 is the FINAL hook surface, not an oversight.
+Every one of Hermes' 19 valid hooks is registered. `transform_llm_output`
+fired **before** the transform loop (gateway hands every observer the
+pre-rewrite `response_text`, then applies the first non-None string
+another plugin returns), while `post_llm_call` fires **after** it with
+`assistant_response`. The plugin is a strict observer (every transform
+handler returns None), and by comparing the two it detects when **another
+plugin rewrote the model's output** before delivery — the `remixed_output`
+achievement, a dimension raw response-length cannot see. The kwargs look
+like a subset of `post_llm_call`'s, but the *timing* carries the signal.
 
 ### Thread safety is mandatory (gateway runs hooks on worker threads)
 
@@ -155,7 +156,7 @@ Current unread kwargs and why that's correct:
 
 ## Key invariants
 
-- **Exactly 153 achievements** — `tests/test_plugin.py` enforces this.
+- **Exactly 154 achievements** — `tests/test_plugin.py` enforces this.
 - **All achievement IDs must be detectable** — every def needs a path in
   `_TOOL_ACHIEVEMENTS`, `_TOOL_THRESHOLDS`, `TERMINAL_PATTERNS`,
   `_check_tool_args()`, `_check_counter_achievements()`, or an explicit
@@ -228,7 +229,7 @@ ruff check .                   # CI lint gate — must pass before push
 
 - `tests/test_detection.py::TestEveryAchievementUnlockable` — full-grind
   simulation: drives every hook with escalating synthetic gateway data and
-  asserts **all 153 defs actually unlock**. This is the enforcement of the
+  asserts **all 154 defs actually unlock**. This is the enforcement of the
   "every def must be detectable" invariant — after any swap, a dead def
   (impossible threshold, typo'd key, missing path) fails the run with its
   ID listed. Keep the grind's tool/command data broad enough to cover

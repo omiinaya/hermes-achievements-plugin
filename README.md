@@ -6,7 +6,7 @@
 [![CI](https://github.com/omiinaya/hermes-achievements-plugin/actions/workflows/test.yml/badge.svg)](https://github.com/omiinaya/hermes-achievements-plugin/actions/workflows/test.yml)
 [![Coverage](https://img.shields.io/badge/coverage-100%25-brightgreen.svg)](https://github.com/omiinaya/hermes-achievements-plugin/actions/workflows/test.yml)
 
-**153 Steam-style achievement badges** for [Hermes Agent](https://hermes-agent.nousresearch.com). Unlock achievements as you use Hermes — run commands, search the web, schedule cron jobs, create skills, and explore the platform. Achievements are tracked silently and delivered to your Discord home channel the moment they unlock.
+**154 Steam-style achievement badges** for [Hermes Agent](https://hermes-agent.nousresearch.com). Unlock achievements as you use Hermes — run commands, search the web, schedule cron jobs, create skills, and explore the platform. Achievements are tracked silently and delivered to your Discord home channel the moment they unlock.
 
 ## Quick Start
 
@@ -77,7 +77,7 @@ Notifications are rarity-colored Discord embeds (gray → gold) posted asynchron
 
 🚀 **Getting Started** (2/16) █░░░░░░░░░
 🛠️ **Tools & Skills** (2/28) ░░░░░░░░░░
-⚡ **Power User** (0/44) ░░░░░░░░░░
+⚡ **Power User** (0/45) ░░░░░░░░░░
 👑 **Expert** (0/40) ░░░░░░░░░░
 🎯 **Milestones** (0/19) ░░░░░░░░░░
 🤝 **Community** (0/6) ░░░░░░░░░░
@@ -191,7 +191,7 @@ unlock them, Steam-style. Currently secret: `Fresh Start`, `Cautious`,
 | 🛠️🛠️ | Complete Toolset | Use every available Hermes tool type at least once | Epic |
 | 👥 | Army Commander | Spawn 25 subagents with delegate_task | Epic |
 
-### ⚡ Power User (44)
+### ⚡ Power User (45)
 
 | Icon | Name | Description | Rarity |
 |------|------|-------------|--------|
@@ -227,6 +227,7 @@ unlock them, Steam-style. Currently secret: `Fresh Start`, `Cautious`,
 | 🚫 | Ghost Command | Hit exit code 127 (command not found) on a terminal command | Rare |
 | 📜 | Novel Author | Receive a 5000+ word response from the model | Rare |
 | 🐢 | Slow Thinker | Run a subagent that takes 10+ minutes | Rare |
+| 🎚️ | Remixed Output | Receive a response that another plugin transformed before delivery | Rare |
 | 🔐 | YOLO Mode | Run with --yolo flag or disable approval prompts | Epic |
 | 🔐 | YOLO Champion | Complete 25 tasks without approval prompts | Epic |
 | 🌉 | Gateway Networker | Connect to 3 different messaging platforms | Epic |
@@ -375,7 +376,7 @@ State data is stored at `~/.hermes/achievements/state.json` (user-local, not par
 vim ~/.hermes/plugins/achievements/__init__.py
 
 # Run the test suite (static + functional) — includes the full-grind
-# simulation that proves all 153 achievements can unlock
+# simulation that proves all 154 achievements can unlock
 python3 -m pytest tests/ -q
 
 # Run the one-shot health check (defs, locales, manifest↔register hooks,

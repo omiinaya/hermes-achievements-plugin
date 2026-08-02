@@ -1,12 +1,13 @@
 name: achievements
-version: 2.19.0
-description: "153 Steam-style achievement badges for Hermes Agent with i18n support (EN/ES/FR/PT). Tracks tool usage, tokens, delegation, approvals, API resilience, milestones, conversations, tool batching, output volume, environments, response verbosity, and platform exploration."
+version: 2.19.1
+description: "154 Steam-style achievement badges for Hermes Agent with i18n support (EN/ES/FR/PT). Tracks tool usage, tokens, delegation, approvals, API resilience, milestones, conversations, tool batching, output volume, environments, response verbosity, and platform exploration."
 pip_dependencies: []
 hooks:
   - pre_llm_call
   - pre_tool_call
   - transform_terminal_output
   - transform_tool_result
+  - transform_llm_output
   - post_llm_call
   - post_api_request
   - pre_api_request

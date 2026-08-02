@@ -417,6 +417,10 @@
       "name": "Release Reader",
       "description": "Read the latest Hermes release notes"
     },
+    "remixed_output": {
+      "name": "Remixed Output",
+      "description": "Receive a response that another plugin transformed before delivery"
+    },
     "remote_warden": {
       "name": "Remote Warden",
       "description": "Approve a dangerous command from a chat platform"

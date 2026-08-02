@@ -1365,6 +1365,89 @@ class TestTransformToolResult(HookTestBase):
         self.assertFalse(self.unlocked("big_haul"))
 
 
+class TestTransformLlmOutput(HookTestBase):
+    """transform_llm_output: detect when another plugin rewrites the reply."""
+
+    def _transform(self, response="hi", session_id="s1"):
+        return self.mod._transform_llm_output(
+            response_text=response, session_id=session_id,
+            model="m1", platform="cli",
+        )
+
+    def _turn(self, response="hi", history=None, model="m1", platform="cli",
+              session_id="s1"):
+        self.mod._post_llm_call(
+            user_message="hello",
+            conversation_history=history or [{"role": "user", "content": "hello"}],
+            model=model, platform=platform, session_id=session_id,
+            assistant_response=response,
+        )
+
+    def test_never_transforms_output(self):
+        """Observer contract: must return None, never a string."""
+        result = self._transform("some reply")
+        self.assertIsNone(result)
+
+    def test_unchanged_reply_no_unlock(self):
+        # transform_llm_output saw the original text; post_llm_call gets the
+        # same text back (no plugin rewrote it) → no remix achievement.
+        self._transform("same reply", "s-unchanged")
+        self._turn("same reply", session_id="s-unchanged")
+        self.assertFalse(self.unlocked("remixed_output"))
+        self.assertEqual(self.stats().get("outputs_transformed", 0), 0)
+
+    def test_rewritten_reply_unlocks(self):
+        # Another plugin replaced the model output before delivery — the
+        # ONLY way the pre-transform and post-transform texts diverge.
+        self._transform("model said this", "s-rewrite")
+        self._turn("plugin changed it to that", session_id="s-rewrite")
+        self.assertTrue(self.unlocked("remixed_output"))
+        self.assertEqual(self.stats().get("outputs_transformed", 0), 1)
+
+    def test_pending_not_leaked_across_sessions(self):
+        # transform_llm_output for session A must not satisfy a post_llm_call
+        # for session B (keyed by session_id).
+        self._transform("text-a", "s-a")
+        self._turn("text-b", session_id="s-b")
+        self.assertFalse(self.unlocked("remixed_output"))
+
+    def test_pending_consumed_per_turn(self):
+        # After one comparison the pending slot is consumed; a later turn
+        # with identical text must not re-unlock (already unlocked stays,
+        # but the counter must not double-count a non-remix turn).
+        self._transform("original once", "s-single")
+        self._turn("original once", session_id="s-single")
+        self.assertFalse(self.unlocked("remixed_output"))
+        # Second turn, no transform fired first → nothing pending.
+        self._turn("anything", session_id="s-single")
+        self.assertEqual(self.stats().get("outputs_transformed", 0), 0)
+
+    def test_non_string_response_text_ignored(self):
+        # response_text can be None/absent (guard on kwargs.get or ""); a
+        # non-string value must not be stored as pending (False branch).
+        self.mod._transform_llm_output(
+            response_text=12345, session_id="s-num",
+            model="m1", platform="cli",
+        )
+        self.assertNotIn("s-num", self.mod._transform_llm_pending)
+        self.assertIsNone(self.mod._transform_llm_output(
+            response_text=None, session_id="s-none",
+            model="m1", platform="cli",
+        ))
+        self.assertNotIn("s-none", self.mod._transform_llm_pending)
+
+    def test_empty_pre_transform_never_false_unlocks(self):
+        # A transform firing with NO text (None → "" after the `or ""`
+        # guard) must not make the next ordinary reply look "remixed".
+        self.mod._transform_llm_output(
+            response_text=None, session_id="s-empty",
+            model="m1", platform="cli",
+        )
+        self._turn("an ordinary reply", session_id="s-empty")
+        self.assertFalse(self.unlocked("remixed_output"))
+        self.assertEqual(self.stats().get("outputs_transformed", 0), 0)
+
+
 class TestMeasureUtf8Bytes(HookTestBase):
     """_measure_utf8_bytes: byte-length proxy that avoids full copies.
 
@@ -1803,7 +1886,7 @@ class TestBranchCoverageComplete(HookTestBase):
         self.mod._locales_cache = {}
         try:
             cache = self.mod._load_locales()
-            self.assertEqual(len(cache.get("en", {}).get("achievement", {})), 153)
+            self.assertEqual(len(cache.get("en", {}).get("achievement", {})), 154)
         finally:
             self.mod._LOCALES_DIR = old_dir
             self.mod._WHEEL_DATA_DIR = old_wheel
@@ -2503,7 +2586,7 @@ class TestStreakEdgeCases(HookTestBase):
         self.mod._locales_cache = {}
         try:
             cache = self.mod._load_locales()
-            self.assertEqual(len(cache.get("en", {}).get("achievement", {})), 153)
+            self.assertEqual(len(cache.get("en", {}).get("achievement", {})), 154)
         finally:
             self.mod._LOCALES_DIR = old_dir
             self.mod._WHEEL_DATA_DIR = old_wheel
@@ -2784,6 +2867,38 @@ class TestStatePersistence(HookTestBase):
         self.assertTrue(any("/channels/456/messages" in u for u in captured), captured)
         self.assertTrue(any("/channels/111111/messages" in u for u in captured), captured)
         self.assertFalse(any("whatsapp" in u for u in captured), captured)
+
+    def test_notification_batch_without_home_channel_origins_only(self):
+        # No DISCORD_HOME_CHANNEL configured: the home target is skipped,
+        # numeric origins still get their own messages (False branch of
+        # `if home_channel:`).
+        captured = []
+
+        class FakeResp:
+            def __enter__(self): return self
+            def __exit__(self, *a): return False
+
+        def fake_urlopen(req, timeout=None):
+            captured.append(req.full_url)
+            return FakeResp()
+
+        self.mod._load_env_var = lambda key, fallback="": {
+            "DISCORD_BOT_TOKEN": "test-token",
+            "DISCORD_HOME_CHANNEL": "",
+        }.get(key, fallback)
+        old = self.mod.urllib.request.urlopen
+        self.mod.urllib.request.urlopen = fake_urlopen
+        d = self.mod.ACHIEVEMENT_DEFS
+        try:
+            self.mod._send_discord_notification_batch([
+                {"ach": d["first_steps"], "origin": "222222"},
+                {"ach": d["chatty"], "origin": ""},
+            ])
+        finally:
+            self.mod.urllib.request.urlopen = old
+
+        self.assertEqual(len(captured), 1, captured)
+        self.assertIn("/channels/222222/messages", captured[0])
 
     def test_model_platform_progress_survives_restart(self):
         # Model/platform diversity is read from persisted stats, so a
@@ -3333,6 +3448,7 @@ class TestPluginRegistration(unittest.TestCase):
         self.assertEqual(hook_names,
                          {"pre_llm_call", "pre_tool_call",
                           "transform_terminal_output", "transform_tool_result",
+                          "transform_llm_output",
                           "post_llm_call", "post_api_request",
                           "pre_api_request",
                           "post_tool_call",
@@ -3492,7 +3608,7 @@ class TestCommandHandlers(HookTestBase):
         # Every view (default/recent/next/stats/groups) in every locale must
         # stay under Discord's 2000-char cap — guards against locale string
         # growth and newly_unlocked unbounded rendering. This is the WORST
-        # case: all 153 achievements unlocked + every stats counter populated
+        # case: all 154 achievements unlocked + every stats counter populated
         # (including the longest locales). A stats view that fits when empty
         # but overflows when full is a regression.
         state = self.mod._load_state()
@@ -4174,7 +4290,7 @@ class TestReadmeSync(unittest.TestCase):
         result = subprocess.run([_sys.executable, script], capture_output=True, text=True,
                                 cwd=PLUGIN_DIR, check=False)
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertIn("OK: 153 achievements", result.stdout)
+        self.assertIn("OK: 154 achievements", result.stdout)
         with open(os.path.join(PLUGIN_DIR, "README.md"), encoding="utf-8") as f:
             after = f.read()
         self.assertEqual(after, before,
@@ -4296,7 +4412,7 @@ class TestReadmeSync(unittest.TestCase):
 
 
 class TestEveryAchievementUnlockable(HookTestBase):
-    """Full-grind simulation: prove all 153 achievement defs can unlock.
+    """Full-grind simulation: prove all 154 achievement defs can unlock.
 
     After several rounds of achievement swaps (v2.3.0, v2.4.0, v2.4.1),
     a def could sit in a detection map with an impossible condition (wrong
@@ -4413,6 +4529,21 @@ class TestEveryAchievementUnlockable(HookTestBase):
                     model=models[i % len(models)],
                     platform=platforms[i % len(platforms)],
                 )
+
+            # ── Remixed Output: one turn where transform_llm_output saw the
+            # model text but post_llm_call received a REWRITTEN text (another
+            # plugin transformed it) → remixed_output unlocks.
+            mod._transform_llm_output(
+                response_text="model's original words here",
+                session_id="s-remix",
+                model=models[0], platform="cli",
+            )
+            mod._post_llm_call(
+                user_message="rewrite it",
+                assistant_response="a different plugin rewrote this entirely",
+                conversation_history=[{"role": "user", "content": "rewrite it"}],
+                model=models[0], platform="cli", session_id="s-remix",
+            )
 
             # ── Conversation starts: 105 fresh contexts → Icebreaker (1),
             # Conversation Habit (10), Serial Starter (50), Colossus (100).
@@ -4692,7 +4823,7 @@ class TestEveryAchievementUnlockable(HookTestBase):
             )
             mod._check_completionist()
 
-    def test_all_153_achievements_can_unlock(self):
+    def test_all_154_achievements_can_unlock(self):
         """Every def in ACHIEVEMENT_DEFS must unlock through real hooks."""
         self._grind()
         state = self.mod._load_state()
@@ -4706,7 +4837,7 @@ class TestEveryAchievementUnlockable(HookTestBase):
             f"{locked}",
         )
 
-    def test_completionist_unlocks_as_153rd(self):
+    def test_completionist_unlocks_as_154th(self):
         """Completionist requires every other achievement first."""
         self._grind()
         state = self.mod._load_state()
@@ -4716,7 +4847,7 @@ class TestEveryAchievementUnlockable(HookTestBase):
             1 for aid in self.mod.ACHIEVEMENT_DEFS
             if state["achievements"].get(aid, {}).get("unlocked")
         )
-        self.assertEqual(unlocked, 153)
+        self.assertEqual(unlocked, 154)
 
 
 if __name__ == "__main__":

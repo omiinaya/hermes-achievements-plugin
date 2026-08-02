@@ -4,7 +4,7 @@
 Verifies the full integrity chain of the plugin:
   1. The plugin loads cleanly (plugin.yaml manifest + __init__.py)
   2. Manifest hooks ↔ register() hooks agree (no drift)
-  3. Exactly 153 achievement defs, all with name/description/rarity/group
+  3. Exactly 154 achievement defs, all with name/description/rarity/group
   4. Locale parity: every def key exists in all 4 locale files
   5. Detection maps contain no dead references (IDs not in defs)
   6. Live state.json (if --live) reconciles: no stale entries, real
@@ -259,9 +259,9 @@ def main():
 
     print("── 3. Achievement defs ──")
     defs = mod.ACHIEVEMENT_DEFS
-    check("exactly 153 defs", len(defs) == 153, f"{len(defs)} found")
+    check("exactly 154 defs", len(defs) == 154, f"{len(defs)} found")
     # pyproject + plugin.yaml descriptions carry the badge count too — it
-    # rotted once (146 when the defs reached 153) because nothing guarded it.
+    # rotted once (146 when the defs reached 154) because nothing guarded it.
     count_ok = True
     for path, what in ((os.path.join(ROOT, "pyproject.toml"), "pyproject"),
                        (os.path.join(ROOT, "plugin.yaml"), "plugin.yaml")):

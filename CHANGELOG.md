@@ -1,5 +1,37 @@
 # Changelog
 
+## [2.19.1] — 2026-08-02
+
+### New achievement
+
+- **Remixed Output** (rare, Power User) — unlock when another plugin
+  rewrote the model's response before delivery. Hermes exposes 19 valid
+  hooks; the plugin had registered 18. `transform_llm_output` fires
+  AFTER the tool-calling loop but BEFORE the transform loop — every
+  observer receives the pre-rewrite `response_text`, then the gateway
+  applies the first non-None string any other plugin returned. By
+  comparing that pre-transform text (stashed per-session in a transient
+  bridge) with `post_llm_call`'s `assistant_response` (post-rewrite),
+  the plugin detects when the user saw output a plugin produced rather
+  than the model's own words — a dimension none of the raw-response-
+  length achievements can express. Also tracks an `outputs_transformed`
+  counter. The naive interpretation ("kwargs are a subset of
+  post_llm_call's → zero observability") was wrong: the *timing*
+  relative to other plugins carries the signal. Registered as a strict
+  observer (always returns None).
+- Guarded the false-unlock: a `transform_llm_output` firing with no
+  text must not make the next ordinary reply look remixed.
+
+### New in this release
+
+- Remixed Output and its edge cases covered (6 new tests): unchanged
+  reply no unlock, rewritten reply unlocks, no cross-session leakage,
+  per-turn pending consumption, non-string response ignored, empty
+  pre-transform never false-unlocks.
+- **429 tests, 100% line + 100% branch** (1433 stmts, 690 branches).
+- All 19 valid Hermes hooks are now registered; gateway-contract check
+  validates `transform_llm_output` delivers `response_text`/`session_id`.
+
 ## [2.19.0] — 2026-08-02
 
 ### Performance

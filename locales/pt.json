@@ -417,6 +417,10 @@
       "name": "Leitor de Releases",
       "description": "Ler as últimas notas de versão do Hermes"
     },
+    "remixed_output": {
+      "name": "Saída Remixada",
+      "description": "Receber uma resposta que outro plugin transformou antes da entrega"
+    },
     "remote_warden": {
       "name": "Guardião Remoto",
       "description": "Aprove um comando perigoso de uma plataforma de chat"

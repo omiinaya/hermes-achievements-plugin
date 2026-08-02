@@ -2,7 +2,7 @@
 Hermes Achievements Plugin
 ===========================
 Steam-style achievement badges for using and learning about Hermes Agent.
-153 achievements across 6 categories.
+154 achievements across 6 categories.
 
 Hooks:
   - post_llm_call:  detects tool calls from conversation_history → unlocks achievements
@@ -1047,6 +1047,11 @@ ACHIEVEMENT_DEFS = {
         "id": "multi_lingual", "name": "Multi-Lingual", "emoji": "🌍",
         "description": "Communicate with Hermes in a language other than English",
         "rarity": "uncommon", "group": "Expert",
+    },
+    "remixed_output": {
+        "id": "remixed_output", "name": "Remixed Output", "emoji": "🎚️",
+        "description": "Receive a response that another plugin transformed before delivery",
+        "rarity": "rare", "group": "Power User",
     },
     "env_tuner": {
         "id": "env_tuner", "name": "Environment Tuner", "emoji": "⚙️",
@@ -2160,6 +2165,36 @@ def _transform_tool_result(**kwargs):
     return None  # noqa: RET501, PLR1711 — observer contract: a string here would REPLACE result
 
 
+# ── Hook: transform_llm_output ─────────────────────────────────────────────
+# Fires once per turn AFTER the tool-calling loop completes, with the FINAL
+# response text BEFORE any other plugin transforms it (the gateway passes
+# response_text to every observer, then applies the first non-None string
+# another plugin returns). post_llm_call fires immediately AFTER that loop
+# with assistant_response — the post-transform text. Comparing the two
+# detects when ANOTHER plugin rewrote the model's output before delivery,
+# a dimension none of the raw-verbosity achievements can see.
+# IMPORTANT: this is a TRANSFORM hook — returning a string would REPLACE
+# the output. We are observers: always return None.
+
+# Transient bridge: session_id -> pre-transform response text, consumed by
+# the next post_llm_call for the same session. Not persisted — it exists
+# only between the two paired hook firings of one turn.
+_transform_llm_pending: dict[str, str] = {}
+
+
+def _transform_llm_output(**kwargs):
+    """Remember the pre-transform response text for the paired post_llm_call."""
+    response_text = kwargs.get("response_text") or ""
+    session_id = kwargs.get("session_id") or ""
+    # Only meaningful when a real pre-transform string exists. Storing ""
+    # (None/absent response) would make the NEXT post_llm_call see
+    # pre_transform="" != assistant_response and falsely unlock
+    # remixed_output on any ordinary turn.
+    if isinstance(response_text, str) and response_text:
+        _transform_llm_pending[session_id] = response_text
+    return None  # noqa: RET501, PLR1711 — observer contract: a string here would REPLACE output
+
+
 # ── Hook: post_llm_call ─────────────────────────────────────────────────
 # Fires once per turn after the tool-calling loop completes. Has
 # conversation_history with tool_calls; tool counting itself lives in
@@ -2222,6 +2257,22 @@ def _post_llm_call(**kwargs):
             _unlock("essayist", now)
         else:
             _set_progress("essayist", resp_words, _ESSAYIST_WORDS)
+
+    # ── Another plugin transformed the model's output ──────────────
+    # transform_llm_output fired earlier THIS turn with the pre-transform
+    # response text; the gateway then applied the first non-None rewrite
+    # another plugin returned. If the text actually changed, the user saw
+    # output that a plugin (not the model) produced — an ecosystem-aware
+    # dimension distinct from raw response length.
+    session_id_t = kwargs.get("session_id") or ""
+    pre_transform = _transform_llm_pending.pop(session_id_t, None)
+    if (
+        isinstance(pre_transform, str)
+        and isinstance(assistant_response, str)
+        and pre_transform != assistant_response
+    ):
+        _unlock("remixed_output", now)
+        stats["outputs_transformed"] = stats.get("outputs_transformed", 0) + 1
 
     # Extract the current turn's user content for command detection
     user_commands = []
@@ -3407,6 +3458,10 @@ def register(ctx) -> None:
     # Observation: full tool-result size / context bloat
     # (TRANSFORM hook — _transform_tool_result always returns None)
     ctx.register_hook("transform_tool_result", _synchronized(_transform_tool_result))
+    # Observation: final response text BEFORE other plugins transform it.
+    # Paired with post_llm_call to detect external output rewrites
+    # (TRANSFORM hook — _transform_llm_output always returns None)
+    ctx.register_hook("transform_llm_output", _synchronized(_transform_llm_output))
     # Detection: post_llm_call has conversation_history → tool calls
     ctx.register_hook("post_llm_call", _synchronized(_post_llm_call))
     ctx.register_hook("post_api_request", _synchronized(_post_api_request))
