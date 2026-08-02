@@ -70,8 +70,7 @@ addopts = "-p no:asyncio"
 
 # Mutation testing (run: uvx mutmut run)
 [tool.mutmut]
-paths_to_mutate = "."
-sources = "__init__.py"
+source_paths = "__init__.py"
 pytest_add_cli_args_test_selection = ["tests/"]
 runner = "python -m pytest -q -x"
 
