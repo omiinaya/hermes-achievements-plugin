@@ -79,6 +79,24 @@ identical `if final_response and not interrupted` guard. Registering it
 would add zero observability and invite confusion about transform
 semantics — so 18/19 is the FINAL hook surface, not an oversight.
 
+### Thread safety is mandatory (gateway runs hooks on worker threads)
+
+Hermes executes parallel tool calls on worker threads
+(`execute_tool_calls_concurrent` → `propagate_context_to_thread`), so
+hook callbacks can fire concurrently on different threads. Every
+registered hook and command handler MUST be wrapped in `_synchronized`
+at registration time (it acquires `_state_lock` — an RLock, because
+`_save_state`/`_load_state` re-acquire it internally). An unwrapped
+handler risks lost updates on read-modify-write counters
+(`tools_used[x] = tools_used[x] + 1`) and racing check-then-act unlock
+sequences. Enforced by
+`tests/test_detection.py::TestPluginRegistration::test_all_registered_handlers_are_synchronized`
+and the concurrency stress test (`test_concurrent_hook_calls_do_not_lose_updates`).
+Module globals like `_current_batch` are safe ONLY because every access
+sits inside a wrapped hook body — keep it that way. Lock ordering:
+hooks take `_state_lock` → `_NOTIF_QUEUE_LOCK` (never the reverse); the
+notification timer releases its queue lock before any state access.
+
 ### Delivered-but-unread kwargs are a conscious choice
 
 `check_plugin.py --gateway` lists every registered hook whose handler
