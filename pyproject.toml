@@ -74,7 +74,18 @@ testpaths = ["tests"]
 
 # Mutation testing (run: uvx mutmut run)
 [tool.mutmut]
-source_paths = "__init__.py"
+# NOTE: must be a LIST. A bare string "..." is iterated character-by-character
+# by mutmut's config reader → Path('_'), Path('_')... mutating the whole tree.
+source_paths = ["__init__.py"]
 pytest_add_cli_args_test_selection = ["tests/"]
 runner = "python -m pytest -q -x"
+# mutmut copies the repo into mutants/; the tests need these beyond the
+# default (tests/, pyproject.toml, uv.lock): locales for _make_module's
+# copytree, scripts/ + plugin.yaml for check_plugin.py subprocess tests,
+# setup.sh for the version-sync test, and README/CHANGELOG/LICENSE/
+# .gitignore for TestFileIntegrity.test_all_files_exist.
+also_copy = [
+    "locales/", "scripts/", "plugin.yaml", "setup.sh",
+    "README.md", "CHANGELOG.md", "LICENSE", ".gitignore",
+]
 

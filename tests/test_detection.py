@@ -27,9 +27,19 @@ def _make_module(tmp_home: str):
     os.environ["HERMES_HOME"] = tmp_home
     os.makedirs(os.path.join(tmp_home, "plugins", "achievements"), exist_ok=True)
     shutil.copytree(LOCALES_DIR, os.path.join(tmp_home, "plugins", "achievements", "locales"))
-    spec = importlib.util.spec_from_file_location("achievements_plugin_test", PLUGIN_FILE)
+    # Under mutmut the whole repo is copied into mutants/ and pytest runs
+    # with CWD=mutants/. mutmut derives the trampoline key from the file
+    # path relative to the project root: mutants/__init__.py → module name
+    # "mutants". The module must be registered under that SAME name or the
+    # trampoline records achievements_plugin_test.x__... and no mutant key
+    # ever matches (every mutant silently marked "No Tests").
+    if "mutants" in PLUGIN_DIR.split(os.sep):
+        module_name = "mutants"
+    else:
+        module_name = "achievements_plugin_test"
+    spec = importlib.util.spec_from_file_location(module_name, PLUGIN_FILE)
     mod = importlib.util.module_from_spec(spec)
-    sys.modules["achievements_plugin_test"] = mod
+    sys.modules[module_name] = mod
     spec.loader.exec_module(mod)
     return mod
 
