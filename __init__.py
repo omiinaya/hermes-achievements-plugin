@@ -362,7 +362,7 @@ def _new_state():
 def _normalize_state():
     """Convert list fields back to sets for internal use."""
     stats = _state.setdefault("stats", {})
-    for key in ("platforms", "models_used", "providers_used", "slash_commands_used", "hooks_used", "users_seen", "env_types", "approved_patterns"):
+    for key in ("platforms", "models_used", "providers_used", "slash_commands_used", "hooks_used", "users_seen", "env_types", "approved_patterns", "exposed_patterns"):
         v = stats.get(key)
         if isinstance(v, set):
             continue

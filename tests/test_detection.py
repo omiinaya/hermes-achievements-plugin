@@ -3100,6 +3100,27 @@ class TestStatePersistence(HookTestBase):
         self.assertEqual(st["slash_commands_used"], set())
         self.assertEqual(st["active_session"]["tool_names"], set())
 
+    def test_danger_class_sets_normalized_from_lists(self):
+        # Both approved_patterns and exposed_patterns are persisted to disk
+        # as JSON lists (the serializer converts sets→lists). On reload
+        # _normalize_state must convert them back to sets so len()/set
+        # ops work uniformly.
+        state = self.mod._load_state()
+        state["stats"]["approved_patterns"] = ["a", "b"]
+        state["stats"]["exposed_patterns"] = ["x", "y"]
+        self.mod._save_state(force=True)
+        self.mod._state = None
+        st = self.mod._load_state()["stats"]
+        self.assertEqual(st["approved_patterns"], {"a", "b"})
+        self.assertEqual(st["exposed_patterns"], {"x", "y"})
+        # Scalar corruption of the new set resets to empty set too
+        state = self.mod._load_state()
+        state["stats"]["exposed_patterns"] = 0
+        self.mod._save_state(force=True)
+        self.mod._state = None
+        st = self.mod._load_state()["stats"]
+        self.assertEqual(st["exposed_patterns"], set())
+
     def test_corrupted_active_session_non_dict_normalized(self):
         # active_session persisted as a non-dict → replaced with fresh shape
         state = self.mod._load_state()
