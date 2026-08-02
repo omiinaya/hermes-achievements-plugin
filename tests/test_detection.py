@@ -4023,6 +4023,15 @@ class TestReadmeSync(unittest.TestCase):
         )
         self.assertIn("Plugin healthy", result.stdout)
         self.assertIn("Hook kwarg contract", result.stdout)
+        # On hosts with Hermes source, the contract must ACTUALLY check
+        # keys. "0 keys checked across 0 hooks" means the handler-name
+        # parser silently regressed (e.g. a wrapper like _synchronized
+        # swallowed the real function name) — that must fail loudly.
+        if "keys checked across" in result.stdout:
+            self.assertNotIn(
+                "0 keys checked across 0 hooks", result.stdout,
+                "kwarg-contract parser found no hooks — parser regression",
+            )
 
 
 class TestEveryAchievementUnlockable(HookTestBase):

@@ -125,7 +125,9 @@ def plugin_kwargs_per_hook(source):
     """Map hook name → sorted kwargs.get('...') keys read by its handler."""
     out = {}
     for m in re.finditer(
-        r'register_hook\(\s*["\']([\w]+)["\']\s*,\s*([\w_]+)', source
+        # Handlers may be wrapped: register_hook("x", _synchronized(_fn)) —
+        # skip the wrapper and capture the real handler name.
+        r'register_hook\(\s*["\']([\w]+)["\']\s*,\s*(?:_synchronized\()?([\w_]+)', source
     ):
         hook, fn = m.group(1), m.group(2)
         body = _function_body(source, fn)
