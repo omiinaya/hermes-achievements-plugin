@@ -43,6 +43,20 @@ using Hermes. Pure Python stdlib, no external dependencies.
   source (--gateway — catches silent no-op drift if Hermes renames a
   hook kwarg). Run after any swap:
   `python3 scripts/check_plugin.py --live --manifest --gateway`
+  Under mutation testing, mutmut instruments `__init__.py` (mangles
+  function names AND string literals, injects `MutantDict`); check_plugin
+  detects that and skips source-text checks (they'd false-fail on the
+  trampoline-mangled copy) while runtime checks still run.
+- `scripts/bench_hooks.py` — per-hook latency benchmark with realistic
+  payloads (1MB terminal output, 10MB tool result, 1500-word responses).
+  Catches performance regressions coverage can't: a hook that adds 50ms
+  to every tool call is invisible to tests. `python3 scripts/bench_hooks.py`
+  Threshold: >2ms on a high-frequency hook is a regression candidate.
+- **Mutation testing** — `uvx mutmut run` (see `[tool.mutmut]` in
+  pyproject: mutates only `__init__.py`, runs `tests/`). mutate coverage
+  beyond line/branch: a 100%-covered module can still host surviving
+  mutants (weakened asserts, off-by-one thresholds). `mutants/` is
+  gitignored and excluded from pytest via `testpaths = ["tests"]`.
 
 ## Detection architecture (18 hooks)
 
