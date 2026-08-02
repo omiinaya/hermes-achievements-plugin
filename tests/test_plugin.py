@@ -511,6 +511,35 @@ class TestFileIntegrity(unittest.TestCase):
         self.assertEqual(yaml_ver.group(1), toml_ver.group(1),
                          f"Version mismatch: plugin.yaml={yaml_ver.group(1)} vs pyproject.toml={toml_ver.group(1)}")
 
+    def test_wheel_ships_entry_point_for_pip_discovery(self):
+        """Regression (v2.18.6): pip-installed plugins must be discoverable.
+
+        Hermes discovers pip-installed plugins via importlib.metadata entry
+        points in group ``hermes_agent.plugins``. Without the entry point, a
+        ``pip install`` lands the module in site-packages but PluginManager
+        never sees it. The entry-point value must reference the wheel's
+        ``achievements`` package (NOT a bare ``__init__`` — a top-level
+        ``__init__`` module name collides with Python package machinery
+        during discovery, e.g. sys.modules['__init__'] gets hijacked by
+        another package's __init__.py).
+        """
+        with open(os.path.join(PLUGIN_DIR, "pyproject.toml")) as f:
+            toml = f.read()
+        self.assertIn('[project.entry-points."hermes_agent.plugins"]', toml,
+                      "Missing Hermes plugin entry-point group in pyproject.toml")
+        m = re.search(r'\[project\.entry-points\."hermes_agent\.plugins"\]\s*\n\s*(\S+)\s*=\s*"([^"]+)"',
+                      toml)
+        self.assertIsNotNone(m, "No entry point under the hermes_agent.plugins group")
+        self.assertEqual(m.group(1), "achievements")
+        self.assertEqual(m.group(2), "achievements",
+                         "Entry point must reference the achievements package, "
+                         "never a top-level __init__ module")
+        # The wheel must actually ship the package file (not a bare __init__.py)
+        self.assertIn('packages = ["achievements"]', toml,
+                      "Wheel must build the achievements package")
+        self.assertIn('achievements = "."', toml,
+                      "achievements package must map to the repo root")
+
 
 # ═══════════════════════════════════════════════════════════════════════════
 # Main

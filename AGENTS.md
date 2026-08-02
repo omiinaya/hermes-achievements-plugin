@@ -26,6 +26,16 @@ using Hermes. Pure Python stdlib, no external dependencies.
   backfills missing translations (WARN + English fallback)
 - `scripts/bump_version.py` — updates the version in all 4 places that
   carry it (pyproject.toml, plugin.yaml, setup.sh ×2) in one shot
+- **Wheel packaging (pyproject.toml)** — the wheel ships the plugin as the
+  `achievements` package (repo root mapped via `package-dir`), NOT a bare
+  top-level `__init__` module (that name collides with Python package
+  machinery during PluginManager discovery — `sys.modules['__init__']` gets
+  hijacked by another package's `__init__.py`). The pip path requires the
+  `[project.entry-points."hermes_agent.plugins"]` declaration; without it
+  `pip install` lands files in site-packages but Hermes never discovers the
+  plugin. Data files (locales, plugin.yaml) install flattened to
+  `<sys.prefix>/achievements/` — see `_WHEEL_DATA_DIR`. Regression-guarded
+  by `tests/test_plugin.py::test_wheel_ships_entry_point_for_pip_discovery`.
 - `scripts/check_plugin.py` — health check: module loads, manifest↔register()
   hook agreement, exactly-153 defs, locale parity, no dead detection-map
   references, live state.json reconciliation (--live), real PluginManager

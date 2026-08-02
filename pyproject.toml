@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta:__legacy__"
 
 [project]
 name = "hermes-achievements-plugin"
-version = "2.18.5"
+version = "2.18.6"
 description = "153 Steam-style achievement badges for Hermes Agent"
 readme = "README.md"
 license = { text = "MIT" }
@@ -30,16 +30,29 @@ Repository = "https://github.com/omiinaya/hermes-achievements-plugin"
 Issues = "https://github.com/omiinaya/hermes-achievements-plugin/issues"
 
 # The plugin is a single module at the repo root (Hermes loads plugins from
-# their directory via plugin.yaml + __init__.py). Package it as a py-module
-# so the wheel actually ships the code, plus the manifest and locales.
+# their directory via plugin.yaml + __init__.py). In the wheel it ships as
+# the `achievements` package (mapped from the repo root) so pip-installed
+# entry-point loading gets a REAL module name — a top-level `__init__`
+# module collides with Python package machinery during PluginManager
+# discovery (sys.modules['__init__'] gets hijacked by another package).
 [tool.setuptools]
-py-modules = ["__init__"]
+packages = ["achievements"]
+py-modules = []
+[tool.setuptools.package-dir]
+achievements = "."
 
 # Extra files ship alongside the module so a pip-installed wheel is
 # self-contained (manifest + translations). Loaded via __file__ fallback
 # in _load_locales / register.
 [tool.setuptools.data-files]
 "achievements" = ["plugin.yaml", "locales/*.json"]
+
+# Register with the Hermes plugin loader (group "hermes_agent.plugins") so
+# `pip install hermes-achievements-plugin` is discovered by PluginManager
+# via importlib.metadata entry points, exactly like any user/checkout
+# plugin — no manual ~/.hermes/plugins copy needed.
+[project.entry-points."hermes_agent.plugins"]
+achievements = "achievements"
 
 # The plugin directory name (hermes-achievements-plugin) contains hyphens,
 # so ruff's N999 flags it as an invalid module name. This is a false
@@ -49,8 +62,16 @@ py-modules = ["__init__"]
 "__init__.py" = ["N999"]
 
 # Plugin is fully synchronous — no async tests exist. pytest-asyncio may
-# still be present in the environment (auto-loaded plugin), so pin the
-# fixture loop scope to silence its deprecation warning and keep the
-# default behavior explicit.
+# still be present in the environment (auto-loaded plugin); disabling it
+# avoids both its deprecation warning locally and any async-fixture
+# surprises. `no:` prefix is a safe no-op when the plugin isn't installed.
 [tool.pytest.ini_options]
-asyncio_default_fixture_loop_scope = "function"
+addopts = "-p no:asyncio"
+
+# Mutation testing (run: uvx mutmut run)
+[tool.mutmut]
+paths_to_mutate = "."
+sources = "__init__.py"
+pytest_add_cli_args_test_selection = ["tests/"]
+runner = "python -m pytest -q -x"
+

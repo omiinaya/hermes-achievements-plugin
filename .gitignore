@@ -29,5 +29,9 @@ state.json
 .coverage
 htmlcov/
 
+# Mutation testing artifacts (mutmut)
+mutants/
+.mutmut-cache
+
 # Stray artifacts
 tmp*/

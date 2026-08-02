@@ -1,5 +1,47 @@
 # Changelog
 
+## [2.18.6] — 2026-08-02
+
+### Fixed
+
+- **`pip install` never actually worked as a plugin install path.** The
+  wheel shipped the plugin as a top-level `__init__` module with no
+  entry point — Hermes discovers pip-installed plugins via
+  importlib.metadata entry points in group `hermes_agent.plugins`, and
+  even if one had been declared, a bare `__init__` module name collides
+  with Python package machinery during PluginManager discovery
+  (`sys.modules['__init__']` gets hijacked by another package's
+  `__init__.py`, so `register()` is never found). The wheel now ships
+  the code as a proper `achievements` package (repo root mapped via
+  `package-dir`) and declares `[project.entry-points."hermes_agent.plugins"]`
+  `achievements = "achievements"`. Verified end-to-end: clean venv +
+  `pip install` + real `PluginManager.discover_and_load()` → plugin
+  found with source=`entrypoint`, 18 hooks + 2 commands registered,
+  all 4 locales load.
+
+### Tests
+
+- New `test_wheel_ships_entry_point_for_pip_discovery` — pins the
+  entry-point group, name, and value in pyproject.toml so the pip path
+  can never silently rot again.
+- `TestBranchCoverageComplete` (17 tests) — branch coverage on the
+  module is now **100%** (680/680), up from 99% with 20 partial
+  branches: corrupt-state-without-backup recovery, non-JSON locale
+  files, empty locale-dir fallthrough, unknown ach-id unlock, empty
+  tool diversity, plugin.yaml without manifest content, register_hook
+  edge cases, unknown model/provider, non-string history content,
+  non-dict usage, stale achievement ids, empty stats, legacy list-typed
+  stats.
+- CI gains a dedicated **branch coverage gate** (`--cov-branch
+  --cov-fail-under=100` on the module alone — the full tree sits at
+  99% only because test files carry their own branches, which is
+  circular).
+- pytest-asyncio is now disabled via `addopts = "-p no:asyncio"` —
+  silences its deprecation warning locally and is a no-op in CI (which
+  never installs it).
+- Suite verified on the full CI Python matrix: 3.11, 3.12, 3.13 (396
+  tests each).
+
 ## [2.18.5] — 2026-08-01
 
 ### Fixed
