@@ -3086,8 +3086,117 @@ class TestPluginRegistration(unittest.TestCase):
                           "api_request_error", "pre_gateway_dispatch"})
         cmd_names = {n for n, _ in ctx.commands}
         self.assertEqual(cmd_names, {"achievements", "achievement"})
-        # Handlers are the real functions, not lambdas
-        self.assertIs(ctx.hooks[0][1], self.mod._pre_llm_call)
+        # Handlers are the real functions wrapped in the state lock, not lambdas
+        self.assertIs(ctx.hooks[0][1].__wrapped__, self.mod._pre_llm_call)
+        self.assertTrue(hasattr(ctx.hooks[0][1], "__wrapped__"))
+
+    def test_all_registered_handlers_are_synchronized(self):
+        # Every hook/command handler must be wrapped in the state lock —
+        # the gateway can invoke hooks from worker threads (parallel tool
+        # calls), so an unwrapped handler would mutate _state unsafely.
+        class Ctx:
+            def __init__(self):
+                self.commands = []
+                self.hooks = []
+            def register_command(self, name, handler, description="", args_hint=""):
+                self.commands.append((name, handler))
+            def register_hook(self, name, callback):
+                self.hooks.append((name, callback))
+
+        ctx = Ctx()
+        self.mod.register(ctx)
+        for name, cb in ctx.hooks + ctx.commands:
+            self.assertTrue(
+                hasattr(cb, "__wrapped__"),
+                f"{name} handler is not wrapped in _synchronized",
+            )
+            # And the wrapper must call through to the real function
+            self.assertIsNotNone(cb.__wrapped__)
+
+    def test_synchronized_command_handlers_accept_positional_args(self):
+        # The gateway calls plugin command handlers POSITIONALLY —
+        # plugin_handler(user_args) — so the lock wrapper must forward
+        # positional args, not just keyword args (a **kwargs-only wrapper
+        # would TypeError on every /achievements invocation).
+        class Ctx:
+            def __init__(self):
+                self.commands = []
+                self.hooks = []
+            def register_command(self, name, handler, description="", args_hint=""):
+                self.commands.append((name, handler))
+            def register_hook(self, name, callback):
+                self.hooks.append((name, callback))
+
+        ctx = Ctx()
+        self.mod.register(ctx)
+        handlers = {n: cb for n, cb in ctx.commands}
+        # Exactly how gateway/run.py and cli.py dispatch: handler(user_args)
+        out = handlers["achievements"]("")
+        self.assertIsInstance(out, str)
+        self.assertIn("Getting Started", out)  # group bar in the summary view
+        detail = handlers["achievement"]("first_steps")
+        self.assertIsInstance(detail, str)
+        self.assertIn("First Steps", detail)
+
+    def test_concurrent_hook_calls_do_not_lose_updates(self):
+        # The gateway runs parallel tool calls on worker threads, so the
+        # registered hooks can fire concurrently. Without the state lock
+        # the read-modify-write counters would lose updates: N threads × K
+        # calls must yield exactly N*K tool executions, no less.
+        import threading as _th
+
+        class Ctx:
+            def __init__(self):
+                self.commands = []
+                self.hooks = []
+            def register_command(self, name, handler, description="", args_hint=""):
+                self.commands.append((name, handler))
+            def register_hook(self, name, callback):
+                self.hooks.append((name, callback))
+
+        ctx = Ctx()
+        self.mod.register(ctx)
+        post_tool = {n: cb for n, cb in ctx.hooks}["post_tool_call"]
+
+        n_threads, calls_each = 8, 25
+        barrier = _th.Barrier(n_threads)
+        errors = []
+
+        def worker(tid):
+            try:
+                barrier.wait()
+                for k in range(calls_each):
+                    post_tool(
+                        tool_name="terminal",
+                        args={},
+                        session_id=f"conc-sess-{tid}",
+                        duration_ms=1000,
+                        status="ok",
+                    )
+            except Exception as exc:  # pragma: no cover — failure path
+                errors.append(exc)
+
+        threads = [_th.Thread(target=worker, args=(t,)) for t in range(n_threads)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+
+        self.assertEqual(errors, [])
+        stats = self.mod._load_state()["stats"]
+        # Exactly N*K terminal executions recorded — zero lost updates.
+        # This is the property the state lock guarantees; without it the
+        # read-modify-write counter can drop calls (observed: 197/200).
+        self.assertEqual(stats["tools_used"]["terminal"], n_threads * calls_each)
+        # The active-session slot is a "current session" view: under
+        # concurrent multi-session operation it legitimately ping-pongs
+        # between threads, so the final session's call count is whatever
+        # the last consecutive run of same-session calls happened to be
+        # (1..calls_each), not calls_each. Only sanity-check it.
+        active = stats["active_session"]
+        self.assertIn(active["id"], {f"conc-sess-{t}" for t in range(n_threads)})
+        self.assertGreaterEqual(active["calls"], 1)
+        self.assertLessEqual(active["calls"], calls_each)
 
 
 class TestCommandHandlers(HookTestBase):

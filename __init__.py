@@ -13,6 +13,7 @@ Achievement notifications are delivered as standalone Discord messages the
 moment they unlock — not appended to the next assistant response.
 """
 
+import functools
 import json
 import os
 import re
@@ -176,7 +177,10 @@ def _send_discord_notification_sync(ach_def):
 
 # ── State management (thread-safe, cached in memory) ────────────────────
 
-_state_lock = threading.Lock()
+# Guards the in-memory _state dict. RLock (not Lock) because the hooks are
+# wrapped with _synchronized (see register()) while _save_state/_load_state
+# re-acquire it internally — the same thread must be able to re-enter.
+_state_lock = threading.RLock()
 _state = None  # loaded lazily
 _last_save_ts = 0.0  # debounce: don't write state.json more than once per 2s
 
@@ -3315,50 +3319,69 @@ def _handle_lang(raw_args: str) -> str:
     return _t("ui.lang_set", target, lang=LANGS.get(target, target), native=LANGS.get(target, target))
 
 
+def _synchronized(fn):
+    """Serialize state-mutating hook/command bodies under _state_lock.
+
+    The gateway executes parallel tool calls on worker threads
+    (``execute_tool_calls_concurrent`` → ``propagate_context_to_thread``),
+    so hooks can fire concurrently on different threads. The shared
+    in-memory ``_state`` dict must never be mutated concurrently:
+    read-modify-write counters (``tools_used[x] = tools_used[x] + 1``)
+    would lose updates and check-then-act unlock sequences would race.
+    ``_state_lock`` is an RLock because ``_save_state``/``_load_state``
+    re-acquire it inside the body.
+    """
+    @functools.wraps(fn)
+    def _wrapped(*args, **kwargs):
+        with _state_lock:
+            return fn(*args, **kwargs)
+    return _wrapped
+
+
 def register(ctx) -> None:
     """Plugin entry point — registers slash commands and hooks."""
-    ctx.register_command("achievements", handler=_handle_achievements,
+    ctx.register_command("achievements", handler=_synchronized(_handle_achievements),
         description="View Hermes achievement progress and stats.",
         args_hint="[recent|next|stats|<group>|lang <code>]")
-    ctx.register_command("achievement", handler=_handle_achievement_detail,
+    ctx.register_command("achievement", handler=_synchronized(_handle_achievement_detail),
         description="Show details for a specific achievement.",
         args_hint="<achievement-id>")
 
     # Detection: pre_llm_call counts fresh conversations (is_first_turn)
-    ctx.register_hook("pre_llm_call", _pre_llm_call)
+    ctx.register_hook("pre_llm_call", _synchronized(_pre_llm_call))
     # Detection: pre_tool_call counts single-response tool batching
-    ctx.register_hook("pre_tool_call", _pre_tool_call)
+    ctx.register_hook("pre_tool_call", _synchronized(_pre_tool_call))
     # Observation: raw pre-truncation terminal output, env diversity, exit codes
     # (TRANSFORM hook — _transform_terminal_output always returns None)
-    ctx.register_hook("transform_terminal_output", _transform_terminal_output)
+    ctx.register_hook("transform_terminal_output", _synchronized(_transform_terminal_output))
     # Observation: full tool-result size / context bloat
     # (TRANSFORM hook — _transform_tool_result always returns None)
-    ctx.register_hook("transform_tool_result", _transform_tool_result)
+    ctx.register_hook("transform_tool_result", _synchronized(_transform_tool_result))
     # Detection: post_llm_call has conversation_history → tool calls
-    ctx.register_hook("post_llm_call", _post_llm_call)
-    ctx.register_hook("post_api_request", _post_api_request)
+    ctx.register_hook("post_llm_call", _synchronized(_post_llm_call))
+    ctx.register_hook("post_api_request", _synchronized(_post_api_request))
     # Preflight: local-endpoint usage + single-request input-token spikes
-    ctx.register_hook("pre_api_request", _pre_api_request)
+    ctx.register_hook("pre_api_request", _synchronized(_pre_api_request))
     # Per-tool detection with full arguments (cron jobs, delegation, files)
-    ctx.register_hook("post_tool_call", _post_tool_call)
+    ctx.register_hook("post_tool_call", _synchronized(_post_tool_call))
     # Session accounting: new-session counter for session milestones
-    ctx.register_hook("on_session_start", _on_session_start)
+    ctx.register_hook("on_session_start", _synchronized(_on_session_start))
     # Fallback metadata tracking + streaks
-    ctx.register_hook("on_session_end", _on_session_end)
+    ctx.register_hook("on_session_end", _synchronized(_on_session_end))
     # Subagent delegation: per-child counting (army_commander by children),
     # orchestrator role usage, failure resilience
-    ctx.register_hook("subagent_stop", _on_subagent_stop)
+    ctx.register_hook("subagent_stop", _synchronized(_on_subagent_stop))
     # Subagent spawn: true concurrency tracking (Conductor)
-    ctx.register_hook("subagent_start", _on_subagent_start)
+    ctx.register_hook("subagent_start", _synchronized(_on_subagent_start))
     # Approval decisions: permanent trust (yolo/trust_fall), denials
-    ctx.register_hook("post_approval_response", _on_approval_response)
+    ctx.register_hook("post_approval_response", _synchronized(_on_approval_response))
     # Approval gates: how often commands trigger approval prompts
-    ctx.register_hook("pre_approval_request", _on_approval_request)
+    ctx.register_hook("pre_approval_request", _synchronized(_on_approval_request))
     # Fresh-session rotations (/new, /reset)
-    ctx.register_hook("on_session_reset", _on_session_reset)
+    ctx.register_hook("on_session_reset", _synchronized(_on_session_reset))
     # Shutdown/session-expiry flush: pending state + queued notifications
-    ctx.register_hook("on_session_finalize", _on_session_finalize)
+    ctx.register_hook("on_session_finalize", _synchronized(_on_session_finalize))
     # LLM API resilience: survived provider errors (Indestructible)
-    ctx.register_hook("api_request_error", _on_api_request_error)
+    ctx.register_hook("api_request_error", _synchronized(_on_api_request_error))
     # Multi-user messaging: distinct senders seen by the gateway
-    ctx.register_hook("pre_gateway_dispatch", _on_pre_gateway_dispatch)
+    ctx.register_hook("pre_gateway_dispatch", _synchronized(_on_pre_gateway_dispatch))

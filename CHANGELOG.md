@@ -1,5 +1,25 @@
 # Changelog
 
+## [2.18.8] — 2026-08-02
+
+### Fixed
+
+- **Hook state mutations are now serialized.** The gateway executes
+  parallel tool calls on worker threads (`execute_tool_calls_concurrent`
+  → `propagate_context_to_thread`), so hooks can fire concurrently on
+  different threads. The shared in-memory `_state` dict was mutated
+  without any lock: read-modify-write counters like
+  `tools_used[x] = tools_used[x] + 1` lost updates (reproduced: 197/200
+  calls recorded under contention) and check-then-act unlock sequences
+  could race. All 18 hooks + 2 command handlers are now wrapped in a
+  re-entrant `_state_lock` at registration time (`_synchronized`), so a
+  hook body is atomic with respect to every other hook body and every
+  state save/load. The lock is re-entrant because `_save_state` /
+  `_load_state` acquire it internally. Verified end-to-end from a
+  pip-installed wheel: 8 threads × 25 calls → exactly 200 recorded,
+  zero errors. Covered by a concurrency regression test that runs the
+  registered handlers from a thread barrier.
+
 ## [2.18.7] — 2026-08-02
 
 ### Fixed
