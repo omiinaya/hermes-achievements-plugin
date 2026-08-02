@@ -2217,7 +2217,7 @@ class TestStreakEdgeCases(HookTestBase):
 
     def test_locale_load_falls_back_to_wheel_data_dir(self):
         # When the HERMES_HOME locales dir is missing, the wheel-shipped
-        # data dir (next to __init__.py) is used — pip-installed copy works
+        # data dir is used — pip-installed copy works.
         old_dir = self.mod._LOCALES_DIR
         old_wheel = self.mod._WHEEL_DATA_DIR
         self.mod._LOCALES_DIR = "/proc/definitely/not/a/locales/dir"
@@ -2231,6 +2231,16 @@ class TestStreakEdgeCases(HookTestBase):
             self.mod._LOCALES_DIR = old_dir
             self.mod._WHEEL_DATA_DIR = old_wheel
             self.mod._locales_cache = {}
+
+    def test_wheel_data_dir_default_points_at_sys_prefix(self):
+        # Regression (v2.18.5): _WHEEL_DATA_DIR used to guess
+        # "<site-packages>/achievements/locales", which NEVER exists —
+        # setuptools data-files are prefix-relative and flattened, so a
+        # pip-installed wheel silently lost its locales (English-only
+        # fallback). The default must derive from sys.prefix.
+        import sys as _sys
+        self.assertEqual(self.mod._WHEEL_DATA_DIR,
+                         os.path.join(_sys.prefix, "achievements"))
 
 
 class TestStatePersistence(HookTestBase):

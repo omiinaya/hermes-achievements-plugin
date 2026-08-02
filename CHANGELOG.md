@@ -1,5 +1,26 @@
 # Changelog
 
+## [2.18.5] — 2026-08-01
+
+### Fixed
+
+- **Wheel-installed plugin lost its locales (English-only fallback)** —
+  `_WHEEL_DATA_DIR` guessed `<site-packages>/achievements/locales`, but
+  setuptools data-files are prefix-relative and FLATTENED: they actually
+  install to `<sys.prefix>/achievements/` (en.json directly, no locales
+  subdir). A pip-installed copy silently fell back to English-only — the
+  repo-checkout path (HERMES_HOME) hid the bug because it's tried first.
+  Found by installing the shipped v2.18.4 wheel into a clean venv and
+  smoke-testing it. The wheel path is now `sys.prefix/achievements/`.
+- Stale module docstring count (108 → 153).
+
+### Tests
+
+- New `test_wheel_data_dir_default_points_at_sys_prefix` — pins the
+  default computation so the path can never silently rot again (the old
+  fallback test only exercised the lookup LOGIC with a hand-set dir, so
+  it never saw the wrong default).
+
 ## [2.18.4] — 2026-08-01
 
 ### Changed

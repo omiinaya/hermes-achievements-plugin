@@ -2,7 +2,7 @@
 Hermes Achievements Plugin
 ===========================
 Steam-style achievement badges for using and learning about Hermes Agent.
-108 achievements across 6 categories.
+153 achievements across 6 categories.
 
 Hooks:
   - post_llm_call:  detects tool calls from conversation_history → unlocks achievements
@@ -17,6 +17,7 @@ import json
 import os
 import re
 import shutil
+import sys
 import threading
 import time
 import urllib.error
@@ -346,12 +347,16 @@ def _init_achievements():
 # ── i18n / Locale ────────────────────────────────────────────────────────
 
 # Locale lookup order: (1) git-checkout / live-plugin dir under HERMES_HOME
-# (the normal install), (2) data-files shipped inside the wheel next to
-# this module (pip-installed copy). Falls back to English-only when
-# neither exists (defensive; _t then returns raw keys).
+# (the normal install), (2) data-files shipped inside the wheel. Wheel
+# data-files install to <sys.prefix>/achievements/ (setuptools data-files
+# are prefix-relative and FLATTENED — locales/*.json lands directly in
+# achievements/, no locales subdir). The old guess of
+# "<site-packages>/achievements/locales" never existed, which silently
+# broke i18n for pip-installed copies (English-only fallback); fixed in
+# v2.18.5. Falls back to English-only when neither exists (defensive;
+# _t then returns raw keys).
 _LOCALES_DIR = os.path.join(_HERMES_HOME, "plugins", "achievements", "locales")
-_WHEEL_DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                               "achievements", "locales")
+_WHEEL_DATA_DIR = os.path.join(sys.prefix, "achievements")
 _locales_cache = {}
 
 
