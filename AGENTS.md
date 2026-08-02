@@ -150,9 +150,12 @@ Current unread kwargs and why that's correct:
 - `on_session_reset` / `on_session_finalize` — counters/force-flush;
   their `reason` is always `new_session`/`session_boundary` (single-valued,
   no diversity to observe).
-- `pre_approval_request` — gate counter; `surface`/`pattern_keys` are
-  read on `post_approval_response` where the choice is known (attempted
-  ≠ approved).
+- `pre_approval_request` — gate counter + exposure breadth; `pattern_keys`
+  are read here (before the user answers) for the exposure ladder
+  (Watchlisted/Person of Interest/Most Wanted — distinct classes PROMPTED,
+  regardless of answer), while `surface`/approved-classes are read on
+  `post_approval_response` where the choice is known (attempted ≠
+  approved).
 
 ## Key invariants
 
