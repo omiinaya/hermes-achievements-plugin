@@ -1,5 +1,27 @@
 # Changelog
 
+## [2.18.9] — 2026-08-02
+
+### Fixed
+
+- **Origin notifications actually send from the gateway now.** The gateway
+  stores `HERMES_SESSION_CHAT_ID` in a task-local `ContextVar`
+  (`gateway/session_context.py`), not in `os.environ` — it migrated away
+  from process-global env vars because concurrent messages clobbered each
+  other. The notification batch read `os.environ.get(...)`, which is
+  always `""` in gateway contexts: origin-channel notifications silently
+  never sent (only the home channel worked). The lookup now goes through
+  the ContextVar-aware `get_session_env()` when the gateway package is
+  importable, with the legacy `os.environ` fallback for CLI/cron.
+- **Origin is captured at enqueue time, not flush time.** The debounce
+  flush runs 3s later in a Timer thread whose context has no session
+  vars — reading the channel there would always miss (or hit a stale
+  value). Each queued notification now carries the origin captured inside
+  the hook's session context, and a debounce-window burst that spans
+  sessions sends one message to each distinct origin (deduped against the
+  home channel; non-numeric platform IDs still skipped as bogus Discord
+  channels).
+
 ## [2.18.8] — 2026-08-02
 
 ### Fixed

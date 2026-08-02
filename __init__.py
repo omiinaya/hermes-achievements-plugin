@@ -62,6 +62,23 @@ _NOTIF_DEBOUNCE_S = 3.0
 _notif_timer = None
 
 
+def _session_chat_id():
+    """ContextVar-aware HERMES_SESSION_CHAT_ID with os.environ fallback.
+
+    The gateway stores session routing state in task-local ContextVars
+    (gateway/session_context.py) precisely because the old process-global
+    os.environ values were clobbered by concurrent messages. Reading
+    os.environ directly here returns "" in gateway contexts — origin
+    notifications would silently never send. Fall back to os.environ only
+    when the gateway package isn't importable (CLI/cron/tests).
+    """
+    try:
+        from gateway.session_context import get_session_env
+        return get_session_env("HERMES_SESSION_CHAT_ID", "")
+    except Exception:
+        return os.environ.get("HERMES_SESSION_CHAT_ID", "")
+
+
 def _send_discord_notification(ach_def):
     """Deliver achievement notification asynchronously (non-blocking).
 
@@ -71,8 +88,12 @@ def _send_discord_notification(ach_def):
     Discord API response never stalls the agent's hook pipeline.
     """
     global _notif_timer
+    # Capture the origin channel NOW, in the hook's session context. The
+    # flush runs 3s later in a Timer thread whose context has no session
+    # vars — reading HERMES_SESSION_CHAT_ID there would always miss.
+    entry = {"ach": ach_def, "origin": _session_chat_id()}
     with _NOTIF_QUEUE_LOCK:
-        _NOTIF_QUEUE.append(ach_def)
+        _NOTIF_QUEUE.append(entry)
         if _notif_timer is not None:
             _notif_timer.cancel()
         _notif_timer = threading.Timer(_NOTIF_DEBOUNCE_S, _flush_notification_queue)
@@ -107,14 +128,12 @@ def _send_discord_notification_batch(batch):
     home_channel = _load_env_var("DISCORD_HOME_CHANNEL")
     home_thread = _load_env_var("DISCORD_HOME_CHANNEL_THREAD_ID")
 
-    # Origin channel where the achievement was unlocked (set by gateway)
-    origin_channel = os.environ.get("HERMES_SESSION_CHAT_ID", "")
-
     state = _load_state()
     locale = state.get("locale", "en") if state else "en"
 
     embeds = []
-    for ach_def in batch:
+    for entry in batch:
+        ach_def = entry["ach"]
         emoji = RARITY_EMOJIS.get(ach_def.get("rarity", "common"), "⬜")
         ach_name = _t(f"achievement.{ach_def['id']}.name", locale)
         ach_desc = _t(f"achievement.{ach_def['id']}.description", locale)
@@ -134,15 +153,18 @@ def _send_discord_notification_batch(batch):
     # Discord caps embeds at 10 per message — chunk larger bursts
     MAX_EMBEDS = 10
 
-    # Build unique target set — dedup home vs origin. Origin is only used
+    # Build unique target set — dedup home vs origin. Origins were captured
+    # per-entry at enqueue time (in the hook's session context); a burst
+    # across sessions sends to each distinct origin. Origin is only used
     # when it looks like a Discord channel (numeric snowflake); other
     # platforms (WhatsApp chat IDs, Telegram IDs) would POST to a bogus
     # URL and fail.
     targets = []
     if home_channel:
         targets.append(("home", home_channel, home_thread or None))
-    if origin_channel and origin_channel != home_channel and str(origin_channel).isdigit():
-        targets.append(("origin", origin_channel, None))
+    for origin in sorted({entry.get("origin", "") for entry in batch}):
+        if origin and origin != home_channel and str(origin).isdigit():
+            targets.append(("origin", origin, None))
 
     for start in range(0, len(embeds), MAX_EMBEDS):
         chunk = embeds[start:start + MAX_EMBEDS]
@@ -172,7 +194,7 @@ def _send_discord_notification_batch(batch):
 
 def _send_discord_notification_sync(ach_def):
     """Synchronous single-achievement delivery (used by tests and helpers)."""
-    _send_discord_notification_batch([ach_def])
+    _send_discord_notification_batch([{"ach": ach_def, "origin": _session_chat_id()}])
 
 
 # ── State management (thread-safe, cached in memory) ────────────────────

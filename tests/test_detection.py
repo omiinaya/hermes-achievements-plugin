@@ -2545,6 +2545,114 @@ class TestStatePersistence(HookTestBase):
         self.assertIn("achievements unlocked", first["content"])
         self.assertEqual(second["content"], "")
 
+    def test_session_chat_id_reads_context_var(self):
+        # The gateway stores HERMES_SESSION_CHAT_ID in a task-local
+        # ContextVar (gateway/session_context.py), NOT os.environ — reading
+        # os.environ in gateway contexts returns "" and origin
+        # notifications silently never send. Inject a fake gateway module
+        # and verify the ContextVar path is used when available.
+        import sys as _sys
+        import types as _types
+        gw = _types.ModuleType("gateway")
+        gsc = _types.ModuleType("gateway.session_context")
+        gsc.get_session_env = lambda name, default="": "ctx-channel-999"
+        gw.session_context = gsc
+        _sys.modules["gateway"] = gw
+        _sys.modules["gateway.session_context"] = gsc
+        try:
+            self.assertEqual(self.mod._session_chat_id(), "ctx-channel-999")
+        finally:
+            _sys.modules.pop("gateway", None)
+            _sys.modules.pop("gateway.session_context", None)
+
+    def test_session_chat_id_falls_back_to_env(self):
+        # CLI/cron/test contexts have no gateway ContextVar — fall back to
+        # the legacy os.environ value.
+        old = os.environ.get("HERMES_SESSION_CHAT_ID")
+        os.environ["HERMES_SESSION_CHAT_ID"] = "env-channel-555"
+        try:
+            self.assertEqual(self.mod._session_chat_id(), "env-channel-555")
+        finally:
+            if old is None:
+                os.environ.pop("HERMES_SESSION_CHAT_ID", None)
+            else:
+                os.environ["HERMES_SESSION_CHAT_ID"] = old
+
+    def test_notification_origin_captured_at_enqueue_time(self):
+        # The flush runs 3s after the unlock in a Timer thread whose
+        # context has no session vars. The origin must be captured when
+        # the notification is queued (inside the hook's session context),
+        # not read at flush time — a session switch in the debounce window
+        # must not redirect the notification.
+        captured = []
+
+        class FakeResp:
+            def __enter__(self): return self
+            def __exit__(self, *a): return False
+
+        def fake_urlopen(req, timeout=None):
+            captured.append(req.full_url)
+            return FakeResp()
+
+        self.mod._load_env_var = lambda key, fallback="": {
+            "DISCORD_BOT_TOKEN": "test-token",
+            "DISCORD_HOME_CHANNEL": "456",
+        }.get(key, fallback)
+        old_origin = os.environ.get("HERMES_SESSION_CHAT_ID")
+        os.environ["HERMES_SESSION_CHAT_ID"] = "123456789"  # origin at unlock
+        old = self.mod.urllib.request.urlopen
+        self.mod.urllib.request.urlopen = fake_urlopen
+        try:
+            self.mod._send_discord_notification(self.mod.ACHIEVEMENT_DEFS["first_steps"])
+            # Session switches during the 3s debounce window
+            os.environ["HERMES_SESSION_CHAT_ID"] = "999999999"
+            self.mod._flush_notification_queue()
+        finally:
+            self.mod.urllib.request.urlopen = old
+            if old_origin is None:
+                os.environ.pop("HERMES_SESSION_CHAT_ID", None)
+            else:
+                os.environ["HERMES_SESSION_CHAT_ID"] = old_origin
+
+        self.assertTrue(any("/channels/123456789/messages" in u for u in captured), captured)
+        self.assertFalse(any("/channels/999999999/messages" in u for u in captured), captured)
+
+    def test_notification_batch_targets_each_distinct_origin(self):
+        # A debounce-window burst can span sessions: each distinct origin
+        # gets its own message. Origin==home is deduped; non-numeric
+        # origins (WhatsApp/Telegram IDs) are skipped as bogus Discord
+        # channels.
+        captured = []
+
+        class FakeResp:
+            def __enter__(self): return self
+            def __exit__(self, *a): return False
+
+        def fake_urlopen(req, timeout=None):
+            captured.append(req.full_url)
+            return FakeResp()
+
+        self.mod._load_env_var = lambda key, fallback="": {
+            "DISCORD_BOT_TOKEN": "test-token",
+            "DISCORD_HOME_CHANNEL": "456",
+        }.get(key, fallback)
+        old = self.mod.urllib.request.urlopen
+        self.mod.urllib.request.urlopen = fake_urlopen
+        d = self.mod.ACHIEVEMENT_DEFS
+        try:
+            self.mod._send_discord_notification_batch([
+                {"ach": d["first_steps"], "origin": "111111"},   # distinct → target
+                {"ach": d["chatty"], "origin": "456"},           # == home → dedup
+                {"ach": d["night_owl"], "origin": "whatsapp-id"},  # non-numeric → skip
+                {"ach": d["icebreaker"], "origin": ""},          # falsy → skip
+            ])
+        finally:
+            self.mod.urllib.request.urlopen = old
+
+        self.assertTrue(any("/channels/456/messages" in u for u in captured), captured)
+        self.assertTrue(any("/channels/111111/messages" in u for u in captured), captured)
+        self.assertFalse(any("whatsapp" in u for u in captured), captured)
+
     def test_model_platform_progress_survives_restart(self):
         # Model/platform diversity is read from persisted stats, so a
         # gateway restart must not regress progress toward the tiers
