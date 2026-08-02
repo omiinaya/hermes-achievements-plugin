@@ -214,6 +214,17 @@ def main():
     check("no hooks registered but undeclared in manifest",
           set(registered) <= set(declared),
           f"{sorted(set(registered) - set(declared))}" if set(registered) - set(declared) else "")
+    # Thread safety: the gateway runs parallel tool calls on worker threads,
+    # so every hook/command handler MUST be wrapped in _synchronized (the
+    # state lock) — an unwrapped handler risks lost updates on counters.
+    source = _read(PLUGIN_FILE)
+    unwrapped = sorted(
+        set(re.findall(r'register_hook\(\s*["\']([\w]+)["\']\s*,\s*(?!_synchronized\()(\w+)', source))
+        | set(re.findall(r'register_command\(\s*["\']([\w-]+)["\']\s*,\s*handler=\s*(?!_synchronized\()(\w+)', source))
+    )
+    check("all handlers wrapped in _synchronized (thread safety)",
+          not unwrapped,
+          f"unwrapped: {unwrapped}" if unwrapped else "")
     m = re.search(r"^version:\s*([\d.]+)", yaml_text, re.MULTILINE)
     manifest_version = m.group(1) if m else None
     check("manifest version matches pyproject",
