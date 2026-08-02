@@ -511,6 +511,26 @@ class TestFileIntegrity(unittest.TestCase):
         self.assertEqual(yaml_ver.group(1), toml_ver.group(1),
                          f"Version mismatch: plugin.yaml={yaml_ver.group(1)} vs pyproject.toml={toml_ver.group(1)}")
 
+    def test_setup_sh_version_matches_pyproject(self):
+        """setup.sh carries the version in its banner (×2 spots) — the
+        bump_version script updates all four carriers; a missed setup.sh
+        bump would ship a stale banner even though the wheel is correct."""
+        with open(os.path.join(PLUGIN_DIR, "setup.sh")) as f:
+            setup_content = f.read()
+        with open(os.path.join(PLUGIN_DIR, "pyproject.toml")) as f:
+            toml_content = f.read()
+
+        toml_ver = re.search(r'^\s*version\s*=\s*"([\d.]+)"', toml_content, re.MULTILINE)
+        assert toml_ver is not None  # narrow for Pyright
+        versions = re.findall(r'v?([\d]+\.[\d]+\.[\d]+)', setup_content)
+        self.assertGreaterEqual(len(versions), 2,
+                                "setup.sh should carry the version in ≥2 spots")
+        self.assertEqual(
+            {toml_ver.group(1)},
+            set(versions),
+            f"setup.sh version(s) {versions} != pyproject {toml_ver.group(1)}",
+        )
+
     def test_wheel_ships_entry_point_for_pip_discovery(self):
         """Regression (v2.18.6): pip-installed plugins must be discoverable.
 
