@@ -97,6 +97,28 @@ sits inside a wrapped hook body — keep it that way. Lock ordering:
 hooks take `_state_lock` → `_NOTIF_QUEUE_LOCK` (never the reverse); the
 notification timer releases its queue lock before any state access.
 
+### Session context is ContextVar, not os.environ
+
+The gateway stores per-message routing state (`HERMES_SESSION_CHAT_ID`,
+`HERMES_SESSION_PLATFORM`, etc.) in task-local ContextVars
+(`gateway/session_context.py`), NOT `os.environ` — it migrated because
+process-global env values were clobbered by concurrent messages. Reading
+`os.environ.get("HERMES_SESSION_CHAT_ID", "")` in a hook returns `""` in
+gateway contexts: origin notifications silently never sent (v2.18.9).
+Also, a debounced Timer thread has no session context at all, so capture
+session-scoped values at hook time (inside the session's context) and
+carry them through any queue. Use the ContextVar-aware accessor with an
+`os.environ` fallback for CLI/cron/tests:
+
+```python
+def _session_chat_id():
+    try:
+        from gateway.session_context import get_session_env
+        return get_session_env("HERMES_SESSION_CHAT_ID", "")
+    except Exception:
+        return os.environ.get("HERMES_SESSION_CHAT_ID", "")
+```
+
 ### Delivered-but-unread kwargs are a conscious choice
 
 `check_plugin.py --gateway` lists every registered hook whose handler
