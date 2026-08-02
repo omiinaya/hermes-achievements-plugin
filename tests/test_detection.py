@@ -29,12 +29,15 @@ def _make_module(tmp_home: str):
     shutil.copytree(LOCALES_DIR, os.path.join(tmp_home, "plugins", "achievements", "locales"))
     # Under mutmut the whole repo is copied into mutants/ and pytest runs
     # with CWD=mutants/. mutmut derives the trampoline key from the file
-    # path relative to the project root: mutants/__init__.py → module name
-    # "mutants". The module must be registered under that SAME name or the
-    # trampoline records achievements_plugin_test.x__... and no mutant key
-    # ever matches (every mutant silently marked "No Tests").
+    # path relative to the mutants cwd: __init__.py → module name "__init__"
+    # → key "__init__.x__...". The module must be registered under that SAME
+    # name or the trampoline records a different prefix and no mutant key
+    # ever matches (every mutant silently marked "No Tests"). The bare
+    # "__init__" name is only safe here because the test process loads the
+    # file directly via spec_from_file_location — no package machinery is
+    # importing a bare __init__ during the run.
     if "mutants" in PLUGIN_DIR.split(os.sep):
-        module_name = "mutants"
+        module_name = "__init__"
     else:
         module_name = "achievements_plugin_test"
     spec = importlib.util.spec_from_file_location(module_name, PLUGIN_FILE)
