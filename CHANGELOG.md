@@ -27,14 +27,33 @@
 
 ### Mutation testing
 
-- **mutmut now actually runs.** Two harness fixes: pytest config gained
-  `testpaths = ["tests"]` so the `mutants/` working copies are never
-  collected by plain runs; and `check_plugin.py` detects
-  mutmut-instrumented source (`_mutmut_mutated` / `MutantDict` markers —
-  function names get mangled to `x__name__mutmut_N`) and skips
-  source-text checks (wrapper regex, session-env regex, kwarg contract)
-  that would false-fail on the trampoline-instrumented copy. Runtime
-  checks still run and count.
+- **mutmut now actually runs.** Four harness fixes:
+  - `testpaths = ["tests"]` so the `mutants/` working copies are never
+    collected by plain pytest runs
+  - `check_plugin.py` detects mutmut-instrumented source
+    (`_mutmut_mutated` / `MutantDict` markers — function names AND string
+    literals get mangled) and skips ALL source-text checks (manifest↔
+    register, wrapper regex, session-env regex, kwarg contract) that
+    would false-fail on the trampoline-instrumented copy; runtime checks
+    still run and count
+  - `[tool.mutmut] source_paths` must be a **list** — a bare TOML string
+    is iterated char-by-char by mutmut's config reader (Path('_'),
+    Path('_')...), which mutated 36 files across the tree incl. .venv;
+    plus `also_copy` lists every repo file the tests touch (locales,
+    scripts, plugin.yaml, setup.sh, README, CHANGELOG, LICENSE,
+    .gitignore) beyond mutmut's default (tests/, pyproject, uv.lock)
+  - the test harness registers the module as `__init__` when running
+    from a mutmut copy so the trampoline key matches what mutmut derives
+    from the file path — otherwise every mutant is silently marked
+    "No Tests"
+- **Known limitation:** mutmut's per-mutant coverage-based test
+  selection reports "no tests" for every mutant because the plugin is
+  loaded via `spec_from_file_location` from a temp dir, which mutmut's
+  coverage tracer can't attribute back to tests. The harness runs, the
+  baseline is green, mutations are generated correctly from exactly
+  `__init__.py`; per-mutant kill/survive classification needs a
+  different mutation runner (e.g. pytest-mutagen or manual mutant
+  injection) if that granularity becomes a priority.
 
 ### Coverage
 
