@@ -4,10 +4,26 @@ Hermes Achievements Plugin
 Steam-style achievement badges for using and learning about Hermes Agent.
 159 achievements across 6 categories.
 
-Hooks:
-  - post_llm_call:  detects tool calls from conversation_history → unlocks achievements
-                    sends immediate Discord notification on unlock
-  - on_session_end: tracks session metadata, streaks, and session-based achievements
+All 19 of Hermes' valid hooks are registered (see `register()`):
+  - pre_llm_call:            fresh-conversation counting (Icebreaker…)
+  - post_llm_call:           message counts, verbosity, command patterns
+  - pre_tool_call:           single-response tool-batch counting
+  - post_tool_call:          per-tool counts, interrupts, blocks, durations
+  - transform_tool_result:   raw result-size (context bloat)
+  - transform_terminal_output: raw output volume, env diversity, exit 127
+  - transform_llm_output:    pre-rewrite text → remixed-output detection
+  - pre_api_request:         local endpoints, input-token spikes
+  - post_api_request:        token milestones, truncation, speed
+  - api_request_error:       error resilience, retry depth
+  - pre_approval_request:    gate counting + danger-class exposure
+  - post_approval_response:  approval choices, remote surface, classes
+  - subagent_start:          live concurrency (Conductor)
+  - subagent_stop:           child counts, orchestrator, failures, runtime
+  - pre_gateway_dispatch:    distinct users, media, gateway slash commands
+  - on_session_start:        total_sessions counter
+  - on_session_end:          streaks, completions re-check
+  - on_session_reset:        fresh-start rotations
+  - on_session_finalize:     force-flush state + notifications on shutdown
 
 Achievement notifications are delivered as standalone Discord messages the
 moment they unlock — not appended to the next assistant response.

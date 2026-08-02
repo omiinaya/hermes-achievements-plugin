@@ -115,6 +115,28 @@ class TestAchievementDefinitions(unittest.TestCase):
         self.assertEqual(len(self.achievements), 159,
                          f"Expected 159 achievements, got {len(self.achievements)}")
 
+    def test_module_docstring_enumerates_all_registered_hooks(self):
+        """The module docstring lists every hook register() wires up.
+
+        This rotted twice (v2.18.x CHANGELOG: 'stale module docstring').
+        The docstring is a human-facing contract for the 19-hook surface;
+        adding a hook without documenting it here is a doc regression.
+        """
+        with open(PLUGIN_FILE, encoding="utf-8") as f:
+            content = f.read()
+        docstring = content.split('"""')[1]  # first triple-quoted block
+        # Hook names are all snake_case identifiers; only match register_hook(
+        # call sites so the guard targets the actual registration surface.
+        registered = set(
+            re.findall(r'register_hook\("([a-z_]+)"', content)
+        )
+        self.assertGreaterEqual(len(registered), 19)
+        missing = [h for h in sorted(registered) if h not in docstring]
+        self.assertEqual(
+            missing, [],
+            f"Hooks registered but missing from module docstring: {missing}",
+        )
+
     def test_required_fields(self):
         """Every achievement must have id, name, description, emoji, rarity, group."""
         required = {"id", "name", "description", "emoji", "rarity", "group"}
