@@ -206,34 +206,36 @@ def main():
         check("plugin.yaml present", False)
         sys.exit(1)
     yaml_text = _read(PLUGIN_YAML)
-    declared = manifest_hooks(yaml_text)
-    registered = registered_hooks(_read(PLUGIN_FILE))
-    check("manifest declares hooks", len(declared) > 0, f"{len(declared)} hooks")
-    check("register() registers hooks", len(registered) > 0, f"{len(registered)} hooks")
-    check("no hooks in manifest missing from register()",
-          set(declared) <= set(registered),
-          f"{sorted(set(declared) - set(registered))}" if set(declared) - set(registered) else "")
-    check("no hooks registered but undeclared in manifest",
-          set(registered) <= set(declared),
-          f"{sorted(set(registered) - set(declared))}" if set(registered) - set(declared) else "")
-    # Thread safety: the gateway runs parallel tool calls on worker threads,
-    # so every hook/command handler MUST be wrapped in _synchronized (the
-    # state lock) — an unwrapped handler risks lost updates on counters.
-    source = _read(PLUGIN_FILE)
     # Under mutation testing (mutmut) the repo is copied to mutants/ and the
-    # copy's __init__.py is trampoline-instrumented (function names mangled to
-    # x__name__mutmut_N, MutantDict injected). Every source-TEXT check below
-    # (wrapper regex, session-env regex, kwarg contract) would false-fail on
-    # that mangled source — it's not real code drift, it's the harness. Skip
-    # the whole block when instrumentation is detected; the runtime checks
-    # (module load, defs, locales) still run and still count.
-    if "_mutmut_mutated" in source or "MutantDict" in source:
+    # copy's __init__.py is trampoline-instrumented: function names mangled
+    # to x__name__mutmut_N, string literals rewritten ("pre_llm_call" →
+    # "XXpre_llm_callXX"), MutantDict injected. EVERY source-text check
+    # below (manifest↔register, wrapper regex, session-env regex, kwarg
+    # contract) would false-fail on that mangled source — it's the harness,
+    # not real drift. Detect it once and skip all source-text checks;
+    # runtime checks (module load, defs, locales, live state) still run.
+    source = _read(PLUGIN_FILE)
+    _mutmut_instrumented = "_mutmut_mutated" in source or "MutantDict" in source
+    # `declared` comes from plugin.yaml (never instrumented) — needed by the
+    # --manifest PluginManager section regardless of mutation state.
+    declared = manifest_hooks(yaml_text)
+    if _mutmut_instrumented:
         print("  [note] mutmut-instrumented source — skipping source-text "
-              "checks (wrapper/session/kwarg-contract); runtime checks still run")
-        _mutmut_instrumented = True
+              "checks (manifest↔register/wrapper/session/kwarg-contract); "
+              "runtime checks still run")
     else:
-        _mutmut_instrumented = False
-    if not _mutmut_instrumented:
+        registered = registered_hooks(source)
+        check("manifest declares hooks", len(declared) > 0, f"{len(declared)} hooks")
+        check("register() registers hooks", len(registered) > 0, f"{len(registered)} hooks")
+        check("no hooks in manifest missing from register()",
+              set(declared) <= set(registered),
+              f"{sorted(set(declared) - set(registered))}" if set(declared) - set(registered) else "")
+        check("no hooks registered but undeclared in manifest",
+              set(registered) <= set(declared),
+              f"{sorted(set(registered) - set(declared))}" if set(registered) - set(declared) else "")
+        # Thread safety: the gateway runs parallel tool calls on worker threads,
+        # so every hook/command handler MUST be wrapped in _synchronized (the
+        # state lock) — an unwrapped handler risks lost updates on counters.
         unwrapped = sorted(
             set(re.findall(r'register_hook\(\s*["\']([\w]+)["\']\s*,\s*(?!_synchronized\()(\w+)', source))
             | set(re.findall(r'register_command\(\s*["\']([\w-]+)["\']\s*,\s*handler=\s*(?!_synchronized\()(\w+)', source))
