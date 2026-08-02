@@ -168,6 +168,10 @@ ruff check .                   # CI lint gate — must pass before push
   git worktree add /tmp/ach-release v<tag>          # exact released tree
   cd /tmp/ach-release && python3 -m pytest tests/ -q && python3 -m build --wheel
   # run the wheel-content verification inline check from release.yml,
+  # then the "Wheel install smoke test" step's inline script (pip install
+  # dist/*.whl into a clean venv; assert the entry point loads and all 4
+  # locales resolve with real translations — this is what caught the
+  # v2.18.5 locale regression and the v2.18.6 entry-point absence),
   # extract the CHANGELOG notes the same way, then:
   gh release create v<tag> --title v<tag> --notes-file release_notes.md dist/*.whl
   ```
