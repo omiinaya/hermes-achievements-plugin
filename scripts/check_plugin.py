@@ -227,6 +227,14 @@ def main():
     check("all handlers wrapped in _synchronized (thread safety)",
           not unwrapped,
           f"unwrapped: {unwrapped}" if unwrapped else "")
+    # Session context: HERMES_SESSION_* live in ContextVars, not os.environ.
+    # A raw os.environ read of a session var would silently return "" in
+    # gateway contexts (v2.18.9 bug) — require the ContextVar-aware accessor.
+    session_env_reads = re.findall(r'os\.environ\.get\("HERMES_SESSION_[\w]+"', source)
+    check("session vars read via ContextVar accessor (not raw os.environ)",
+          "from gateway.session_context import get_session_env" in source,
+          f"raw os.environ session reads: {session_env_reads}" if session_env_reads else
+          "missing get_session_env import")
     m = re.search(r"^version:\s*([\d.]+)", yaml_text, re.MULTILINE)
     manifest_version = m.group(1) if m else None
     check("manifest version matches pyproject",
