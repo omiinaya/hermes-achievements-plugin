@@ -109,6 +109,11 @@ def main() -> int:
         args.repeat,
     )
     _bench(
+        lambda: plugin._transform_llm_output(response_text="a normal reply", session_id="s", model="m", platform="cli"),
+        "transform_llm_output",
+        args.repeat,
+    )
+    _bench(
         lambda: plugin._pre_api_request(base_url="https://api.openai.com", approx_input_tokens=1234, api_mode="chat", max_tokens=2048),
         "pre_api_request",
         args.repeat,
