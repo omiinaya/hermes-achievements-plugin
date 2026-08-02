@@ -1,5 +1,22 @@
 # Changelog
 
+## [2.18.7] — 2026-08-02
+
+### Fixed
+
+- **State saves are now atomic.** `_save_state` previously wrote
+  `state.json` with `open(path, "w")` — truncate-in-place, then write. A
+  crash, kill, or concurrent session mid-write left a torn/truncated
+  state file that only the rolling backup could recover (and the backup
+  copy itself raced the same write). The save now writes to
+  `state.json.tmp`, fsyncs, then `os.replace()`s it into place — atomic
+  on POSIX, so a reader (or a second gateway process) can only ever see
+  the previous complete state or the new complete state, never a partial
+  one. A half-written temp is removed on failure so no residue
+  accumulates. Covered by four new regression tests, including one that
+  simulates a crash mid-write and asserts the previous state survives
+  byte-for-byte.
+
 ## [2.18.6] — 2026-08-02
 
 ### Fixed

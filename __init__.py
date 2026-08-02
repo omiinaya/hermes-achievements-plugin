@@ -207,8 +207,24 @@ def _save_state(force=False):
                     shutil.copy2(_STATE_PATH, _STATE_BAK_PATH)
             except OSError:
                 pass
-            with open(_STATE_PATH, "w") as f:
-                json.dump(state_copy, f, indent=2, default=str)
+            # Atomic write: temp file + os.replace so a crash or concurrent
+            # reader never observes a truncated/partial state.json (the old
+            # open(path, "w") truncated in place first, then wrote — a kill
+            # between the two left a torn file that only the backup could fix).
+            tmp_path = _STATE_PATH + ".tmp"
+            try:
+                with open(tmp_path, "w") as f:
+                    json.dump(state_copy, f, indent=2, default=str)
+                    f.flush()
+                    os.fsync(f.fileno())
+                os.replace(tmp_path, _STATE_PATH)
+            except Exception:
+                # Failed mid-write: never leave a half-written temp behind
+                try:
+                    os.remove(tmp_path)
+                except OSError:
+                    pass
+                raise
             _last_save_ts = now
         except Exception as exc:  # noqa: BLE001 — state save must never crash hooks
             import logging

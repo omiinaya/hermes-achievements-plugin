@@ -9,6 +9,7 @@ passes, verifying achievements actually unlock.
 Run with:  python3 -m pytest tests/  -xvs
 """
 import importlib.util
+import json
 import os
 import re
 import shutil
@@ -2661,6 +2662,70 @@ class TestStatePersistence(HookTestBase):
             self.mod._save_state(force=True)  # must not raise
         finally:
             self.mod._STATE_BAK_PATH = old_bak
+
+    def test_atomic_save_leaves_no_temp_residue(self):
+        # The atomic temp+replace write must never leave state.json.tmp behind
+        self.tool_call("terminal", {}, session_id="sess-atom1")
+        self.mod._save_state(force=True)
+        self.assertFalse(os.path.exists(self.mod._STATE_PATH + ".tmp"))
+        with open(self.mod._STATE_PATH) as f:
+            json.load(f)  # valid JSON, not a torn write
+
+    def test_crash_mid_write_preserves_previous_state(self):
+        # A failure while writing must leave the PREVIOUS complete state
+        # intact — the old open(path,"w") truncated in place first, so a
+        # crash mid-write destroyed the file; atomic temp+replace can't.
+        self.tool_call("terminal", {}, session_id="sess-crash")
+        self.mod._save_state(force=True)
+        with open(self.mod._STATE_PATH) as f:
+            good = f.read()
+        # Simulate a crash mid-write: dump some bytes, then raise
+        orig_dump = self.mod.json.dump
+        def _boom(*args, **kwargs):
+            orig_dump(*args, **kwargs)
+            raise OSError("simulated crash mid-write")
+        self.mod.json.dump = _boom
+        try:
+            self.mod._save_state(force=True)  # must not raise
+        finally:
+            self.mod.json.dump = orig_dump
+        with open(self.mod._STATE_PATH) as f:
+            self.assertEqual(f.read(), good)
+        self.assertFalse(os.path.exists(self.mod._STATE_PATH + ".tmp"))
+
+    def test_temp_cleanup_failure_is_swallowed(self):
+        # If even removing the half-written temp fails, the save still
+        # swallows it and the previous state survives
+        self.tool_call("terminal", {}, session_id="sess-tmpclean")
+        self.mod._save_state(force=True)
+        orig_remove = self.mod.os.remove
+        def _no_remove(path):
+            if path.endswith(".tmp"):
+                raise OSError("simulated remove failure")
+            return orig_remove(path)
+        orig_dump = self.mod.json.dump
+        def _boom(*args, **kwargs):
+            orig_dump(*args, **kwargs)
+            raise OSError("simulated crash mid-write")
+        self.mod.json.dump = _boom
+        self.mod.os.remove = _no_remove
+        try:
+            self.mod._save_state(force=True)  # must not raise
+        finally:
+            self.mod.json.dump = orig_dump
+            self.mod.os.remove = orig_remove
+        with open(self.mod._STATE_PATH) as f:
+            json.load(f)  # previous complete state intact
+
+    def test_stale_temp_file_overwritten_on_next_save(self):
+        # A .tmp left behind by a hard kill must not confuse the next save
+        self.tool_call("terminal", {}, session_id="sess-stale")
+        with open(self.mod._STATE_PATH + ".tmp", "w") as f:
+            f.write("{half-written garbage from a dead process")
+        self.mod._save_state(force=True)
+        with open(self.mod._STATE_PATH) as f:
+            json.load(f)  # valid — the stale temp was replaced atomically
+        self.assertFalse(os.path.exists(self.mod._STATE_PATH + ".tmp"))
 
     def test_load_env_var_reads_dotenv_and_env(self):
         # .env file wins over os.environ

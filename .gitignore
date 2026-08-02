@@ -35,3 +35,7 @@ mutants/
 
 # Stray artifacts
 tmp*/
+
+# uv (ad-hoc matrix runs only — project is pure stdlib)
+uv.lock
+uv.toml
