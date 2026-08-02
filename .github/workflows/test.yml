@@ -30,6 +30,13 @@ jobs:
         # files themselves — testing the tests is circular). A lower gate
         # would let a new hook branch ship untested without CI noticing.
         run: python -m pytest tests/ --cov=. --cov-report=term-missing --cov-fail-under=99 -q
+      - name: Branch coverage gate
+        # The plugin module is 100% line AND 100% branch (680/680). The
+        # combined --cov-branch number dips below 99% only because the
+        # test files carry their own partial branches — circular. Gate the
+        # module alone so a new defensive branch ships without an edge
+        # test the moment it's added.
+        run: python -m pytest tests/ --cov=achievements --cov-branch --cov-report=term-missing --cov-fail-under=100 -q
       - name: Lint
         run: ruff check .
       - name: Verify README tables match definitions

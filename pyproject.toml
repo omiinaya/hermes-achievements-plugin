@@ -47,3 +47,10 @@ py-modules = ["__init__"]
 # importable Python module.
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["N999"]
+
+# Plugin is fully synchronous — no async tests exist. pytest-asyncio may
+# still be present in the environment (auto-loaded plugin), so pin the
+# fixture loop scope to silence its deprecation warning and keep the
+# default behavior explicit.
+[tool.pytest.ini_options]
+asyncio_default_fixture_loop_scope = "function"

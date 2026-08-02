@@ -1686,6 +1686,177 @@ class TestCoverageEdges(HookTestBase):
         self.assertNotIn("Phantom Group", out)
 
 
+class TestBranchCoverageComplete(HookTestBase):
+    """Cover the remaining partial branches (branch coverage 99% → 100%).
+
+    Line coverage is 100% but branch coverage reports 20 partially-covered
+    branches. Each test below drives a defensive path the main suites only
+    pass through on the happy side: state recovery without a backup,
+    locale-directory oddities, unknown models/providers, legacy list-typed
+    stats, stale achievement ids, and empty-stats rendering.
+    """
+
+    def test_corrupt_state_without_backup_resets_fresh(self):
+        # Branch 232->238: primary state corrupt AND backup missing →
+        # fall through to _new_state(). Existing test only covers corrupt
+        # primary + corrupt backup (backup exists).
+        # Two saves: the first writes the primary, the second creates the
+        # backup (backup of the previous primary) — then we remove it.
+        self.mod._load_state()  # ensure _state is loaded before saving
+        self.mod._save_state(force=True)
+        self.mod._save_state(force=True)
+        os.remove(self.mod._STATE_BAK_PATH)
+        with open(self.mod._STATE_PATH, "w") as f:
+            f.write("{corrupted json!!!")
+        self.mod._state = None
+        st = self.mod._load_state()
+        self.assertEqual(st["stats"]["total_turns"], 0)
+        self.assertEqual(len(st["achievements"]), len(self.mod.ACHIEVEMENT_DEFS))
+
+    def test_load_locales_skips_non_json_files(self):
+        # Branch 372->371: a non-.json file in the locale dir must be
+        # skipped, not crash or be loaded as a locale.
+        stray = os.path.join(self.mod._LOCALES_DIR, "not_a_locale.txt")
+        with open(stray, "w") as f:
+            f.write("not json")
+        self.mod._locales_cache = {}
+        try:
+            cache = self.mod._load_locales()
+            self.assertIn("en", cache)
+            self.assertNotIn("not_a_locale", cache)
+        finally:
+            os.remove(stray)
+            self.mod._locales_cache = {}
+
+    def test_load_locales_empty_first_candidate_falls_through(self):
+        # Branch 376->369: first candidate dir EXISTS but has no JSON →
+        # cache stays empty → falls through to the wheel data dir.
+        old_dir = self.mod._LOCALES_DIR
+        old_wheel = self.mod._WHEEL_DATA_DIR
+        empty_dir = tempfile.mkdtemp(prefix="ach-empty-locales-")
+        self.mod._LOCALES_DIR = empty_dir
+        self.mod._WHEEL_DATA_DIR = LOCALES_DIR
+        self.mod._locales_cache = {}
+        try:
+            cache = self.mod._load_locales()
+            self.assertEqual(len(cache.get("en", {}).get("achievement", {})), 153)
+        finally:
+            self.mod._LOCALES_DIR = old_dir
+            self.mod._WHEEL_DATA_DIR = old_wheel
+            self.mod._locales_cache = {}
+            shutil.rmtree(empty_dir, ignore_errors=True)
+
+    def test_unlock_unknown_id_skips_notification(self):
+        # Branch 1545->1547: ach_id not in ACHIEVEMENT_DEFS → no def → no
+        # notification attempted, still returns True.
+        result = self.mod._unlock("ghost_achievement_xyz")
+        self.assertTrue(result)
+        self.assertTrue(self.unlocked("ghost_achievement_xyz"))
+
+    def test_tool_diversity_empty_counts(self):
+        # Branches 1695->1700 and 1706->exit: no tools used at all →
+        # both `elif all_used` / `elif all_cats` take the empty side.
+        self.mod._check_tool_diversity({}, "2026-01-01T00:00:00+00:00")
+        self.assertFalse(self.unlocked("complete_toolset"))
+        self.assertFalse(self.unlocked("tool_diversity"))
+
+    def test_plugin_yaml_write_without_manifest_content(self):
+        # Branch 1876->1880: path contains plugin.yaml but content has no
+        # name:/hooks: and no /plugins/ → the elif is False → no unlock.
+        self.tool_call("write_file", {"path": "/tmp/foo/plugin.yaml", "content": "x = 1"})
+        self.assertFalse(self.unlocked("plugin_developer"))
+
+    def test_register_hook_with_no_quoted_names(self):
+        # Branch 1882->1889: content has "register_hook" but the regex
+        # finds no quoted hook names → hooks set stays empty → skip.
+        self.tool_call("write_file", {"path": "/tmp/x.py", "content": "register_hook(fn)"})
+        self.assertEqual(self.stats()["hooks_used"], set())
+
+    def test_register_hook_fewer_than_three_names(self):
+        # Branch 1884->1889: 1-2 distinct hooks → len < 3 → no unlock.
+        self.tool_call(
+            "write_file",
+            {"path": "/tmp/x.py", "content": 'register_hook("pre_tool_call", h) register_hook("post_tool_call", h)'},
+        )
+        self.assertFalse(self.unlocked("hook_master"))
+        self.assertEqual(len(self.stats()["hooks_used"]), 2)
+
+    def test_post_llm_unknown_model_not_recorded(self):
+        # Branch 2110->2112: model "unknown" is skipped (only known models
+        # count toward models_used — the key exists empty from _new_state).
+        self.turn(model="unknown")
+        self.assertEqual(self.stats()["models_used"], set())
+
+    def test_post_llm_non_string_history_content(self):
+        # Branch 2163->2171: conversation_history content is a list of
+        # content blocks (multimodal), not a str → user_commands skip it.
+        self.mod._post_llm_call(
+            user_message="x",
+            conversation_history=[{"role": "user", "content": [{"type": "text", "text": "hi"}]}],
+            model="m1", platform="cli",
+        )
+        self.assertEqual(self.stats()["total_turns"], 1)
+
+    def test_post_api_request_unknown_provider(self):
+        # Branch 2270->2284: provider "unknown" not recorded (key exists
+        # empty from _new_state).
+        self.mod._post_api_request(usage={"total_tokens": 100}, api_duration=1.0, provider="unknown")
+        self.assertEqual(self.stats()["providers_used"], set())
+
+    def test_post_api_request_non_dict_usage(self):
+        # Branch 2308->2312: usage not a dict → token tracking skipped.
+        self.mod._post_api_request(usage=None, api_duration=1.0, provider="p1")
+        self.assertNotIn("total_tokens", self.stats())
+
+    def test_recent_view_skips_stale_achievement_id(self):
+        # Branch 3029->3027: newly_unlocked holds an id no longer in
+        # ACHIEVEMENT_DEFS (removed across versions) → skipped.
+        state = self.mod._load_state()
+        state["newly_unlocked"] = ["ghost_achievement_xyz"]
+        out = self.mod._handle_achievements("recent")
+        self.assertNotIn("ghost", out)
+
+    def test_default_view_skips_stale_newly_id(self):
+        # Branch 3177->3175: default view iterates newly[-3:] and skips
+        # ids not in ACHIEVEMENT_DEFS.
+        state = self.mod._load_state()
+        state["newly_unlocked"] = ["ghost_achievement_xyz"]
+        out = self.mod._handle_achievements("")
+        self.assertNotIn("ghost", out)
+
+    def test_stats_view_empty_stats(self):
+        # Branch 3042->3150: stats dict empty → body skipped, footer kept.
+        state = self.mod._load_state()
+        state["stats"] = {}
+        out = self.mod._handle_achievements("stats")
+        self.assertIn("Unlocked:", out)
+
+    def test_stats_view_legacy_list_env_types(self):
+        # Branch 3104->3106: env_types persisted as a list (legacy JSON,
+        # pre-set normalization) → render without sorted().
+        state = self.mod._load_state()
+        state["stats"]["env_types"] = ["local", "docker"]
+        out = self.mod._handle_achievements("stats")
+        self.assertIn("local", out)
+        self.assertIn("docker", out)
+
+    def test_stats_view_legacy_list_collections(self):
+        # Branches 3134->3136, 3139->3141, 3145->3147: platforms /
+        # models_used / providers_used as lists (legacy JSON) → the
+        # isinstance(set) guards skip sorted() and render directly.
+        state = self.mod._load_state()
+        state["stats"].update({
+            "platforms": ["cli", "discord"],
+            "models_used": ["m1", "m2", "m3"],
+            "providers_used": ["p1", "p2"],
+        })
+        out = self.mod._handle_achievements("stats")
+        self.assertIn("cli", out)
+        self.assertIn("discord", out)
+        self.assertIn("m1", out)
+        self.assertIn("p1", out)
+
+
 class TestApprovalRequest(HookTestBase):
     """pre_approval_request: approval gates drive Under Scrutiny."""
 
