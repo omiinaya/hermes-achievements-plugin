@@ -6,7 +6,7 @@
 [![CI](https://github.com/omiinaya/hermes-achievements-plugin/actions/workflows/test.yml/badge.svg)](https://github.com/omiinaya/hermes-achievements-plugin/actions/workflows/test.yml)
 [![Coverage](https://img.shields.io/badge/coverage-100%25-brightgreen.svg)](https://github.com/omiinaya/hermes-achievements-plugin/actions/workflows/test.yml)
 
-**159 Steam-style achievement badges** for [Hermes Agent](https://hermes-agent.nousresearch.com). Unlock achievements as you use Hermes — run commands, search the web, schedule cron jobs, create skills, and explore the platform. Achievements are tracked silently and delivered to your Discord home channel the moment they unlock.
+**160 Steam-style achievement badges** for [Hermes Agent](https://hermes-agent.nousresearch.com). Unlock achievements as you use Hermes — run commands, search the web, schedule cron jobs, create skills, and explore the platform. Achievements are tracked silently and delivered to your Discord home channel the moment they unlock.
 
 ## Quick Start
 
@@ -77,7 +77,7 @@ Notifications are rarity-colored Discord embeds (gray → gold) posted asynchron
 
 🚀 **Getting Started** (2/16) █░░░░░░░░░
 🛠️ **Tools & Skills** (2/28) ░░░░░░░░░░
-⚡ **Power User** (0/45) ░░░░░░░░░░
+⚡ **Power User** (0/46) ░░░░░░░░░░
 👑 **Expert** (0/45) ░░░░░░░░░░
 🎯 **Milestones** (0/19) ░░░░░░░░░░
 🤝 **Community** (0/6) ░░░░░░░░░░
@@ -191,11 +191,12 @@ unlock them, Steam-style. Currently secret: `Fresh Start`, `Cautious`,
 | 🛠️🛠️ | Complete Toolset | Use every available Hermes tool type at least once | Epic |
 | 👥 | Army Commander | Spawn 25 subagents with delegate_task | Epic |
 
-### ⚡ Power User (45)
+### ⚡ Power User (46)
 
 | Icon | Name | Description | Rarity |
 |------|------|-------------|--------|
 | 🔄 | Session Sage | Resume a past session with --continue or /resume | Uncommon |
+| 🎣 | Bait and Switch | Run a request where the provider resolved a different model than you asked for | Uncommon |
 | 🏄 | Session Surfer | Resume 10 different sessions | Uncommon |
 | 🤹 | Double Time | Emit 2 tool calls in a single response | Uncommon |
 | 🌊 | Deep Context | Make one API request with 50+ messages in context | Uncommon |
@@ -381,7 +382,7 @@ State data is stored at `~/.hermes/achievements/state.json` (user-local, not par
 vim ~/.hermes/plugins/achievements/__init__.py
 
 # Run the test suite (static + functional) — includes the full-grind
-# simulation that proves all 159 achievements can unlock
+# simulation that proves all 160 achievements can unlock
 python3 -m pytest tests/ -q
 
 # Run the one-shot health check (defs, locales, manifest↔register hooks,

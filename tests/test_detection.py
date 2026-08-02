@@ -1131,6 +1131,72 @@ class TestPostApiRequest(HookTestBase):
         self.assertFalse(self.unlocked("deep_context"))
 
 
+class TestBaitAndSwitch(HookTestBase):
+    """post_api_request model vs response_model: provider resolved a
+    different model than requested (alias / proxy rewrite / fallback).
+
+    The gateway delivers BOTH the requested model and response_model
+    (getattr(response, 'model', None)); the requested-model-only ladder
+    (Model Hopper etc.) cannot see the resolution mismatch.
+    """
+
+    def test_mismatch_unlocks_bait_and_switch(self):
+        self.mod._post_api_request(
+            usage={"total_tokens": 1000}, api_duration=1.0,
+            model="oc-deepseek-v4-flash", provider="opencode_zen",
+            api_call_count=1, message_count=10,
+            response_model="deepseek-v4-flash-free",
+        )
+        self.assertTrue(self.unlocked("bait_and_switch"))
+        self.assertEqual(len(self.stats()["model_switches"]), 1)
+
+    def test_same_model_no_unlock(self):
+        self.mod._post_api_request(
+            usage={"total_tokens": 1000}, api_duration=1.0,
+            model="m1", provider="p1", api_call_count=1, message_count=10,
+            response_model="m1",
+        )
+        self.assertFalse(self.unlocked("bait_and_switch"))
+        self.assertEqual(self.stats().get("model_switches", set()), set())
+
+    def test_missing_response_model_no_unlock(self):
+        # Gateway may omit response_model (not every provider returns it)
+        self.mod._post_api_request(
+            usage={"total_tokens": 1000}, api_duration=1.0,
+            model="m1", provider="p1", api_call_count=1, message_count=10,
+        )
+        self.assertFalse(self.unlocked("bait_and_switch"))
+
+    def test_whitespace_and_none_safe(self):
+        self.mod._post_api_request(
+            usage={}, api_duration=1.0, model="  m1  ", provider="p1",
+            api_call_count=1, message_count=10,
+            response_model=None,
+        )
+        self.mod._post_api_request(
+            usage={}, api_duration=1.0, model="", provider="p1",
+            api_call_count=1, message_count=10,
+            response_model="m1",
+        )
+        self.assertFalse(self.unlocked("bait_and_switch"))
+
+    def test_distinct_pairs_counted(self):
+        # Different (requested → resolved) pairs accumulate; repeats dedupe
+        self.mod._post_api_request(
+            usage={}, api_duration=1.0, model="a", provider="p1",
+            api_call_count=1, message_count=10, response_model="b",
+        )
+        self.mod._post_api_request(
+            usage={}, api_duration=1.0, model="a", provider="p1",
+            api_call_count=1, message_count=10, response_model="b",
+        )
+        self.mod._post_api_request(
+            usage={}, api_duration=1.0, model="c", provider="p1",
+            api_call_count=1, message_count=10, response_model="d",
+        )
+        self.assertEqual(len(self.stats()["model_switches"]), 2)
+
+
 class TestPreApiRequest(HookTestBase):
     """pre_api_request: local endpoints + single-request input-token spikes."""
 
@@ -2028,7 +2094,7 @@ class TestBranchCoverageComplete(HookTestBase):
         self.mod._locales_cache = {}
         try:
             cache = self.mod._load_locales()
-            self.assertEqual(len(cache.get("en", {}).get("achievement", {})), 159)
+            self.assertEqual(len(cache.get("en", {}).get("achievement", {})), 160)
         finally:
             self.mod._LOCALES_DIR = old_dir
             self.mod._WHEEL_DATA_DIR = old_wheel
@@ -2144,6 +2210,17 @@ class TestBranchCoverageComplete(HookTestBase):
         self.assertIn("discord", out)
         self.assertIn("m1", out)
         self.assertIn("p1", out)
+
+    def test_stats_view_legacy_list_model_switches(self):
+        # Branch 3399->3401: model_switches persisted as a list (legacy
+        # JSON, pre-set normalization) → render without sorted(). The
+        # worst-case cap test injects a set, so the list path needs its
+        # own render.
+        state = self.mod._load_state()
+        state["stats"]["model_switches"] = ["oc-deepseek-v4-flash -> deepseek-v4-flash-free"]
+        out = self.mod._handle_achievements("stats")
+        self.assertIn("Model rewrites:", out)
+        self.assertIn("deepseek-v4-flash-free", out)
 
 
 class TestApprovalRequest(HookTestBase):
@@ -2728,7 +2805,7 @@ class TestStreakEdgeCases(HookTestBase):
         self.mod._locales_cache = {}
         try:
             cache = self.mod._load_locales()
-            self.assertEqual(len(cache.get("en", {}).get("achievement", {})), 159)
+            self.assertEqual(len(cache.get("en", {}).get("achievement", {})), 160)
         finally:
             self.mod._LOCALES_DIR = old_dir
             self.mod._WHEEL_DATA_DIR = old_wheel
@@ -3152,7 +3229,7 @@ class TestStatePersistence(HookTestBase):
         import datetime as _dt
         state = self.mod._load_state()
         state["stats"]["last_benchmark_ran"] = _dt.datetime(
-            2026, 7, 31, 12, 0, 0, tzinfo=_dt.timezone.utc
+            2026, 7, 31, 12, 0, 0, tzinfo=_dt.UTC
         )
         self.mod._save_state(force=True)  # must not raise
         self.mod._state = None
@@ -3708,7 +3785,7 @@ class TestPluginRegistration(unittest.TestCase):
                         duration_ms=1000,
                         status="ok",
                     )
-            except Exception as exc:  # pragma: no cover — failure path
+            except Exception as exc:  # noqa: BLE001 — pragma: no cover — failure path
                 errors.append(exc)
 
         threads = [_th.Thread(target=worker, args=(t,)) for t in range(n_threads)]
@@ -3771,7 +3848,7 @@ class TestCommandHandlers(HookTestBase):
         # Every view (default/recent/next/stats/groups) in every locale must
         # stay under Discord's 2000-char cap — guards against locale string
         # growth and newly_unlocked unbounded rendering. This is the WORST
-        # case: all 159 achievements unlocked + every stats counter populated
+        # case: all 160 achievements unlocked + every stats counter populated
         # (including the longest locales). A stats view that fits when empty
         # but overflows when full is a regression.
         state = self.mod._load_state()
@@ -3805,6 +3882,7 @@ class TestCommandHandlers(HookTestBase):
             "approvals_timed_out": 6,
             "platforms": {"discord", "telegram", "whatsapp", "cli", "matrix"},
             "models_used": {f"m{i}" for i in range(10)},
+            "model_switches": {"oc-deepseek-v4-flash -> deepseek-v4-flash-free"},
             "providers_used": {"openai", "openrouter", "anthropic", "xai", "local"},
             "slash_commands_used": {"achievements", "new", "resume", "config"},
             "hooks_used": {"pre_tool_call", "post_tool_call", "post_llm_call"},
@@ -4455,7 +4533,7 @@ class TestReadmeSync(unittest.TestCase):
         result = subprocess.run([_sys.executable, script], capture_output=True, text=True,
                                 cwd=PLUGIN_DIR, check=False)
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertIn("OK: 159 achievements", result.stdout)
+        self.assertIn("OK: 160 achievements", result.stdout)
         with open(os.path.join(PLUGIN_DIR, "README.md"), encoding="utf-8") as f:
             after = f.read()
         self.assertEqual(after, before,
@@ -4577,7 +4655,7 @@ class TestReadmeSync(unittest.TestCase):
 
 
 class TestEveryAchievementUnlockable(HookTestBase):
-    """Full-grind simulation: prove all 159 achievement defs can unlock.
+    """Full-grind simulation: prove all 160 achievement defs can unlock.
 
     After several rounds of achievement swaps (v2.3.0, v2.4.0, v2.4.1),
     a def could sit in a detection map with an impossible condition (wrong
@@ -4862,6 +4940,12 @@ class TestEveryAchievementUnlockable(HookTestBase):
                     api_call_count=1 + (i % 14),
                     message_count=20 + (i % 120),
                     finish_reason=fr,
+                    # Bait and Switch: a few requests where the provider
+                    # resolved a DIFFERENT model than requested (alias /
+                    # proxy rewrite / fallback) → bait_and_switch unlocks.
+                    response_model=(
+                        f"resolved-{i}" if i % 700 == 0 else models[i % len(models)]
+                    ),
                 )
 
             # ── Preflight: local endpoints + input-token spikes ──
@@ -5015,7 +5099,7 @@ class TestEveryAchievementUnlockable(HookTestBase):
             )
             mod._check_completionist()
 
-    def test_all_159_achievements_can_unlock(self):
+    def test_all_160_achievements_can_unlock(self):
         """Every def in ACHIEVEMENT_DEFS must unlock through real hooks."""
         self._grind()
         state = self.mod._load_state()
@@ -5029,7 +5113,7 @@ class TestEveryAchievementUnlockable(HookTestBase):
             f"{locked}",
         )
 
-    def test_completionist_unlocks_as_159th(self):
+    def test_completionist_unlocks_as_160th(self):
         """Completionist requires every other achievement first."""
         self._grind()
         state = self.mod._load_state()
@@ -5039,7 +5123,7 @@ class TestEveryAchievementUnlockable(HookTestBase):
             1 for aid in self.mod.ACHIEVEMENT_DEFS
             if state["achievements"].get(aid, {}).get("unlocked")
         )
-        self.assertEqual(unlocked, 159)
+        self.assertEqual(unlocked, 160)
 
 
 if __name__ == "__main__":

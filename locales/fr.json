@@ -17,6 +17,10 @@
       "name": "Passager Envahissant",
       "description": "Interrompez 5 appels d'outil pendant leur exécution"
     },
+    "bait_and_switch": {
+      "name": "Leurre et Changement",
+      "description": "Exécuter une requête où le fournisseur a résolu un modèle différent de celui demandé"
+    },
     "batch_artist": {
       "name": "Artiste du Lot",
       "description": "Émettez 5 appels d'outil en une seule réponse"
@@ -737,6 +741,7 @@
     "usage_lang": "Utilisation : `/achievements lang <code>` — définir la langue (en/es/fr/pt)",
     "stats_providers": "Fournisseurs:              {providers}{more}",
     "stats_exposed_patterns": "Catégories de risque examinées : {count}",
-    "stats_approvals_timed_out": "Approbations sans réponse : {count}"
+    "stats_approvals_timed_out": "Approbations sans réponse : {count}",
+    "stats_model_switches": "Modèles réécrits : {count} ({switches})"
   }
 }

@@ -17,6 +17,10 @@
       "name": "Copiloto Intrometido",
       "description": "Interrompa 5 chamadas de ferramenta durante a execução"
     },
+    "bait_and_switch": {
+      "name": "Isca e Troca",
+      "description": "Executar uma solicitação onde o provedor resolveu um modelo diferente do pedido"
+    },
     "batch_artist": {
       "name": "Artista de Lotes",
       "description": "Emita 5 chamadas de ferramenta em uma única resposta"
@@ -737,6 +741,7 @@
     "usage_lang": "Uso: `/achievements lang <código>` — definir idioma (en/es/fr/pt)",
     "stats_providers": "Provedores:                {providers}{more}",
     "stats_exposed_patterns": "Classes de risco examinadas: {count}",
-    "stats_approvals_timed_out": "Aprovações sem resposta: {count}"
+    "stats_approvals_timed_out": "Aprovações sem resposta: {count}",
+    "stats_model_switches": "Modelos reescritos: {count} ({switches})"
   }
 }

@@ -17,6 +17,10 @@
       "name": "Backseat Driver",
       "description": "Interrupt 5 tool calls while they run"
     },
+    "bait_and_switch": {
+      "name": "Bait and Switch",
+      "description": "Run a request where the provider resolved a different model than you asked for"
+    },
     "batch_artist": {
       "name": "Batch Artist",
       "description": "Emit 5 tool calls in a single response"
@@ -737,6 +741,7 @@
     "summary_hint": "Use `/achievements <group>` for full lists — e.g. `/achievements tools_skills`",
     "usage_lang": "Usage: `/achievements lang <code>` — set language (en/es/fr/pt)",
     "stats_exposed_patterns": "Danger classes reviewed: {count}",
-    "stats_approvals_timed_out": "Approvals unanswered:   {count}"
+    "stats_approvals_timed_out": "Approvals unanswered:   {count}",
+    "stats_model_switches": "Model rewrites:       {count} ({switches})"
   }
 }

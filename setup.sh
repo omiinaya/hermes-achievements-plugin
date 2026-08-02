@@ -44,7 +44,7 @@ ENV_FILE="$HERMES_HOME/.env"
 echo -e "${CYAN}"
 echo "  ╔═══════════════════════════════════════════════╗"
 echo "  ║   Hermes Achievements Plugin — Setup          ║"
-echo "  ║   v2.20.0  •  159 achievements  •  4 languages ║"
+echo "  ║   v2.20.0  •  160 achievements  •  4 languages ║"
 echo "  ╚═══════════════════════════════════════════════╝"
 echo -e "${NC}"
 

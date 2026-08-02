@@ -104,16 +104,16 @@ def _parse_groups_and_rarities():
 
 
 class TestAchievementDefinitions(unittest.TestCase):
-    """Validate that all 159 achievement definitions are complete and valid."""
+    """Validate that all 160 achievement definitions are complete and valid."""
 
     def setUp(self):
         self.achievements = _parse_achievement_defs()
         self.groups, self.rarities = _parse_groups_and_rarities()
 
     def test_exact_count(self):
-        """There should be exactly 159 achievements."""
-        self.assertEqual(len(self.achievements), 159,
-                         f"Expected 159 achievements, got {len(self.achievements)}")
+        """There should be exactly 160 achievements."""
+        self.assertEqual(len(self.achievements), 160,
+                         f"Expected 160 achievements, got {len(self.achievements)}")
 
     def test_module_docstring_enumerates_all_registered_hooks(self):
         """The module docstring lists every hook register() wires up.
@@ -201,7 +201,7 @@ class TestAchievementDefinitions(unittest.TestCase):
         expected = {
             "Getting Started": 16,
             "Tools & Skills": 28,
-            "Power User": 45,
+            "Power User": 46,
             "Expert": 45,
             "Milestones": 19,
             "Community": 6,
@@ -438,6 +438,7 @@ class TestTranslationFunction(unittest.TestCase):
             "stats_platforms": {"platforms": "discord, telegram"},
             "stats_models": {"models": "gpt4", "more": ""},
             "stats_providers": {"providers": "openrouter, openai", "more": ""},
+            "stats_model_switches": {"count": 2, "switches": "a -> b"},
             "model_more": {"count": 3},
             "group_header": {"emoji": "🚀", "group": "Test", "unlocked": 5, "total": 10},
             "group_filter_header": {"emoji": "🚀", "group": "Test"},

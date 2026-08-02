@@ -2,7 +2,7 @@
 Hermes Achievements Plugin
 ===========================
 Steam-style achievement badges for using and learning about Hermes Agent.
-159 achievements across 6 categories.
+160 achievements across 6 categories.
 
 All 19 of Hermes' valid hooks are registered (see `register()`):
   - pre_llm_call:            fresh-conversation counting (Icebreaker…)
@@ -91,7 +91,7 @@ def _session_chat_id():
     try:
         from gateway.session_context import get_session_env
         return get_session_env("HERMES_SESSION_CHAT_ID", "")
-    except Exception:
+    except Exception:  # noqa: BLE001 — import may fail in CLI/cron/tests
         return os.environ.get("HERMES_SESSION_CHAT_ID", "")
 
 
@@ -378,7 +378,7 @@ def _new_state():
 def _normalize_state():
     """Convert list fields back to sets for internal use."""
     stats = _state.setdefault("stats", {})
-    for key in ("platforms", "models_used", "providers_used", "slash_commands_used", "hooks_used", "users_seen", "env_types", "approved_patterns", "exposed_patterns"):
+    for key in ("platforms", "models_used", "providers_used", "slash_commands_used", "hooks_used", "users_seen", "env_types", "approved_patterns", "exposed_patterns", "model_switches"):
         v = stats.get(key)
         if isinstance(v, set):
             continue
@@ -724,7 +724,7 @@ ACHIEVEMENT_DEFS = {
     },
 
     # ═══════════════════════════════════════════════════════════════════════
-    # ⚡ POWER USER  (44)
+    # ⚡ POWER USER  (45)
     # ═══════════════════════════════════════════════════════════════════════
     "cron_commander": {
         "id": "cron_commander", "name": "Cron Commander", "emoji": "⏰",
@@ -800,6 +800,11 @@ ACHIEVEMENT_DEFS = {
         "id": "model_collector", "name": "Model Collector", "emoji": "🎭",
         "description": "Use 10 different AI models",
         "rarity": "epic", "group": "Power User",
+    },
+    "bait_and_switch": {
+        "id": "bait_and_switch", "name": "Bait and Switch", "emoji": "🎣",
+        "description": "Run a request where the provider resolved a different model than you asked for",
+        "rarity": "uncommon", "group": "Power User",
     },
     "provider_hopper": {
         "id": "provider_hopper", "name": "Provider Hopper", "emoji": "🔄",
@@ -2463,6 +2468,20 @@ def _post_api_request(**kwargs):
         else:
             _set_progress("provider_collector", num_providers, 5)
 
+    # ── Bait and Switch: requested vs resolved model ────────────
+    # The gateway delivers BOTH model (what the agent asked for) and
+    # response_model (what the provider actually returned). They differ
+    # when a provider alias/route/fallback rewrites the request, or when
+    # the model name is normalized upstream (e.g. a proxy mapping an
+    # internal name to a public one). The user asked for X but ran on Y —
+    # observability the requested-model-only ladder (Model Hopper etc.)
+    # cannot see. Count distinct (requested → resolved) pairs.
+    requested = str(kwargs.get("model", "") or "").strip()
+    resolved = str(kwargs.get("response_model", "") or "").strip()
+    if requested and resolved and requested != resolved:
+        stats.setdefault("model_switches", set()).add(f"{requested} -> {resolved}")
+        _unlock("bait_and_switch", now)
+
     # ── Deep Dive: 10 API steps in a single turn ───────────────
     # api_call_count resets to 0 at the start of every user turn and
     # increments per provider call — a count ≥ 10 means the agent ran a
@@ -3376,6 +3395,13 @@ def _handle_achievements(raw_args: str) -> str:
             if providers:
                 more = _t("ui.model_more", locale, count=len(providers)-3) if len(providers) > 3 else ""
                 lines.append(_t("ui.stats_providers", locale, providers=", ".join(providers[:3]), more=more))
+            model_switches = stats.get("model_switches", [])
+            if isinstance(model_switches, set):
+                model_switches = sorted(model_switches)
+            if model_switches:
+                lines.append(_t("ui.stats_model_switches", locale,
+                                count=len(model_switches),
+                                switches=", ".join(model_switches[:2])))
         lines.append(_t("ui.stats_footer", locale))
         if pct >= 100:
             lines.append(_t("ui.completionist_unlocked", locale))

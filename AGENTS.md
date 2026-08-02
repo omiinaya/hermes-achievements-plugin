@@ -2,7 +2,7 @@
 
 ## What this is
 
-A Hermes Agent plugin that awards 159 Steam-style achievement badges for
+A Hermes Agent plugin that awards 160 Steam-style achievement badges for
 using Hermes. Pure Python stdlib, no external dependencies.
 
 ## Repo layout
@@ -37,7 +37,7 @@ using Hermes. Pure Python stdlib, no external dependencies.
   `<sys.prefix>/achievements/` — see `_WHEEL_DATA_DIR`. Regression-guarded
   by `tests/test_plugin.py::test_wheel_ships_entry_point_for_pip_discovery`.
 - `scripts/check_plugin.py` — health check: module loads, manifest↔register()
-  hook agreement, exactly-159 defs, locale parity, no dead detection-map
+  hook agreement, exactly-160 defs, locale parity, no dead detection-map
   references, live state.json reconciliation (--live), real PluginManager
   load (--manifest), and hook kwarg contract vs the installed Hermes
   source (--gateway — catches silent no-op drift if Hermes renames a
@@ -159,7 +159,7 @@ Current unread kwargs and why that's correct:
 
 ## Key invariants
 
-- **Exactly 159 achievements** — `tests/test_plugin.py` enforces this.
+- **Exactly 160 achievements** — `tests/test_plugin.py` enforces this.
 - **All achievement IDs must be detectable** — every def needs a path in
   `_TOOL_ACHIEVEMENTS`, `_TOOL_THRESHOLDS`, `TERMINAL_PATTERNS`,
   `_check_tool_args()`, `_check_counter_achievements()`, or an explicit
@@ -232,7 +232,7 @@ ruff check .                   # CI lint gate — must pass before push
 
 - `tests/test_detection.py::TestEveryAchievementUnlockable` — full-grind
   simulation: drives every hook with escalating synthetic gateway data and
-  asserts **all 159 defs actually unlock**. This is the enforcement of the
+  asserts **all 160 defs actually unlock**. This is the enforcement of the
   "every def must be detectable" invariant — after any swap, a dead def
   (impossible threshold, typo'd key, missing path) fails the run with its
   ID listed. Keep the grind's tool/command data broad enough to cover

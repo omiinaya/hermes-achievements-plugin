@@ -20,14 +20,14 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO))
 
-import __init__ as plugin  # noqa: E402  (repo-root package-dir mapping)
+import __init__ as plugin
 
 
 def _plugin_version() -> str:
     import re
 
     yaml_path = REPO / "plugin.yaml"
-    m = re.search(r"^version:\s*([\w.]+)", yaml_path.read_text(), re.M)
+    m = re.search(r"^version:\s*([\w.]+)", yaml_path.read_text(), re.MULTILINE)
     return m.group(1) if m else "?"
 
 
@@ -62,13 +62,13 @@ def main() -> int:
     normal_output = "ls\nfile1.txt\nfile2.txt\n"     # typical small output
     normal_result = '{"ok": true, "items": [1, 2, 3]}'
 
-    base_kwargs = dict(
-        session_id="bench-session",
-        tool_name="terminal",
-        args={"command": "ls -la"},
-        status="ok",
-        duration_ms=42.0,
-    )
+    base_kwargs = {
+        "session_id": "bench-session",
+        "tool_name": "terminal",
+        "args": {"command": "ls -la"},
+        "status": "ok",
+        "duration_ms": 42.0,
+    }
 
     print("--- high-frequency hooks (every tool call / every turn) ---")
     _bench(lambda: plugin._pre_tool_call(**base_kwargs), "pre_tool_call", args.repeat)

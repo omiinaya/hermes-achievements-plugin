@@ -17,6 +17,10 @@
       "name": "Copiloto Pesado",
       "description": "Interrumpe 5 llamadas de tool mientras se ejecutan"
     },
+    "bait_and_switch": {
+      "name": "Cebo y Cambio",
+      "description": "Ejecutar una solicitud donde el proveedor resolvió un modelo distinto al solicitado"
+    },
     "batch_artist": {
       "name": "Artista de Lotes",
       "description": "Emite 5 llamadas de herramienta en una sola respuesta"
@@ -737,6 +741,7 @@
     "usage_lang": "Uso: `/achievements lang <code>` — cambiar idioma (en/es/fr/pt)",
     "stats_providers": "Proveedores:               {providers}{more}",
     "stats_exposed_patterns": "Clases de riesgo revisadas: {count}",
-    "stats_approvals_timed_out": "Aprobaciones sin respuesta: {count}"
+    "stats_approvals_timed_out": "Aprobaciones sin respuesta: {count}",
+    "stats_model_switches": "Modelos reescritos: {count} ({switches})"
   }
 }
