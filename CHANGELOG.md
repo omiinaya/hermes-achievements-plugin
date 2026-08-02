@@ -4,6 +4,15 @@
 
 ### New achievements
 
+- **Bait and Switch** (uncommon, Power User) — unlock when a provider
+  resolves a different model than the agent requested (alias / proxy
+  rewrite / fallback). `post_api_request` delivers both `model` (what
+  was asked) and `response_model` (what actually served) — a dimension
+  the requested-model-only ladder (Model Hopper etc.) cannot observe.
+  Tracks distinct `(requested → resolved)` pairs in a `model_switches`
+  stat. The gateway's kwarg contract confirms both `model` and
+  `response_model` are delivered on every successful provider call.
+
 The approval dimension had two blind spots against the real gateway
 source (`tools/approval.py`):
 
@@ -28,15 +37,15 @@ source (`tools/approval.py`):
 
 ### New in this release
 
-- 5 new achievements → **159 total**; Expert group 40 → 45.
+- 6 new achievements → **160 total**; Power User 45 → 46.
 - New stats UI lines: danger classes reviewed, approvals unanswered.
 - 12 new tests (Timeouts + Exposure classes): first/fifth timeout unlock,
   deny≠timeout, absent-choice safe, exposure cascades to 25, repeated
   class deduped, multi-key counting, denied-classes still count as
   exposure, exposure≠approved independence, absent pattern_keys safe,
   persisted-list normalization.
-- Full-grind now fires timeouts + exposure so all 159 defs unlock.
-- **441 tests, 100% line + 100% branch** (1458 stmts, 708 branches).
+- Full-grind now fires timeouts + exposure + model switches so all 160 defs unlock.
+- **449 tests, 100% line + 100% branch** (1468 stmts, 714 branches).
 - Gateway-contract check now validates `pre_approval_request` delivers
   `pattern_keys` (39 keys across 16 hooks).
 
