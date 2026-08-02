@@ -115,7 +115,7 @@ Current unread kwargs and why that's correct:
 ## Testing
 
 ```bash
-python3 -m pytest tests/ -q    # 372 tests, no deps beyond pytest
+python3 -m pytest tests/ -q    # 377 tests, no deps beyond pytest
 python3 -m pytest tests/ --cov=. --cov-fail-under=99 -q   # CI coverage gate
 ruff check .                   # CI lint gate — must pass before push
 ```
@@ -128,6 +128,23 @@ ruff check .                   # CI lint gate — must pass before push
   (v2.18.0 shipped with a red test workflow for exactly this — a bare
   `except Exception` in the new gateway-command handler passed local 0.15.14
   and failed CI's 0.16.1.)
+
+- **GitHub Actions runner-provisioning incidents** — when the status page
+  says operational but every workflow run fails in <15s with ZERO steps
+  (jobs created, `runner_id=0`, never allocated), it's an unlisted
+  infrastructure incident, not your code. Corroborate by checking other
+  repos' latest runs (`gh api repos/<owner>/<repo>/actions/runs?per_page=1`).
+  v2.18.4 hit this on 2026-08-01 (6+ repos affected). Fallback that ships
+  the release without CI (only when the tag-push workflow cannot run):
+  ```
+  git worktree add /tmp/ach-release v<tag>          # exact released tree
+  cd /tmp/ach-release && python3 -m pytest tests/ -q && python3 -m build --wheel
+  # run the wheel-content verification inline check from release.yml,
+  # extract the CHANGELOG notes the same way, then:
+  gh release create v<tag> --title v<tag> --notes-file release_notes.md dist/*.whl
+  ```
+  Never do this for a tag whose workflow run is merely RED — only for
+  runs that never STARTED (zero steps).
 
 - **Coverage is 100% on `__init__.py`** (99.7% full tree — the only misses
   are inside test files themselves). `tests/test_detection.py::TestCoverageEdges`
