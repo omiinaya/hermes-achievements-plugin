@@ -178,7 +178,7 @@ ruff check .                   # CI lint gate — must pass before push
   Never do this for a tag whose workflow run is merely RED — only for
   runs that never STARTED (zero steps).
 
-- **Coverage is 100% line AND 100% branch on `__init__.py`** (99.6% full
+- **Coverage is 100% line AND 100% branch on `__init__.py`** (99% full
   tree — the only misses are inside test files themselves).
   `tests/test_detection.py::TestCoverageEdges` +
   `TestBranchCoverageComplete` exist purely to close defensive/normalization
