@@ -1,8 +1,8 @@
 # Changelog
 
-## [2.20.0] — 2026-08-02
+## [2.21.0] — 2026-08-02
 
-### New achievements
+### New achievement
 
 - **Bait and Switch** (uncommon, Power User) — unlock when a provider
   resolves a different model than the agent requested (alias / proxy
@@ -12,6 +12,23 @@
   Tracks distinct `(requested → resolved)` pairs in a `model_switches`
   stat. The gateway's kwarg contract confirms both `model` and
   `response_model` are delivered on every successful provider call.
+
+### Fixes
+
+- Ruff 0.16 lint fixes for 7 pre-existing errors (BLE001 ×2, EXE001,
+  RUF100, FURB167, C408, UP017) that were failing CI on main since
+  v2.20.0.
+
+### New in this release
+
+- 1 new achievement → **160 total**; Power User 45 → 46.
+- Stats UI line for model switches (all 4 locales).
+- Legacy-list render test for `model_switches` → 100% branch coverage.
+- **449 tests, 100% line + 100% branch** (1468 stmts, 714 branches).
+
+## [2.20.0] — 2026-08-02
+
+### New achievements
 
 The approval dimension had two blind spots against the real gateway
 source (`tools/approval.py`):

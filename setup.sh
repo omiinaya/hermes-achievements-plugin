@@ -44,7 +44,7 @@ ENV_FILE="$HERMES_HOME/.env"
 echo -e "${CYAN}"
 echo "  ╔═══════════════════════════════════════════════╗"
 echo "  ║   Hermes Achievements Plugin — Setup          ║"
-echo "  ║   v2.20.0  •  160 achievements  •  4 languages ║"
+echo "  ║   v2.21.0  •  160 achievements  •  4 languages ║"
 echo "  ╚═══════════════════════════════════════════════╝"
 echo -e "${NC}"
 
@@ -210,7 +210,7 @@ fi
 step "✅ Setup complete!"
 
 echo "  Plugin:   $PLUGIN_DIR/"
-echo "  Version:  v2.20.0"
+echo "  Version:  v2.21.0"
 echo "  Locales:  en  es  fr  pt"
 echo ""
 echo "  Usage:"
