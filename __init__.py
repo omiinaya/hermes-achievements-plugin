@@ -2,7 +2,7 @@
 Hermes Achievements Plugin
 ===========================
 Steam-style achievement badges for using and learning about Hermes Agent.
-154 achievements across 6 categories.
+159 achievements across 6 categories.
 
 Hooks:
   - post_llm_call:  detects tool calls from conversation_history → unlocks achievements
@@ -1149,6 +1149,31 @@ ACHIEVEMENT_DEFS = {
         "description": "Approve commands in 25 different danger classes",
         "rarity": "epic", "group": "Expert",
     },
+    "ghosted": {
+        "id": "ghosted", "name": "Ghosted", "emoji": "👻",
+        "description": "Leave an approval prompt unanswered",
+        "rarity": "uncommon", "group": "Expert",
+    },
+    "silent_treatment": {
+        "id": "silent_treatment", "name": "Silent Treatment", "emoji": "🤐",
+        "description": "Leave 5 approval prompts unanswered",
+        "rarity": "rare", "group": "Expert",
+    },
+    "watchlisted": {
+        "id": "watchlisted", "name": "Watchlisted", "emoji": "👁️",
+        "description": "Get prompted to vet commands in 5 different danger classes",
+        "rarity": "uncommon", "group": "Expert",
+    },
+    "person_of_interest": {
+        "id": "person_of_interest", "name": "Person of Interest", "emoji": "🕵️",
+        "description": "Get prompted to vet commands in 15 different danger classes",
+        "rarity": "rare", "group": "Expert",
+    },
+    "most_wanted": {
+        "id": "most_wanted", "name": "Most Wanted", "emoji": "🚨",
+        "description": "Get prompted to vet commands in 25 different danger classes",
+        "rarity": "epic", "group": "Expert",
+    },
 
     # ═══════════════════════════════════════════════════════════════════════
     # 🎯 MILESTONES  (19)
@@ -1440,6 +1465,30 @@ _APPROVAL_PATTERN_THRESHOLDS = [
     (5, "risk_explorer"),
     (15, "danger_collector"),
     (25, "living_on_the_edge"),
+]
+
+# Approval-timeout thresholds (choice="timeout" from post_approval_response):
+# the user never answered the approval prompt before the gateway/CLI wait
+# expired. The gateway explicitly normalizes this (approval.py: "report that
+# explicitly so plugins can distinguish timeout from explicit deny") — an
+# unanswered prompt is a DIFFERENT behavior from an explicit deny (Cautious):
+# the user walked away or the approval was abandoned.
+_APPROVAL_TIMEOUT_THRESHOLDS = [
+    (1, "ghosted"),
+    (5, "silent_treatment"),
+]
+
+# Approval-exposure thresholds (pattern_keys from pre_approval_request): the
+# set of DISTINCT dangerous-command classes the user has been PROMPTED to
+# vet — regardless of whether they approved, denied, or timed out. This is
+# distinct from _APPROVAL_PATTERN_THRESHOLDS (post_approval_response), which
+# only counts classes the user APPROVED. Exposure measures the breadth of
+# risk the agent surfaced for human review; approval measures the breadth the
+# user accepted.
+_APPROVAL_EXPOSURE_THRESHOLDS = [
+    (5, "watchlisted"),
+    (15, "person_of_interest"),
+    (25, "most_wanted"),
 ]
 
 # Gateway-command thresholds (command from pre_gateway_dispatch): slash
@@ -2747,7 +2796,15 @@ def _on_api_request_error(**kwargs):
 # command + surface (cli/gateway). Under Scrutiny rewards hitting 10.
 
 def _on_approval_request(**kwargs):
-    """Count approval requests the user triggered."""
+    """Count approval requests the user triggered + exposure breadth.
+
+    Also tracks the set of DISTINCT danger classes the user has been
+    prompted to vet (pattern_keys arrives at REQUEST time — before the
+    user answers). This is exposure: every prompt counts, whether the
+    user later approves, denies, or times out. Distinct from the
+    approved-classes ladder (post_approval_response) which requires a
+    positive answer.
+    """
     state = _load_state()
     stats = state.setdefault("stats", {})
     now = datetime.now(UTC).isoformat()
@@ -2759,6 +2816,25 @@ def _on_approval_request(**kwargs):
         _unlock("under_scrutiny", now)
     else:
         _set_progress("under_scrutiny", requests, 10)
+
+    # ── Exposure: distinct danger classes PROMPTED (pre-answer) ──
+    # pattern_keys is a list (one command can match several classes);
+    # dedupe into a persisted set so repeat prompts of the same class
+    # add nothing. Denied/timeout prompts still count — the user was
+    # asked to vet that class.
+    pattern_keys = kwargs.get("pattern_keys") or []
+    if pattern_keys:
+        exposed = stats.setdefault("exposed_patterns", set())
+        if not isinstance(exposed, set):
+            exposed = set(exposed)
+            stats["exposed_patterns"] = exposed
+        exposed.update(k for k in pattern_keys if k)
+        distinct = len(exposed)
+        for threshold, ach_id in _APPROVAL_EXPOSURE_THRESHOLDS:
+            if distinct >= threshold:
+                _unlock(ach_id, now)
+            else:
+                _set_progress(ach_id, distinct, threshold)
 
     _check_group_completions()
     _check_completionist()
@@ -2793,6 +2869,18 @@ def _on_approval_response(**kwargs):
     elif choice == "deny":
         stats["approvals_denied"] = stats.get("approvals_denied", 0) + 1
         _unlock("cautious", now)
+    elif choice == "timeout":
+        # The user never answered before the wait expired (gateway
+        # normalizes unresolved prompts to "timeout" explicitly so
+        # plugins can distinguish it from an explicit deny). Walking
+        # away is its own behavior — the approval was abandoned.
+        stats["approvals_timed_out"] = stats.get("approvals_timed_out", 0) + 1
+        timed_out = stats["approvals_timed_out"]
+        for threshold, ach_id in _APPROVAL_TIMEOUT_THRESHOLDS:
+            if timed_out >= threshold:
+                _unlock(ach_id, now)
+            else:
+                _set_progress(ach_id, timed_out, threshold)
 
     # ── Approval-context dimension ────────────────────────────
     # Only a positive answer is an approval; deny/timeout are not.
@@ -3195,6 +3283,10 @@ def _handle_achievements(raw_args: str) -> str:
                 lines.append(_t("ui.stats_approvals_gateway", locale, count=stats.get("approvals_gateway", 0)))
             if stats.get("approved_patterns"):
                 lines.append(_t("ui.stats_approved_patterns", locale, count=len(stats.get("approved_patterns", set()))))
+            if stats.get("exposed_patterns"):
+                lines.append(_t("ui.stats_exposed_patterns", locale, count=len(stats.get("exposed_patterns", set()))))
+            if stats.get("approvals_timed_out"):
+                lines.append(_t("ui.stats_approvals_timed_out", locale, count=stats.get("approvals_timed_out", 0)))
             if stats.get("max_concurrent_subagents"):
                 lines.append(_t("ui.stats_max_concurrent", locale, count=stats.get("max_concurrent_subagents", 0)))
             if stats.get("api_errors"):

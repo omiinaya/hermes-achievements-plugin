@@ -1,5 +1,45 @@
 # Changelog
 
+## [2.20.0] — 2026-08-02
+
+### New achievements
+
+The approval dimension had two blind spots against the real gateway
+source (`tools/approval.py`):
+
+- **Ghosted** (uncommon) / **Silent Treatment** (rare) — the gateway
+  explicitly normalizes an unanswered approval prompt to
+  `choice="timeout"` ("report that explicitly so plugins can distinguish
+  timeout from explicit deny"), and the plugin's own docstring documented
+  `timeout` as a valid choice — but no handler branch existed. An
+  abandoned prompt (user walked away, approval window expired) is a
+  DIFFERENT behavior from an explicit deny (Cautious), so it now drives
+  its own ladder via `approvals_timed_out`.
+- **Watchlisted** (uncommon) / **Person of Interest** (rare) / **Most
+  Wanted** (epic) — `pre_approval_request` reads zero kwargs even though
+  the gateway delivers `pattern_keys` at REQUEST time (before the user
+  answers). The plugin now tracks `exposed_patterns`: distinct danger
+  classes the user was PROMPTED to vet, regardless of whether they
+  approved, denied, or timed out. This is distinct from the approved-
+  classes ladder (risk_explorer/danger_collector/living_on_the_edge)
+  which only counts positive answers — a user who denies everything still
+  accumulates exposure. `exposed_patterns` and `approved_patterns` are
+  independent sets.
+
+### New in this release
+
+- 5 new achievements → **159 total**; Expert group 40 → 45.
+- New stats UI lines: danger classes reviewed, approvals unanswered.
+- 12 new tests (Timeouts + Exposure classes): first/fifth timeout unlock,
+  deny≠timeout, absent-choice safe, exposure cascades to 25, repeated
+  class deduped, multi-key counting, denied-classes still count as
+  exposure, exposure≠approved independence, absent pattern_keys safe,
+  persisted-list normalization.
+- Full-grind now fires timeouts + exposure so all 159 defs unlock.
+- **441 tests, 100% line + 100% branch** (1458 stmts, 708 branches).
+- Gateway-contract check now validates `pre_approval_request` delivers
+  `pattern_keys` (39 keys across 16 hooks).
+
 ## [2.19.1] — 2026-08-02
 
 ### New achievement

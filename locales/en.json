@@ -249,6 +249,10 @@
       "name": "Ghost in the Shell",
       "description": "Run your first terminal command through Hermes"
     },
+    "ghosted": {
+      "name": "Ghosted",
+      "description": "Leave an approval prompt unanswered"
+    },
     "hook_master": {
       "name": "Hook Master",
       "description": "Create a plugin using 3+ different hook types"
@@ -325,6 +329,10 @@
       "name": "Monthly Master",
       "description": "Use Hermes 30 days in a row"
     },
+    "most_wanted": {
+      "name": "Most Wanted",
+      "description": "Get prompted to vet commands in 25 different danger classes"
+    },
     "multi_env": {
       "name": "Multi-Environment",
       "description": "Run terminal commands in 2 different execution environments"
@@ -372,6 +380,10 @@
     "persistent": {
       "name": "Persistent",
       "description": "Send messages across 3 different sessions"
+    },
+    "person_of_interest": {
+      "name": "Person of Interest",
+      "description": "Get prompted to vet commands in 15 different danger classes"
     },
     "plugin_developer": {
       "name": "Plugin Developer",
@@ -460,6 +472,10 @@
     "show_and_tell": {
       "name": "Show and Tell",
       "description": "Send an image or media attachment to Hermes"
+    },
+    "silent_treatment": {
+      "name": "Silent Treatment",
+      "description": "Leave 5 approval prompts unanswered"
     },
     "skill_apprentice": {
       "name": "Skill Apprentice",
@@ -597,6 +613,10 @@
       "name": "Visual Storyteller",
       "description": "Send 25 images or media attachments"
     },
+    "watchlisted": {
+      "name": "Watchlisted",
+      "description": "Get prompted to vet commands in 5 different danger classes"
+    },
     "web_walker": {
       "name": "Web Walker",
       "description": "Search the web using Hermes"
@@ -715,6 +735,8 @@
     "stats_unlocked": "Unlocked: {unlocked} / {total}  ({percent}%)",
     "stats_users_seen": "Distinct users seen:     {count}",
     "summary_hint": "Use `/achievements <group>` for full lists — e.g. `/achievements tools_skills`",
-    "usage_lang": "Usage: `/achievements lang <code>` — set language (en/es/fr/pt)"
+    "usage_lang": "Usage: `/achievements lang <code>` — set language (en/es/fr/pt)",
+    "stats_exposed_patterns": "Danger classes reviewed: {count}",
+    "stats_approvals_timed_out": "Approvals unanswered:   {count}"
   }
 }

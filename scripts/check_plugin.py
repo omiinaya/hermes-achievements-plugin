@@ -259,7 +259,7 @@ def main():
 
     print("── 3. Achievement defs ──")
     defs = mod.ACHIEVEMENT_DEFS
-    check("exactly 154 defs", len(defs) == 154, f"{len(defs)} found")
+    check("exactly 159 defs", len(defs) == 159, f"{len(defs)} found")
     # pyproject + plugin.yaml descriptions carry the badge count too — it
     # rotted once (146 when the defs reached 154) because nothing guarded it.
     count_ok = True

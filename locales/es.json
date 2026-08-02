@@ -249,6 +249,10 @@
       "name": "Fantasma en la Máquina",
       "description": "Ejecuta tu primer comando de terminal a través de Hermes"
     },
+    "ghosted": {
+      "name": "Ignorado",
+      "description": "Dejar un aviso de aprobación sin responder"
+    },
     "hook_master": {
       "name": "Maestro de Hooks",
       "description": "Crea un plugin usando 3+ tipos de hooks distintos"
@@ -325,6 +329,10 @@
       "name": "Maestro Mensual",
       "description": "Usa Hermes 30 días seguidos"
     },
+    "most_wanted": {
+      "name": "Más buscado",
+      "description": "Que te pidan revisar comandos en 25 clases de peligro distintas"
+    },
     "multi_env": {
       "name": "Multi-Entorno",
       "description": "Ejecuta comandos de terminal en 2 entornos de ejecución diferentes"
@@ -372,6 +380,10 @@
     "persistent": {
       "name": "Persistente",
       "description": "Envía mensajes en 3 sesiones distintas"
+    },
+    "person_of_interest": {
+      "name": "Persona de interés",
+      "description": "Que te pidan revisar comandos en 15 clases de peligro distintas"
     },
     "plugin_developer": {
       "name": "Desarrollador de Plugins",
@@ -460,6 +472,10 @@
     "show_and_tell": {
       "name": "Muestra y Cuenta",
       "description": "Envía una imagen o adjunto multimedia a Hermes"
+    },
+    "silent_treatment": {
+      "name": "Trato silencioso",
+      "description": "Dejar 5 avisos de aprobación sin responder"
     },
     "skill_apprentice": {
       "name": "Aprendiz de Habilidades",
@@ -597,6 +613,10 @@
       "name": "Narrador Visual",
       "description": "Envía 25 imágenes o adjuntos multimedia"
     },
+    "watchlisted": {
+      "name": "En vigilancia",
+      "description": "Que te pidan revisar comandos en 5 clases de peligro distintas"
+    },
     "web_walker": {
       "name": "Caminante Web",
       "description": "Busca en la web usando Hermes"
@@ -715,6 +735,8 @@
     "stats_users_seen": "Usuarios distintos vistos: {count}",
     "summary_hint": "Usa `/achievements <grupo>` para listas completas — ej. `/achievements tools_skills`",
     "usage_lang": "Uso: `/achievements lang <code>` — cambiar idioma (en/es/fr/pt)",
-    "stats_providers": "Proveedores:               {providers}{more}"
+    "stats_providers": "Proveedores:               {providers}{more}",
+    "stats_exposed_patterns": "Clases de riesgo revisadas: {count}",
+    "stats_approvals_timed_out": "Aprobaciones sin respuesta: {count}"
   }
 }

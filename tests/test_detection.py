@@ -638,6 +638,148 @@ class TestApprovalContext(HookTestBase):
         self.assertEqual(len(self.stats()["approved_patterns"]), 3)
 
 
+class TestApprovalTimeout(HookTestBase):
+    """post_approval_response choice="timeout": the user never answered.
+
+    The gateway explicitly normalizes unresolved prompts to "timeout"
+    (approval.py: 'report that explicitly so plugins can distinguish
+    timeout from explicit deny') — an abandoned prompt is distinct from
+    an explicit deny (Cautious), so it drives its own ladder.
+    """
+
+    def test_first_timeout_unlocks_ghosted(self):
+        self.mod._on_approval_response(
+            command="rm -rf /tmp/x", description="dangerous",
+            pattern_key="rm_rf", session_key="s", surface="gateway",
+            choice="timeout",
+        )
+        self.assertTrue(self.unlocked("ghosted"))
+        self.assertEqual(self.stats()["approvals_timed_out"], 1)
+        # A timeout is NOT an explicit deny — Cautious stays locked.
+        self.assertFalse(self.unlocked("cautious"))
+        # Nor an approval — no remote/surface counting.
+        self.assertEqual(self.stats()["approvals_gateway"], 0)
+
+    def test_five_timeouts_unlock_silent_treatment(self):
+        for i in range(5):
+            self.mod._on_approval_response(
+                command="cmd", description="d", pattern_key=f"k{i}",
+                session_key="s", surface="cli", choice="timeout",
+            )
+        self.assertTrue(self.unlocked("ghosted"))
+        self.assertTrue(self.unlocked("silent_treatment"))
+        self.assertEqual(self.stats()["approvals_timed_out"], 5)
+
+    def test_deny_does_not_count_timeout(self):
+        self.mod._on_approval_response(
+            command="cmd", description="d", pattern_key="k",
+            session_key="s", surface="cli", choice="deny",
+        )
+        self.assertFalse(self.unlocked("ghosted"))
+        self.assertEqual(self.stats().get("approvals_timed_out", 0), 0)
+
+    def test_choice_absent_is_safe(self):
+        # Some dispatch paths may omit choice entirely — must not crash.
+        self.mod._on_approval_response(
+            command="cmd", description="d", pattern_key="k",
+            session_key="s", surface="cli",
+        )
+        self.assertFalse(self.unlocked("ghosted"))
+        self.assertFalse(self.unlocked("cautious"))
+
+
+class TestApprovalExposure(HookTestBase):
+    """pre_approval_request pattern_keys: distinct danger classes the
+    user was PROMPTED to vet — regardless of the eventual answer.
+
+    Distinct from approved_patterns (post_approval_response): exposure
+    counts classes the user was ASKED about even when they deny or the
+    prompt times out.
+    """
+
+    def _request(self, pattern_keys, i=0):
+        self.mod._on_approval_request(
+            command=f"dangerous cmd {i}", description="d",
+            pattern_key=str(i), pattern_keys=pattern_keys,
+            session_key="s", surface="cli",
+        )
+
+    def test_five_classes_unlock_watchlisted(self):
+        for i in range(5):
+            self._request([f"class-{i}"], i=i)
+        self.assertTrue(self.unlocked("watchlisted"))
+        self.assertEqual(len(self.stats()["exposed_patterns"]), 5)
+
+    def test_exposure_cascades_to_25(self):
+        for i in range(25):
+            self._request([f"class-{i}"], i=i)
+        self.assertTrue(self.unlocked("watchlisted"))
+        self.assertTrue(self.unlocked("person_of_interest"))
+        self.assertTrue(self.unlocked("most_wanted"))
+
+    def test_repeated_same_class_adds_nothing(self):
+        for _ in range(10):
+            self._request(["same"], i=0)
+        self.assertFalse(self.unlocked("watchlisted"))
+        self.assertEqual(len(self.stats()["exposed_patterns"]), 1)
+
+    def test_multi_key_request_counts_all_classes(self):
+        self._request(["a", "b", "c"], i=0)
+        self.assertEqual(len(self.stats()["exposed_patterns"]), 3)
+
+    def test_exposure_counts_classes_that_were_denied(self):
+        # Deny at response time still leaves the REQUEST-side exposure:
+        # the user was asked to vet that class.
+        self.mod._on_approval_request(
+            command="rm -rf /", description="dangerous",
+            pattern_key="rm", pattern_keys=["rm"],
+            session_key="s", surface="cli",
+        )
+        self.mod._on_approval_response(
+            command="rm -rf /", description="dangerous",
+            pattern_key="rm", pattern_keys=["rm"],
+            session_key="s", surface="cli", choice="deny",
+        )
+        self.assertEqual(len(self.stats()["exposed_patterns"]), 1)
+        # Approval-side ladder does NOT count it (no positive answer).
+        self.assertFalse(self.unlocked("risk_explorer"))
+
+    def test_exposure_distinct_from_approved(self):
+        # Expose 5 classes but approve only 2 → Watchlisted yes,
+        # Risk Explorer no. The two ladders measure different things.
+        for i in range(5):
+            self._request([f"class-{i}"], i=i)
+        for i in range(2):
+            self.mod._on_approval_response(
+                command=f"cmd {i}", description="d",
+                pattern_key=f"class-{i}", pattern_keys=[f"class-{i}"],
+                session_key="s", surface="cli", choice="once",
+            )
+        self.assertTrue(self.unlocked("watchlisted"))
+        self.assertFalse(self.unlocked("risk_explorer"))
+        self.assertEqual(len(self.stats()["exposed_patterns"]), 5)
+        self.assertEqual(len(self.stats()["approved_patterns"]), 2)
+
+    def test_pattern_keys_absent_is_safe(self):
+        self.mod._on_approval_request(
+            command="cmd", description="d", pattern_key="k",
+            session_key="s", surface="cli",
+        )
+        self.assertFalse(self.unlocked("watchlisted"))
+        self.assertEqual(self.stats().get("exposed_patterns", set()), set())
+
+    def test_persisted_list_is_normalized_to_set(self):
+        # Simulate a state.json written before exposure existed: a list.
+        self.mod._load_state()
+        self.mod._state["stats"]["exposed_patterns"] = ["a", "b"]
+        self.mod._on_approval_request(
+            command="cmd", description="d",
+            pattern_key="c", pattern_keys=["c"],
+            session_key="s", surface="cli",
+        )
+        self.assertEqual(len(self.stats()["exposed_patterns"]), 3)
+
+
 class TestSessionReset(HookTestBase):
     """on_session_reset: /new rotations drive Fresh Start."""
 
@@ -1886,7 +2028,7 @@ class TestBranchCoverageComplete(HookTestBase):
         self.mod._locales_cache = {}
         try:
             cache = self.mod._load_locales()
-            self.assertEqual(len(cache.get("en", {}).get("achievement", {})), 154)
+            self.assertEqual(len(cache.get("en", {}).get("achievement", {})), 159)
         finally:
             self.mod._LOCALES_DIR = old_dir
             self.mod._WHEEL_DATA_DIR = old_wheel
@@ -2586,7 +2728,7 @@ class TestStreakEdgeCases(HookTestBase):
         self.mod._locales_cache = {}
         try:
             cache = self.mod._load_locales()
-            self.assertEqual(len(cache.get("en", {}).get("achievement", {})), 154)
+            self.assertEqual(len(cache.get("en", {}).get("achievement", {})), 159)
         finally:
             self.mod._LOCALES_DIR = old_dir
             self.mod._WHEEL_DATA_DIR = old_wheel
@@ -3608,7 +3750,7 @@ class TestCommandHandlers(HookTestBase):
         # Every view (default/recent/next/stats/groups) in every locale must
         # stay under Discord's 2000-char cap — guards against locale string
         # growth and newly_unlocked unbounded rendering. This is the WORST
-        # case: all 154 achievements unlocked + every stats counter populated
+        # case: all 159 achievements unlocked + every stats counter populated
         # (including the longest locales). A stats view that fits when empty
         # but overflows when full is a regression.
         state = self.mod._load_state()
@@ -3638,6 +3780,8 @@ class TestCommandHandlers(HookTestBase):
             "truncated_responses": 25, "longest_subagent_ms": 3_700_000,
             "tool_interrupts": 15, "tool_blocks": 10, "max_retry_depth": 4,
             "approved_patterns": {f"class-{i}" for i in range(25)},
+            "exposed_patterns": {f"class-{i}" for i in range(25)},
+            "approvals_timed_out": 6,
             "platforms": {"discord", "telegram", "whatsapp", "cli", "matrix"},
             "models_used": {f"m{i}" for i in range(10)},
             "providers_used": {"openai", "openrouter", "anthropic", "xai", "local"},
@@ -4290,7 +4434,7 @@ class TestReadmeSync(unittest.TestCase):
         result = subprocess.run([_sys.executable, script], capture_output=True, text=True,
                                 cwd=PLUGIN_DIR, check=False)
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertIn("OK: 154 achievements", result.stdout)
+        self.assertIn("OK: 159 achievements", result.stdout)
         with open(os.path.join(PLUGIN_DIR, "README.md"), encoding="utf-8") as f:
             after = f.read()
         self.assertEqual(after, before,
@@ -4412,7 +4556,7 @@ class TestReadmeSync(unittest.TestCase):
 
 
 class TestEveryAchievementUnlockable(HookTestBase):
-    """Full-grind simulation: prove all 154 achievement defs can unlock.
+    """Full-grind simulation: prove all 159 achievement defs can unlock.
 
     After several rounds of achievement swaps (v2.3.0, v2.4.0, v2.4.1),
     a def could sit in a detection map with an impossible condition (wrong
@@ -4761,9 +4905,36 @@ class TestEveryAchievementUnlockable(HookTestBase):
                     retry_count=depth, retryable=True,
                 )
             for i in range(12):
-                mod._on_approval_request(command="terminal", surface="cli")
+                mod._on_approval_request(
+                    command="terminal", surface="cli",
+                    pattern_key=f"class-{i}", pattern_keys=[f"class-{i}"],
+                    session_key="g",
+                )
             mod._on_approval_response(choice="deny")
             mod._on_approval_response(choice="always")
+            # Timeout: 6 unanswered prompts → Ghosted (1) + Silent
+            # Treatment (5). The gateway normalizes unresolved prompts
+            # to choice="timeout" explicitly.
+            for i in range(6):
+                mod._on_approval_response(
+                    command="dangerous cmd", description="d",
+                    pattern_key=f"tclass-{i}", pattern_keys=[f"tclass-{i}"],
+                    session_key="g", surface="cli", choice="timeout",
+                )
+            # Exposure: 30 distinct danger classes PROMPTED (pre-answer)
+            # → Watchlisted (5) + Person of Interest (15) + Most Wanted
+            # (25). Repeat prompts of the same class must NOT double-count.
+            for i in range(30):
+                mod._on_approval_request(
+                    command=f"dangerous cmd {i}", description="d",
+                    pattern_key=f"class-{i}", pattern_keys=[f"class-{i}"],
+                    session_key="g", surface="cli",
+                )
+            mod._on_approval_request(
+                command="repeat class", description="d",
+                pattern_key="class-0", pattern_keys=["class-0"],
+                session_key="g", surface="cli",
+            )
             # Approval context: 12 gateway-surface approvals → Remote Warden
             # (1) + Long-Distance Operator (10); 30 distinct danger classes
             # approved → Risk Explorer (5) + Danger Collector (15) + Living
@@ -4823,7 +4994,7 @@ class TestEveryAchievementUnlockable(HookTestBase):
             )
             mod._check_completionist()
 
-    def test_all_154_achievements_can_unlock(self):
+    def test_all_159_achievements_can_unlock(self):
         """Every def in ACHIEVEMENT_DEFS must unlock through real hooks."""
         self._grind()
         state = self.mod._load_state()
@@ -4837,7 +5008,7 @@ class TestEveryAchievementUnlockable(HookTestBase):
             f"{locked}",
         )
 
-    def test_completionist_unlocks_as_154th(self):
+    def test_completionist_unlocks_as_159th(self):
         """Completionist requires every other achievement first."""
         self._grind()
         state = self.mod._load_state()
@@ -4847,7 +5018,7 @@ class TestEveryAchievementUnlockable(HookTestBase):
             1 for aid in self.mod.ACHIEVEMENT_DEFS
             if state["achievements"].get(aid, {}).get("unlocked")
         )
-        self.assertEqual(unlocked, 154)
+        self.assertEqual(unlocked, 159)
 
 
 if __name__ == "__main__":

@@ -2,7 +2,7 @@
 
 ## What this is
 
-A Hermes Agent plugin that awards 154 Steam-style achievement badges for
+A Hermes Agent plugin that awards 159 Steam-style achievement badges for
 using Hermes. Pure Python stdlib, no external dependencies.
 
 ## Repo layout
@@ -37,7 +37,7 @@ using Hermes. Pure Python stdlib, no external dependencies.
   `<sys.prefix>/achievements/` — see `_WHEEL_DATA_DIR`. Regression-guarded
   by `tests/test_plugin.py::test_wheel_ships_entry_point_for_pip_discovery`.
 - `scripts/check_plugin.py` — health check: module loads, manifest↔register()
-  hook agreement, exactly-154 defs, locale parity, no dead detection-map
+  hook agreement, exactly-159 defs, locale parity, no dead detection-map
   references, live state.json reconciliation (--live), real PluginManager
   load (--manifest), and hook kwarg contract vs the installed Hermes
   source (--gateway — catches silent no-op drift if Hermes renames a
@@ -75,8 +75,8 @@ using Hermes. Pure Python stdlib, no external dependencies.
 | `on_session_end` | end of run_conversation | daily streaks, completions re-check |
 | `subagent_stop` | once per delegate_task child (has `child_role`, `child_status`, `duration_ms`) | Army Commander (counts children, not calls), Orchestrator, Resilient, subagent runtime (Slow Thinker 10m, Marathon 60m — how long a child actually ran, a dimension child-counting cannot see) |
 | `subagent_start` | once per subagent spawn (has `child_role`, `child_goal`) | true concurrency tracking — live counter + peak (Conductor) |
-| `post_approval_response` | user answers an approval prompt (has `choice`: once/session/always/deny/timeout, `surface`: cli/gateway, `pattern_key` + `pattern_keys` — the dangerous-command classes that matched) | Trust Fall, Cautious, YOLO Mode/Champion via "always"; remote-approval dimension (Remote Warden 1 / Long-Distance Operator 10 — `surface="gateway"` means the user approved a dangerous command from a chat platform, bolder than at the CLI); danger-class diversity (Risk Explorer 5 / Danger Collector 15 / Living on the Edge 25 — DISTINCT classes approved, breadth of risk appetite, deduped in a persisted set so repeat approvals of one class add nothing; Under Scrutiny only counts prompt volume) |
-| `pre_approval_request` | an approval prompt is raised (has `command`, `surface`, `pattern_key` + `pattern_keys`, `session_key`) | approval-gate counting (Under Scrutiny) — fires BEFORE the user answers, so it measures attempted gates, not consent; the class/surface dimensions live on `post_approval_response` where the choice is known |
+| `post_approval_response` | user answers an approval prompt (has `choice`: once/session/always/deny/timeout, `surface`: cli/gateway, `pattern_key` + `pattern_keys` — the dangerous-command classes that matched) | Trust Fall, Cautious, YOLO Mode/Champion via "always"; remote-approval dimension (Remote Warden 1 / Long-Distance Operator 10 — `surface="gateway"` means the user approved a dangerous command from a chat platform, bolder than at the CLI); danger-class diversity (Risk Explorer 5 / Danger Collector 15 / Living on the Edge 25 — DISTINCT classes approved, breadth of risk appetite, deduped in a persisted set so repeat approvals of one class add nothing; Under Scrutiny only counts prompt volume); timeout ladder (Ghosted 1 / Silent Treatment 5 — `choice="timeout"` means the user never answered; the gateway explicitly normalizes unresolved prompts to "timeout" so plugins can distinguish abandonment from an explicit deny (Cautious)) |
+| `pre_approval_request` | an approval prompt is raised (has `command`, `surface`, `pattern_key` + `pattern_keys`, `session_key`) | approval-gate counting (Under Scrutiny) — fires BEFORE the user answers, so it measures attempted gates, not consent; exposure dimension (Watchlisted 5 / Person of Interest 15 / Most Wanted 25 — DISTINCT danger classes the user was PROMPTED to vet, regardless of answer: denied/timeout prompts still count as exposure, distinct from the approved-classes ladder which needs a positive answer); the choice-dependent surface/approved-class dimensions live on `post_approval_response` |
 | `on_session_reset` | gateway swaps session key (`/new`, `/reset`) | Fresh Start, session-resets counter |
 | `on_session_finalize` | agent shutdown / session reset-policy expiry | force-flush debounced state save + synchronously deliver queued notifications (nothing lost on exit) |
 | `api_request_error` | LLM provider call fails (has `error_type`, `status_code`, `retry_count`, `max_retries`, `retryable`) | API-error resilience (Indestructible — 10 total errors survived), sustained-failure depth (Tenacious 2 / Undeterred 4 — `retry_count` is how many consecutive times the SAME request failed before the hook fired; breadth≠depth: 10 single failures never reach depth 2). `max_retry_depth` stat |
@@ -156,7 +156,7 @@ Current unread kwargs and why that's correct:
 
 ## Key invariants
 
-- **Exactly 154 achievements** — `tests/test_plugin.py` enforces this.
+- **Exactly 159 achievements** — `tests/test_plugin.py` enforces this.
 - **All achievement IDs must be detectable** — every def needs a path in
   `_TOOL_ACHIEVEMENTS`, `_TOOL_THRESHOLDS`, `TERMINAL_PATTERNS`,
   `_check_tool_args()`, `_check_counter_achievements()`, or an explicit
@@ -229,7 +229,7 @@ ruff check .                   # CI lint gate — must pass before push
 
 - `tests/test_detection.py::TestEveryAchievementUnlockable` — full-grind
   simulation: drives every hook with escalating synthetic gateway data and
-  asserts **all 154 defs actually unlock**. This is the enforcement of the
+  asserts **all 159 defs actually unlock**. This is the enforcement of the
   "every def must be detectable" invariant — after any swap, a dead def
   (impossible threshold, typo'd key, missing path) fails the run with its
   ID listed. Keep the grind's tool/command data broad enough to cover

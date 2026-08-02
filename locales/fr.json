@@ -249,6 +249,10 @@
       "name": "Fantôme dans la Machine",
       "description": "Exécuter ta première commande terminal via Hermes"
     },
+    "ghosted": {
+      "name": "Ignoré",
+      "description": "Laisser une demande d'approbation sans réponse"
+    },
     "hook_master": {
       "name": "Maître des Hooks",
       "description": "Créer un plugin utilisant 3+ types de hooks différents"
@@ -325,6 +329,10 @@
       "name": "Maître Mensuel",
       "description": "Utiliser Hermes 30 jours d'affilée"
     },
+    "most_wanted": {
+      "name": "Le plus recherché",
+      "description": "Être invité à vérifier des commandes dans 25 catégories de danger"
+    },
     "multi_env": {
       "name": "Multi-Environnement",
       "description": "Exécutez des commandes terminales dans 2 environnements d'exécution différents"
@@ -372,6 +380,10 @@
     "persistent": {
       "name": "Persévérant",
       "description": "Envoyer des messages dans 3 sessions différentes"
+    },
+    "person_of_interest": {
+      "name": "Personne d'intérêt",
+      "description": "Être invité à vérifier des commandes dans 15 catégories de danger"
     },
     "plugin_developer": {
       "name": "Développeur de Plugins",
@@ -460,6 +472,10 @@
     "show_and_tell": {
       "name": "Montre et Raconte",
       "description": "Envoyez une image ou une pièce jointe à Hermes"
+    },
+    "silent_treatment": {
+      "name": "Traitement silencieux",
+      "description": "Laisser 5 demandes d'approbation sans réponse"
     },
     "skill_apprentice": {
       "name": "Apprenti Compétence",
@@ -597,6 +613,10 @@
       "name": "Conteur Visuel",
       "description": "Envoyez 25 images ou pièces jointes"
     },
+    "watchlisted": {
+      "name": "Sur la liste",
+      "description": "Être invité à vérifier des commandes dans 5 catégories de danger"
+    },
     "web_walker": {
       "name": "Arpenteur du Web",
       "description": "Effectuer une recherche web via Hermes"
@@ -715,6 +735,8 @@
     "stats_users_seen": "Utilisateurs distincts vus : {count}",
     "summary_hint": "Utilisez `/achievements <groupe>` pour les listes complètes — ex. `/achievements tools_skills`",
     "usage_lang": "Utilisation : `/achievements lang <code>` — définir la langue (en/es/fr/pt)",
-    "stats_providers": "Fournisseurs:              {providers}{more}"
+    "stats_providers": "Fournisseurs:              {providers}{more}",
+    "stats_exposed_patterns": "Catégories de risque examinées : {count}",
+    "stats_approvals_timed_out": "Approbations sans réponse : {count}"
   }
 }
