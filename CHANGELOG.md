@@ -1,5 +1,35 @@
 # Changelog
 
+## [2.21.1] — 2026-08-03
+
+### Security & privacy hardening (production-readiness audit)
+
+- **State file is now written owner-only (0600)** regardless of umask.
+  `state.json` holds personal data (platform user IDs, usage metadata); the
+  previous `open(path, "w")` honored umask (0644/0666 on shared boxes),
+  leaving it world-readable. The atomic temp+replace now creates the temp
+  with `os.open(..., 0o600)` so the final file is always owner-only.
+  Regression test: `test_state_file_written_owner_only`.
+- **Slash-command parsers no longer record paths as commands.** The
+  `pre_gateway_dispatch` text-fallback and the `post_llm_call` LLM-path
+  parser both accepted ANY `/`-prefixed token — a user message like
+  `/tmp/foo.log` or a markdown code span (`/tmp/x\``) was recorded as a
+  "slash command" in `slash_commands_used` (observed live: `tmp/userdata
+  _full5.log`). Both now validate against `_is_plausible_command()`
+  (alnum/hyphen/underscore, ≤32 chars) and skip path/URL/code-span tokens.
+  New tests: `test_fallback_path_token_is_not_a_command`,
+  `test_fallback_backtick_code_span_is_not_a_command`,
+  `test_llm_path_token_is_not_a_command`,
+  `test_real_commands_still_count_via_fallback`.
+- **README Privacy section** — documents exactly what is stored locally
+  (counters/metadata + platform user IDs), what is never stored
+  (message content, terminal output, tool results, args, credentials),
+  and that the only network egress is the Discord notification POST.
+
+### New in this release
+
+- **454 tests, 100% line + 100% branch** (5 new).
+
 ## [2.21.0] — 2026-08-02
 
 ### New achievement

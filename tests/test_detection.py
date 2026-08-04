@@ -1210,7 +1210,7 @@ class TestPreApiRequest(HookTestBase):
         self.assertEqual(self.stats()["local_requests"], 1)
 
     def test_local_first_private_ip_and_suffixes(self):
-        for url in ("http://192.168.1.10:8080/v1", "http://10.0.0.5:8000",
+        for url in ("http://192.168.55.10:8080/v1", "http://10.0.0.5:8000",
                     "http://172.16.0.2:9000", "http://ollama.local:11434",
                     "http://127.0.0.1:11434/v1"):
             self.mod._pre_api_request(
@@ -2575,6 +2575,48 @@ class TestGatewayCommands(HookTestBase):
         )
         self.assertEqual(len(self.stats()["slash_commands_used"]), 1)
 
+    def test_fallback_path_token_is_not_a_command(self):
+        # A user message like "/tmp/foo.log" (a file path, not a command)
+        # must NOT be recorded as a slash command. Regression: live state
+        # wound up with "tmp/userdata_full5.log" etc. from "/tmp/..." text.
+        ev = self._event("discord", "user-a", text="/tmp/userdata_full5.log")
+        delattr(type(ev), "get_command")  # force the text-fallback parser
+        self.mod._on_pre_gateway_dispatch(
+            event=ev, gateway=None, session_store=None,
+        )
+        self.assertEqual(len(self.stats().get("slash_commands_used", set())), 0)
+        self.assertFalse(self.unlocked("slash_commander"))
+
+    def test_fallback_backtick_code_span_is_not_a_command(self):
+        # Markdown code spans / quotes ("/tmp/x`") are not commands
+        ev = self._event("discord", "user-a", text="/tmp/x` oops")
+        delattr(type(ev), "get_command")  # force the text-fallback parser
+        self.mod._on_pre_gateway_dispatch(
+            event=ev, gateway=None, session_store=None,
+        )
+        self.assertEqual(len(self.stats().get("slash_commands_used", set())), 0)
+
+    def test_llm_path_token_is_not_a_command(self):
+        # post_llm_call's LLM-path parser must equally reject path tokens
+        # ("/tmp/x", "/r/aww") so they can't pollute slash_commands_used.
+        self.mod._post_llm_call(
+            user_message="see /tmp/out.log", conversation_history=[
+                {"role": "user", "content": "see /tmp/out.log"},
+            ],
+            model="m1", platform="discord",
+        )
+        self.assertEqual(len(self.stats().get("slash_commands_used", set())), 0)
+
+    def test_real_commands_still_count_via_fallback(self):
+        # A genuine command through the fallback parser must still count
+        ev = self._event("discord", "user-a", text="/reset")
+        delattr(type(ev), "get_command")
+        self.mod._on_pre_gateway_dispatch(
+            event=ev, gateway=None, session_store=None,
+        )
+        self.assertEqual(len(self.stats()["slash_commands_used"]), 1)
+        self.assertIn("reset", self.stats()["slash_commands_used"])
+
     def test_llm_and_gateway_paths_dedupe(self):
         # Same command via post_llm_call (/title with slash) and gateway
         # (title without) must count ONCE — canonical form strips the slash
@@ -3280,6 +3322,23 @@ class TestStatePersistence(HookTestBase):
         self.assertFalse(os.path.exists(self.mod._STATE_PATH + ".tmp"))
         with open(self.mod._STATE_PATH) as f:
             json.load(f)  # valid JSON, not a torn write
+
+    def test_state_file_written_owner_only(self):
+        # state.json holds personal data (platform user IDs, usage metadata).
+        # It must be created 0600 (owner-only) regardless of umask, so a
+        # fresh install on a shared box never leaves it world-readable.
+        self.tool_call("terminal", {}, session_id="sess-perms")
+        # A permissive umask that would normally yield 0644/0666 via open()
+        self.mod.os.umask(0o000)
+        try:
+            self.mod._save_state(force=True)
+            mode = os.stat(self.mod._STATE_PATH).st_mode & 0o777
+            self.assertEqual(mode, 0o600,
+                             f"state.json perms 0o{mode:o}, want 0600")
+            # No world read/other bits under any umask
+            self.assertEqual(mode & 0o077, 0)
+        finally:
+            self.mod.os.umask(0o022)
 
     def test_crash_mid_write_preserves_previous_state(self):
         # A failure while writing must leave the PREVIOUS complete state

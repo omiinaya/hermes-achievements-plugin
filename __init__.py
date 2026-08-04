@@ -267,7 +267,16 @@ def _save_state(force=False):
             # between the two left a torn file that only the backup could fix).
             tmp_path = _STATE_PATH + ".tmp"
             try:
-                with open(tmp_path, "w") as f:
+                # State contains personal data (platform user IDs, usage
+                # metadata) — create the file owner-only (0600) regardless of
+                # umask, so a fresh install on a multi-user box never leaves
+                # state.json world-readable (default open() honors umask →
+                # 0644/0666). os.replace preserves these perms atomically.
+                fd = os.open(
+                    tmp_path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600
+                )
+                # os.fdopen takes ownership of fd — closed by the with-block.
+                with os.fdopen(fd, "w") as f:
                     f.write(payload)
                     f.flush()
                     os.fsync(f.fileno())
@@ -2357,8 +2366,13 @@ def _post_llm_call(**kwargs):
                     # Canonical form: command name WITHOUT leading "/"
                     # (matches get_command() on pre_gateway_dispatch, so the
                     # same command typed both ways dedupes in one set).
+                    # Only plausible command names count — a "/" token that
+                    # is actually a path or URL ("/tmp/foo.log",
+                    # "/r/aww") must not be recorded as a command.
                     if token.startswith("/") and len(token) > 1:
-                        slash_cmds_this_turn.add(token[1:].lower())
+                        candidate = token[1:].lower()
+                        if _is_plausible_command(candidate):
+                            slash_cmds_this_turn.add(candidate)
             break  # turn boundary — only the current user message
 
     # Track slash commands (cumulative)
@@ -2986,6 +3000,25 @@ def _on_session_finalize(**kwargs):
 # ── Hook: pre_gateway_dispatch ─────────────────────────────────────────
 # Fires once per incoming user-originated message (after the internal-event
 # guard, before auth/dispatch). The full MessageEvent is available; its
+
+# Slash-command names are short, word-like tokens (alnum, hyphen, underscore,
+# max ~32 chars). Anything with a path separator, dot, backtick, or longer is
+# a file path / code span / URL fragment — NOT a command. Guards the
+# text-fallback parser (and the LLM-path parser in _post_llm_call) so user
+# messages like "/tmp/foo.log" can never be recorded as "commands".
+_COMMAND_NAME_RE = re.compile(r"^[a-z0-9][a-z0-9_-]{0,31}$")
+
+
+def _is_plausible_command(token):
+    """True when token looks like a real slash-command name (not a path)."""
+    return bool(
+        isinstance(token, str)
+        and token
+        and len(token) <= 32
+        and _COMMAND_NAME_RE.match(token)
+    )
+
+
 # `source` carries platform + user identity. This is the ONLY hook that
 # sees messages from OTHER users — everything else fires for agent turns.
 # Drives Social Butterfly / Party Host (distinct senders seen).
@@ -3074,10 +3107,17 @@ def _on_pre_gateway_dispatch(**kwargs):
             except Exception:  # noqa: BLE001 — a broken adapter method must not crash the hook
                 cmd = None
         if not cmd:
-            # Fallback: parse the raw text for a leading "/" token
+            # Fallback: parse the raw text for a leading "/" token. Only
+            # accept tokens that look like REAL command names — a user
+            # message starting with "/" is often a path ("/tmp/foo.log") or
+            # a markdown code span, NOT a slash command. Accepting those
+            # would pollute slash_commands_used with file paths (observed:
+            # "tmp/userdata_full5.log" was recorded from "/tmp/...log").
             text = getattr(event, "text", "") or ""
             if text.startswith("/"):
-                cmd = text.split(maxsplit=1)[0][1:].lower()
+                candidate = text.split(maxsplit=1)[0][1:].lower()
+                if _is_plausible_command(candidate):
+                    cmd = candidate
         if cmd:
             slash_used = stats.setdefault("slash_commands_used", set())
             slash_used.add(cmd)

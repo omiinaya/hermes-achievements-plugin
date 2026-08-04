@@ -135,6 +135,37 @@ views, `???` in their detail view, and are excluded from `/achievements next`
 unlock them, Steam-style. Currently secret: `Fresh Start`, `Cautious`,
 `Quick Draw`, `Orchestrator`, `Trust Fall`, `Resilient`.
 
+### Privacy 🔒
+
+The plugin tracks how you use Hermes and persists progress locally to
+`~/.hermes/achievements/state.json` (owner-only permissions, gitignored).
+What it stores:
+
+- **Counters and metadata only** — tool names, model/platform/provider
+  names, slash-command names, byte sizes of large outputs, word counts,
+  token totals, session/turn counts, streaks, timestamps.
+- **Platform user identifiers** — for the Social Butterfly / Party Host
+  achievements, the plugin records the stable IDs of users who message
+  your gateway (e.g. `discord:123456789012345678`). This is the only
+  personally-identifiable data retained, and it never leaves your machine.
+
+What it **never** stores or transmits:
+
+- **No message content** — user prompts and assistant responses are only
+  measured for length, never saved.
+- **No terminal output or tool results** — content is discarded; only byte
+  sizes are kept.
+- **No tool arguments or file contents** — argument-based achievements only
+  check for the presence of specific fields/patterns.
+- **No credentials** — the Discord bot token is read from `~/.hermes/.env`
+  into memory for the notification `Authorization` header only, and is
+  never logged or written anywhere.
+
+The only network egress is a POST to the Discord API when an achievement
+unlocks, carrying the achievement name/description/rarity — no usage data,
+no message content, no identifiers. There is no telemetry, analytics, or
+third-party data sharing.
+
 ## Achievement Groups
 
 ### 🚀 Getting Started (16)
