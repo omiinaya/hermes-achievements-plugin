@@ -39,6 +39,11 @@ import threading
 import time
 import urllib.error
 import urllib.request
+try:
+    import fcntl as _fcntl
+except ImportError:  # non-POSIX (Windows) — cross-process guard degrades gracefully
+    _fcntl = None
+from contextlib import contextmanager
 from datetime import UTC, date, datetime
 
 # ── Paths ────────────────────────────────────────────────────────────────
@@ -223,12 +228,205 @@ _state = None  # loaded lazily
 _last_save_ts = 0.0  # debounce: don't write state.json more than once per 2s
 
 
+@contextmanager
+def _cross_process_lock():
+    """Hold an exclusive advisory lock (fcntl.flock) on the state lockfile.
+
+    The plugin runs in EVERY Hermes process — the main gateway, cron jobs,
+    and spacetimedb-kanban worker agents (each a separate ``hermes chat
+    -Q -q`` process, plugin enabled globally) — every one with its own
+    in-memory ``_state`` copy but all sharing the same state.json. A
+    read-modify-write cycle must be serialized ACROSS processes or one
+    process's save silently reverts another's unlocks/counters (the
+    observed triple "Manual Override" notifications 4ms apart and the
+    reset cumulative stats on Aug 5 2026).
+
+    Degrades to a no-op on platforms without fcntl (Windows) or exotic
+    filesystems, so a hook can never crash because a lock is unavailable.
+    """
+    if _fcntl is None:
+        yield
+        return
+    fd = None
+    try:
+        os.makedirs(os.path.dirname(_STATE_PATH), exist_ok=True)
+        fd = os.open(_STATE_PATH + ".lock", os.O_CREAT | os.O_RDWR, 0o600)
+        _fcntl.flock(fd, _fcntl.LOCK_EX)
+        yield
+    except OSError:
+        # Lock file/flock unavailable — proceed unlocked rather than crash.
+        yield
+    finally:
+        if fd is not None:
+            try:
+                _fcntl.flock(fd, _fcntl.LOCK_UN)
+            except OSError:
+                pass
+            os.close(fd)
+
+
+def _read_state_raw():
+    """Read the on-disk state WITHOUT touching the in-memory cache.
+
+    Returns a parsed dict, or None when missing/corrupt (with .bak
+    fallback). Used by the cross-process merge so a save incorporates
+    other processes' unlocks/counters instead of clobbering them.
+    """
+    if os.path.exists(_STATE_PATH):
+        try:
+            with open(_STATE_PATH) as f:
+                return json.load(f)
+        except (json.JSONDecodeError, OSError):
+            pass
+    if os.path.exists(_STATE_BAK_PATH):
+        try:
+            with open(_STATE_BAK_PATH) as f:
+                return json.load(f)
+        except (json.JSONDecodeError, OSError):
+            return None
+    return None
+
+
+def _write_state_atomic(state):
+    """Atomic owner-only write of the whole state to _STATE_PATH.
+
+    Rolling .bak (always one save behind by design) + temp-file + fsync +
+    os.replace, so a crash or concurrent reader never observes a truncated
+    state.json. Creates the file 0600 regardless of umask — state contains
+    personal data (platform user IDs, usage metadata).
+    """
+    def _convert(v):
+        if isinstance(v, set):
+            return sorted(v)
+        return str(v)  # datetimes / anything else non-serializable
+
+    os.makedirs(os.path.dirname(_STATE_PATH), exist_ok=True)
+    state_copy = dict(state)
+    state_copy["last_updated"] = datetime.now(UTC).isoformat()
+    payload = json.dumps(state_copy, default=_convert, indent=2)
+    try:
+        if os.path.exists(_STATE_PATH):
+            shutil.copy2(_STATE_PATH, _STATE_BAK_PATH)
+    except OSError:
+        pass
+    tmp_path = _STATE_PATH + ".tmp"
+    try:
+        # State contains personal data (platform user IDs, usage metadata) —
+        # create the file owner-only (0600) regardless of umask, so a fresh
+        # install on a multi-user box never leaves state.json world-readable
+        # (default open() honors umask → 0644/0666). os.replace preserves
+        # these perms atomically.
+        fd = os.open(tmp_path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+        with os.fdopen(fd, "w") as f:  # os.fdopen owns fd; closed by with
+            f.write(payload)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp_path, _STATE_PATH)
+    except Exception:
+        # Failed mid-write: never leave a half-written temp behind
+        try:
+            os.remove(tmp_path)
+        except OSError:
+            pass
+        raise
+
+
+def _merge_disk_into_memory(disk, state):
+    """Fold the freshest on-disk state into the in-memory state IN PLACE.
+
+    The in-memory ``_state`` dict object is kept identical — never
+    replaced. Hooks hold live references to ``_state`` and its nested
+    ``stats`` dict across saves (a hook increments a counter, then an
+    unlock inside the SAME hook force-saves); replacing the object would
+    orphan those references and silently drop every later mutation.
+    Disk values are folded in with these rules:
+      - counters: keep the max (monotonic)
+      - sets: union
+      - achievements: any unlocked record wins, else higher progress
+      - newly_unlocked: dedup union, newest 20 kept
+      - active_session: untouched (another process's ephemeral session)
+      - locale: adopt a non-default disk locale only when memory is default
+      - keys memory lacks: adopt from disk
+    Returns ``state`` (same object) for convenience.
+    """
+    # achievements: fold unlocked / higher-progress records in place
+    ach = state.setdefault("achievements", {})
+    for aid, drec in (disk.get("achievements") or {}).items():
+        if aid not in ach:
+            ach[aid] = dict(drec)
+            continue
+        mrec = ach[aid]
+        if drec.get("unlocked") and not mrec.get("unlocked"):
+            ach[aid] = dict(drec)  # unlocked record wins
+        elif drec.get("unlocked") and mrec.get("unlocked"):
+            da, ma = drec.get("unlocked_at"), mrec.get("unlocked_at")
+            if da and ma and da < ma:
+                mrec["unlocked_at"] = da  # keep earliest true unlock time
+        else:
+            dp = (drec.get("progress") or {}).get("current") or 0
+            mp = (mrec.get("progress") or {}).get("current") or 0
+            if dp > mp:
+                mrec["progress"] = drec["progress"]
+    # newly_unlocked: dedup union, newest 20 kept
+    mnew = state.setdefault("newly_unlocked", [])
+    for x in (disk.get("newly_unlocked") or []):
+        if x not in mnew:
+            mnew.append(x)
+    if len(mnew) > 20:
+        state["newly_unlocked"] = mnew[-20:]
+    # stats
+    dstats = disk.get("stats") or {}
+    mstats = state.setdefault("stats", {})
+    for key, dv in dstats.items():
+        if key == "active_session":
+            continue  # ephemeral live per-session state — never another's
+        if key not in mstats:
+            mstats[key] = dv
+            continue
+        mv = mstats[key]
+        if isinstance(mv, set) or isinstance(dv, set):
+            if isinstance(mv, set):
+                mv |= set(dv)
+            else:
+                mstats[key] = set(mv) | set(dv)
+        elif isinstance(mv, dict) and isinstance(dv, dict):
+            for k2, d2 in dv.items():
+                if k2 not in mv:
+                    mv[k2] = d2
+                elif (isinstance(mv[k2], (int, float))
+                      and isinstance(d2, (int, float))
+                      and not isinstance(mv[k2], bool)):
+                    mv[k2] = max(mv[k2], d2)
+        elif (isinstance(mv, (int, float)) and isinstance(dv, (int, float))
+              and not isinstance(mv, bool) and not isinstance(dv, bool)):
+            mstats[key] = max(mv, dv)
+        # Non-monotonic scalars (last_session_id, last_active_date, corrupt
+        # values, ...): memory wins — the live process is the authoritative
+        # writer for its own markers, and disk may hold an OLDER snapshot.
+        # Overwriting memory would revert in-progress state (e.g. the
+        # session-idempotency guard re-counting a duplicate session).
+    # locale: only adopt a non-default disk locale if memory is still default
+    if (disk.get("locale") or "en") != "en" and (state.get("locale") or "en") == "en":
+        state["locale"] = disk["locale"]
+    # other top-level keys memory lacks
+    for key, dv in disk.items():
+        if key in ("achievements", "stats", "newly_unlocked", "locale"):
+            continue
+        if key not in state:
+            state[key] = dv
+    return state
+
+
 def _save_state(force=False):
-    """Persist state to disk.
+    """Persist state to disk, merging with any concurrent-process changes.
 
     Debounced: with post_tool_call firing on every tool execution, writing
     the JSON file each time would be wasteful. Saves at most once per 2s
-    unless force=True (used by post_llm_call / on_session_end).
+    unless force=True (used by post_llm_call / on_session_end / _unlock).
+
+    Under the cross-process flock the freshest on-disk state is re-read and
+    merged with this process's in-memory state (max counters, union sets,
+    unlocked-wins), so a save can never revert another process's progress.
     """
     global _last_save_ts
     if _state is None:
@@ -238,56 +436,19 @@ def _save_state(force=False):
         if not force and _last_save_ts and (now - _last_save_ts) < 2.0:
             return
         try:
-            os.makedirs(os.path.dirname(_STATE_PATH), exist_ok=True)
-
-            def _convert(v):
-                if isinstance(v, set):
-                    return sorted(v)
-                # datetimes / anything else non-serializable
-                return str(v)
-
-            # Single-pass serialization: the old code did dumps→loads→dumps
-            # (a full JSON round-trip) just to turn sets into sorted lists —
-            # post_llm_call force-saves once per turn, so that was 2 wasted
-            # serializations of the whole state on every turn.
-            state_copy = dict(_state)
-            state_copy["last_updated"] = datetime.now(UTC).isoformat()
-            payload = json.dumps(state_copy, default=_convert, indent=2)
-            # Keep a rolling backup so a crash mid-write never loses progress.
-            # (Always one save behind by design; atomic temp+replace keeps the
-            # main file intact on failure, the backup covers disk corruption.)
-            try:
-                if os.path.exists(_STATE_PATH):
-                    shutil.copy2(_STATE_PATH, _STATE_BAK_PATH)
-            except OSError:
-                pass
-            # Atomic write: temp file + os.replace so a crash or concurrent
-            # reader never observes a truncated/partial state.json (the old
-            # open(path, "w") truncated in place first, then wrote — a kill
-            # between the two left a torn file that only the backup could fix).
-            tmp_path = _STATE_PATH + ".tmp"
-            try:
-                # State contains personal data (platform user IDs, usage
-                # metadata) — create the file owner-only (0600) regardless of
-                # umask, so a fresh install on a multi-user box never leaves
-                # state.json world-readable (default open() honors umask →
-                # 0644/0666). os.replace preserves these perms atomically.
-                fd = os.open(
-                    tmp_path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600
-                )
-                # os.fdopen takes ownership of fd — closed by the with-block.
-                with os.fdopen(fd, "w") as f:
-                    f.write(payload)
-                    f.flush()
-                    os.fsync(f.fileno())
-                os.replace(tmp_path, _STATE_PATH)
-            except Exception:
-                # Failed mid-write: never leave a half-written temp behind
-                try:
-                    os.remove(tmp_path)
-                except OSError:
-                    pass
-                raise
+            with _cross_process_lock():
+                disk = _read_state_raw()
+                if disk is not None:
+                    # Fold disk values INTO the live in-memory object — never
+                    # replace it: hooks hold references to _state/stats across
+                    # a save, and replacing would orphan them (lost counters).
+                    _merge_disk_into_memory(disk, _state)
+                    # Adopted disk may carry list-encoded sets and stale or
+                    # missing achievement records — normalize + prune/backfill
+                    # so the merged view matches what a fresh load would yield.
+                    _normalize_state()
+                    _init_achievements()
+                _write_state_atomic(_state)
             _last_save_ts = now
         except Exception as exc:  # noqa: BLE001 — state save must never crash hooks
             import logging
@@ -1665,21 +1826,42 @@ TERMINAL_PATTERNS = {
 # ── Achievement detection helpers ───────────────────────────────────────
 
 def _unlock(ach_id, now=None):
-    """Unlock an achievement if not already. Returns True if newly unlocked."""
+    """Unlock an achievement if not already. Returns True if newly unlocked.
+
+    Cross-process safe: under the flock the freshest on-disk state is
+    re-checked, so when several Hermes processes (gateway + cron jobs +
+    kanban worker agents) hit the same unlock condition simultaneously,
+    only the first actually unlocks — the rest adopt the on-disk record
+    and stay silent. This fixes the duplicate notifications for the same
+    achievement (e.g. three "Manual Override" embeds 4ms apart on
+    2026-08-05, one per process, all racing on the shared state.json).
+    """
     if now is None:
         now = datetime.now(UTC).isoformat()
     state = _load_state()
-    a = state["achievements"].get(ach_id, {})
-    if a.get("unlocked"):
-        return False
-    state["achievements"][ach_id] = {"unlocked": True, "unlocked_at": now}
-    state.setdefault("newly_unlocked", [])
-    if ach_id not in state["newly_unlocked"]:
-        state["newly_unlocked"].append(ach_id)
-        # Keep the list bounded (most recent 20 only)
-        state["newly_unlocked"] = state["newly_unlocked"][-20:]
-    # Fire immediate Discord notification
     ach_def = ACHIEVEMENT_DEFS.get(ach_id)
+    with _cross_process_lock():
+        disk = _read_state_raw()
+        if disk is not None:
+            disk_rec = (disk.get("achievements") or {}).get(ach_id) or {}
+            if disk_rec.get("unlocked"):
+                # Another process already unlocked it — adopt the record so
+                # this process's in-memory view agrees; do NOT re-notify.
+                state["achievements"][ach_id] = disk_rec
+                return False
+        a = state["achievements"].get(ach_id, {})
+        if a.get("unlocked"):
+            return False
+        state["achievements"][ach_id] = {"unlocked": True, "unlocked_at": now}
+        state.setdefault("newly_unlocked", [])
+        if ach_id not in state["newly_unlocked"]:
+            state["newly_unlocked"].append(ach_id)
+            # Keep the list bounded (most recent 20 only)
+            state["newly_unlocked"] = state["newly_unlocked"][-20:]
+    # Save + notify OUTSIDE the flock: _save_state re-acquires it for the
+    # merge-write, and flock is per-open-file-description so a nested
+    # acquisition from the same process would self-deadlock.
+    _save_state(force=True)
     if ach_def:
         _send_discord_notification(ach_def)
     return True

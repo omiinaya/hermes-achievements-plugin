@@ -1,6 +1,43 @@
 # Changelog
 
-## [2.21.1] — 2026-08-03
+## [2.21.2] — 2026-08-05
+
+### Fixed: concurrent-process state clobbering (duplicate unlocks + reset stats)
+
+The plugin runs in **every** Hermes process (the main gateway, cron jobs,
+and spacetimedb-kanban worker agents — each a separate `hermes chat -Q -q`
+process, with the plugin enabled globally), every one holding its own
+in-memory copy of `state.json` but all writing the same file. A process
+could overwrite the whole file with its own (staler) view, and several
+processes could unlock the SAME achievement independently because each only
+checked its own in-memory copy. Observed live on 2026-08-05:
+
+- **Three "Manual Override" notification embeds fired 4ms apart** — three
+  kanban workers racing on the same interrupted tool call each unlocked it
+  independently.
+- **Cumulative stats reset** — `total_tool_calls` showed 7 while `read_file`
+  alone had been used 3365 times.
+
+Fixes:
+
+- **Cross-process file lock** (`fcntl.flock` on `state.json.lock`): every
+  read-modify-write cycle (save + unlock dedup) is now serialized across
+  processes, so concurrent saves can no longer tear each other.
+- **Merge-on-save**: each save re-reads the freshest on-disk state and folds
+  it INTO the live in-memory object (never replacing it — hooks hold
+  references across saves). Counters take the max, sets union, and an
+  unlocked achievement in disk is never reverted.
+- **Unlock dedup**: `_unlock` re-checks the on-disk state under the lock
+  before firing, so when N processes hit the same condition only the first
+  unlocks and notifies; the rest adopt the record and stay silent.
+- Non-monotonic scalars (`last_session_id`, `last_active_date`, ...) stay
+  memory-authoritative (the live process is its own writer), so in-progress
+  session logic is never reverted to a disk snapshot.
+
+Regression tests (`TestCrossProcessStateSafety`, 5 tests): stale process
+doesn't re-unlock/re-notify; a save never reverts another process's
+progress; distinct work unions in; locale choices survive worker saves; and
+a real two-process flock race results in exactly one unlock.
 
 ### Security & privacy hardening (production-readiness audit)
 

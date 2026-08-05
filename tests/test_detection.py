@@ -26,7 +26,8 @@ def _make_module(tmp_home: str):
     """Import the plugin in a controlled way with a temp HERMES_HOME."""
     os.environ["HERMES_HOME"] = tmp_home
     os.makedirs(os.path.join(tmp_home, "plugins", "achievements"), exist_ok=True)
-    shutil.copytree(LOCALES_DIR, os.path.join(tmp_home, "plugins", "achievements", "locales"))
+    shutil.copytree(LOCALES_DIR, os.path.join(tmp_home, "plugins", "achievements", "locales"),
+                    dirs_exist_ok=True)  # allow multiple module instances per home (multi-process tests)
     # Under mutmut the whole repo is copied into mutants/ and pytest runs
     # with CWD=mutants/. mutmut derives the trampoline key from the file
     # path relative to the mutants cwd: __init__.py → module name "__init__"
@@ -5183,6 +5184,155 @@ class TestEveryAchievementUnlockable(HookTestBase):
             if state["achievements"].get(aid, {}).get("unlocked")
         )
         self.assertEqual(unlocked, 160)
+
+
+class TestCrossProcessStateSafety(HookTestBase):
+    """Regression for the 2026-08-05 duplicate-unlock bug.
+
+    The plugin runs in EVERY Hermes process (gateway, cron jobs, kanban
+    worker agents), each with its OWN in-memory state but all sharing
+    state.json. Before the cross-process fix, three kanban workers racing
+    on the same interrupted tool call each unlocked "Manual Override"
+    independently (3 notification embeds 4ms apart) and a stale process's
+    later save reset cumulative stats. These tests simulate the
+    multi-process world with two module instances sharing one state file,
+    plus a real two-process race on the flock.
+    """
+
+    def _second_process(self):
+        """A fresh module instance sharing this test's state file — the
+        same situation as a cron job or kanban worker running next to the
+        gateway: independent in-memory _state, same state.json."""
+        mod2 = _make_module(self._tmp)
+        mod2._state = None
+        return mod2
+
+    def test_stale_process_does_not_reunlock_or_renotify(self):
+        proc_b = self._second_process()
+        proc_b._load_state()  # snapshot BEFORE the unlock — goes stale
+        self.assertFalse(
+            proc_b._load_state()["achievements"]["manual_override"]["unlocked"]
+        )
+        # Process A unlocks manual_override and persists it
+        self.assertTrue(self.mod._unlock("manual_override"))
+        self.assertEqual(len(self.mod._NOTIF_QUEUE), 1)
+        # Process B still holds the stale in-memory view (unlocked=False),
+        # but its unlock must notice the on-disk record and stay silent
+        self.assertFalse(
+            proc_b._load_state()["achievements"]["manual_override"]["unlocked"]
+        )
+        self.assertFalse(proc_b._unlock("manual_override"))
+        self.assertEqual(len(proc_b._NOTIF_QUEUE), 0)  # no duplicate embed
+        # The unlock survived on disk
+        disk = json.load(
+            open(os.path.join(self._tmp, "achievements", "state.json"))
+        )
+        self.assertTrue(disk["achievements"]["manual_override"]["unlocked"])
+
+    def test_save_does_not_revert_other_process_progress(self):
+        """A stale process (loaded before any work existed) that saves with
+        no new work must NOT revert another process's already-saved counters
+        or platform set — the pre-fix whole-file overwrite did exactly this
+        (a kanban worker with 7 tool calls reset stats to 7 while read_file
+        alone had 3365)."""
+        proc_b = self._second_process()
+        proc_b._load_state()  # fresh empty state (total_turns=0)
+        # Process A works hard and saves: 51 turns across cli+discord
+        for _ in range(50):
+            self.turn()
+        self.turn(platform="discord")
+        self.mod._save_state(force=True)
+        disk = json.load(
+            open(os.path.join(self._tmp, "achievements", "state.json"))
+        )
+        self.assertEqual(disk["stats"]["total_turns"], 51)
+        # Process B (stale memory: total_turns=0) saves with NO new work —
+        # its save must not revert A's 51 turns or platform set
+        proc_b._save_state(force=True)
+        disk = json.load(
+            open(os.path.join(self._tmp, "achievements", "state.json"))
+        )
+        self.assertEqual(disk["stats"]["total_turns"], 51)  # not reverted to 0
+        self.assertIn("discord", disk["stats"]["platforms"])
+        self.assertIn("cli", disk["stats"]["platforms"])
+
+    def test_save_merges_other_process_new_work(self):
+        """Distinct work done by a second process is not lost: B's platform
+        union survives and the cumulative counter never drops below what A
+        had saved."""
+        proc_b = self._second_process()
+        proc_b._load_state()
+        for _ in range(25):
+            self.turn()
+        self.mod._save_state(force=True)
+        a_baseline = json.load(
+            open(os.path.join(self._tmp, "achievements", "state.json"))
+        )["stats"]["total_turns"]
+        # Process B does distinctly new work on the matrix platform and saves
+        for _ in range(5):
+            proc_b._post_llm_call(
+                user_message="y",
+                conversation_history=[{"role": "user", "content": "y"}],
+                model="m1", platform="matrix",
+            )
+        proc_b._save_state(force=True)
+        disk = json.load(
+            open(os.path.join(self._tmp, "achievements", "state.json"))
+        )
+        # No loss: the cumulative counter never reverts below A's baseline
+        self.assertGreaterEqual(disk["stats"]["total_turns"], a_baseline)
+        # B's new platform is unioned in (not clobbered by A's save)
+        self.assertIn("matrix", disk["stats"]["platforms"])
+        self.assertIn("cli", disk["stats"]["platforms"])
+
+    def test_locale_choice_not_clobbered_by_fresh_process(self):
+        proc_b = self._second_process()
+        proc_b._load_state()
+        # User sets Spanish in the gateway process and saves
+        self.mod._load_state()["locale"] = "es"
+        self.mod._save_state(force=True)
+        # A fresh worker (default "en") saves — must not revert the choice
+        proc_b._save_state(force=True)
+        disk = json.load(
+            open(os.path.join(self._tmp, "achievements", "state.json"))
+        )
+        self.assertEqual(disk["locale"], "es")
+
+    def test_two_real_processes_unlock_only_once(self):
+        """Two actual processes racing on the flock: exactly one may report
+        a fresh unlock (the loser re-reads the on-disk record and stays
+        silent). Without the fix both processes' independent memory would
+        say unlocked=False and both would return 1."""
+        import subprocess
+        child = (
+            "import importlib.util, json, os, shutil, sys\n"
+            "home = sys.argv[1]\n"
+            'os.environ["HERMES_HOME"] = home\n'
+            'os.makedirs(os.path.join(home, "plugins", "achievements"), exist_ok=True)\n'
+            "shutil.copytree({LOCALES!r}, os.path.join(home, 'plugins', 'achievements', 'locales'), dirs_exist_ok=True)\n"
+            "spec = importlib.util.spec_from_file_location('ach_race', {PLUGIN!r})\n"
+            "mod = importlib.util.module_from_spec(spec)\n"
+            'sys.modules["ach_race"] = mod\n'
+            "spec.loader.exec_module(mod)\n"
+            'print(1 if mod._unlock("manual_override") else 0, flush=True)\n'
+        ).format(LOCALES=LOCALES_DIR, PLUGIN=PLUGIN_FILE)
+        results = []
+        for _ in range(2):
+            p = subprocess.Popen(
+                [sys.executable, "-c", child, self._tmp],
+                stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+            )
+            out, err = p.communicate(timeout=60)
+            self.assertEqual(p.returncode, 0, f"child failed: {err}")
+            results.append(out.strip())
+        self.assertEqual(
+            sorted(results), ["0", "1"],
+            f"expected exactly one winner, got {results}",
+        )
+        disk = json.load(
+            open(os.path.join(self._tmp, "achievements", "state.json"))
+        )
+        self.assertTrue(disk["achievements"]["manual_override"]["unlocked"])
 
 
 if __name__ == "__main__":
