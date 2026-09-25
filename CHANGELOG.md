@@ -1,5 +1,16 @@
 # Changelog
 
+## [Unreleased]
+
+### Added: cross-platform unlock notifications
+
+Achievement unlocks previously only went to Discord (via `DISCORD_BOT_TOKEN`),
+so deployments on Matrix / Telegram / SimpleX / WhatsApp never saw them. Unlocks
+now also deliver as a plain-text message through `hermes send` to every
+configured home channel (restrict with `ACHIEVEMENTS_NOTIFY_PLATFORMS`), on a
+daemon thread so delivery never blocks the hook pipeline. Discord embeds are
+unchanged when Discord is configured.
+
 ## [2.22.0] — 2026-09-24
 
 ### Added: 6 engineering/devops achievements (160 → 166)

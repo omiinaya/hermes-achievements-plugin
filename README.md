@@ -38,11 +38,17 @@ needing a `~/.hermes/plugins/achievements` checkout.
 
 - Hermes Agent 1.0+
 - Python 3.11+
-- Discord bot token in `~/.hermes/.env` (for notification delivery):
+- **Discord** (optional): a bot token in `~/.hermes/.env` for Discord embeds:
   ```
   DISCORD_BOT_TOKEN=your_token_here
   DISCORD_HOME_CHANNEL=your_home_channel_id
   ```
+- **Non-Discord** (Matrix / Telegram / SimpleX / WhatsApp): no extra config —
+  unlock notifications are delivered through `hermes send` to whatever
+  home channels are configured for those platforms.
+- Optional: `ACHIEVEMENTS_NOTIFY_PLATFORMS=matrix telegram …` in `~/.hermes/.env`
+  to limit cross-platform notifications to a specific set of platforms
+  (default: every configured home channel).
 
 No external Python dependencies — the plugin uses only the standard library.
 
@@ -61,7 +67,9 @@ When an achievement unlocks, a notification is posted to:
 - Your Hermes **home channel** (configured via `DISCORD_HOME_CHANNEL`)
 - The **channel where you're chatting** (if different from home)
 
-Notifications are rarity-colored Discord embeds (gray → gold) posted asynchronously via a debounced timer — rapid unlock bursts are batched into a single message (capped at 10 embeds per Discord message), and they never block the agent loop.
+For Discord setups this is a rarity-colored embed (gray → gold) posted asynchronously via a debounced timer — rapid unlock bursts are batched into a single message (capped at 10 embeds per Discord message), never blocking the agent loop.
+
+On non-Discord platforms (Matrix, Telegram, SimpleX, WhatsApp) the unlock is delivered as a plain-text message through `hermes send` to each configured home channel, on a daemon thread so delivery never blocks the hook pipeline. Set `ACHIEVEMENTS_NOTIFY_PLATFORMS` to restrict which platforms are notified.
 
 ### Example output
 

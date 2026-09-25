@@ -31,6 +31,7 @@ moment they unlock — not appended to the next assistant response.
 
 import functools
 import json
+import logging
 import os
 import re
 import shutil
@@ -217,6 +218,99 @@ def _send_discord_notification_batch(batch):
 def _send_discord_notification_sync(ach_def):
     """Synchronous single-achievement delivery (used by tests and helpers)."""
     _send_discord_notification_batch([{"ach": ach_def, "origin": _session_chat_id()}])
+
+
+# ── Cross-platform delivery (Matrix / Telegram / SimpleX / WhatsApp) ────
+#
+# The Discord embed path above is the ONLY delivery mechanism the plugin
+# originally shipped with. That leaves every non-Discord deployment
+# (Matrix, Telegram, SimpleX, WhatsApp) with unlocks tracked but NEVER
+# notified. The gateway's own `hermes send` reuses the running install's
+# platform credentials (no bot tokens held by this plugin), so it delivers
+# to whatever home channels are configured. Done best-effort: a send
+# failure is logged, never raised (a notification must never crash a hook).
+
+_CROSS_PLATFORM_RULE = re.compile(r"[A-Za-z][A-Za-z0-9_]+")
+
+# Enable cross-platform notifications by default; disable in tests via
+# ACHIEVEMENTS_NOTIFY_CROSS_PLATFORM=0 so the grind/hook tests never spawn
+# real `hermes send` subprocesses (slow, network I/O, non-hermetic).
+_NOTIFY_CROSS_PLATFORM = os.environ.get("ACHIEVEMENTS_NOTIFY_CROSS_PLATFORM", "1") != "0"
+
+def _hermes_send(text):
+    """Deliver via `hermes send` to the configured platform home channels.
+
+    Targets are read from ACHIEVEMENTS_NOTIFY_PLATFORMS (space/comma
+    separated, e.g. "matrix telegram simplex"), defaulting to every
+    platform that has a home channel configured in ~/.hermes/.env. Returns
+    True if at least one platform delivered.
+    """
+    import subprocess
+    home = "/root/.hermes/.env" if os.path.exists("/root/.hermes/.env") \
+        else os.path.join(_HERMES_HOME, ".env")
+    configured = set()
+    try:
+        with open(home) as f:
+            for line in f:
+                m = re.match(r"\s*(MATRIX|TELEGRAM|SIMPLEX|WHATSAPP)_\w+=.", line)
+                if m:
+                    configured.add(m.group(1).lower())
+    except OSError:
+        pass
+    wanted = _load_env_var("ACHIEVEMENTS_NOTIFY_PLATFORMS")
+    targets = [p.strip().lower() for p in re.split(r"[\s,]+", wanted) if p.strip()] \
+        if wanted else sorted(configured)
+    sent_any = False
+    for platform in targets:
+        if not _CROSS_PLATFORM_RULE.fullmatch(platform or ""):
+            continue
+        try:
+            p = subprocess.run(
+                ["hermes", "send", "--quiet", "--to", platform, text],
+                capture_output=True, text=True, timeout=30, check=False,
+            )
+            if p.returncode == 0:
+                sent_any = True
+            else:
+                logging.getLogger(__name__).warning(
+                    "achievement hermes send to %s failed (%s): %s",
+                    platform, p.returncode, (p.stderr or p.stdout)[:200],
+                )
+        except Exception as exc:  # noqa: BLE001 — never crash a hook
+            logging.getLogger(__name__).warning(
+                "achievement hermes send to %s error: %s", platform, exc,
+            )
+    return sent_any
+
+
+def _notify_cross_platform(ach_def, locale="en"):
+    """Build and deliver the plain-text unlock notification."""
+    emoji = RARITY_EMOJIS.get(ach_def.get("rarity", "common"), "⬜")
+    name = _t(f"achievement.{ach_def['id']}.name", locale)
+    desc = _t(f"achievement.{ach_def['id']}.description", locale)
+    group_key = ach_def["group"].lower().replace(" & ", "_").replace(" ", "_")
+    group = _t(f"group.{group_key}", locale)
+    rarity = _t(f"rarity.{ach_def['rarity']}", locale)
+    text = (f"{emoji} {ach_def['emoji']} **Achievement unlocked**: {name}\n"
+            f"{desc}\n`{rarity} · {group}`")
+    return _hermes_send(text)
+
+
+def _notify_cross_platform_async(ach_def):
+    """Deliver the cross-platform notification on a daemon thread.
+
+    ``hermes send`` spawns a subprocess and can take up to ~30s on a
+    slow platform, far too long to run synchronously inside the hook
+    pipeline. The daemon thread is best-effort: a failure is logged by
+    ``_hermes_send`` and never propagates.
+    """
+    if not _NOTIFY_CROSS_PLATFORM:
+        return
+    state = _load_state() or {}
+    locale = state.get("locale", "en")
+    t = threading.Thread(target=_notify_cross_platform, args=(ach_def, locale),
+                         daemon=True)
+    t.start()
 
 
 # ── State management (thread-safe, cached in memory) ────────────────────
@@ -1907,6 +2001,16 @@ def _unlock(ach_id, now=None):
     _save_state(force=True)
     if ach_def:
         _send_discord_notification(ach_def)
+        # Cross-platform delivery (Matrix/Telegram/SimpleX/WhatsApp): the
+        # Discord embed path above is no-op without a Discord token, which
+        # is the norm on non-Discord deployments. Fire `hermes send` in a
+        # daemon thread so a slow platform never stalls the hook pipeline.
+        try:
+            _notify_cross_platform_async(ach_def)
+        except Exception as exc:  # noqa: BLE001 — notification must never crash
+            logging.getLogger(__name__).warning(
+                "cross-platform achievement notification error: %s", exc,
+            )
     return True
 
 

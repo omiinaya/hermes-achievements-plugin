@@ -25,6 +25,9 @@ LOCALES_DIR = os.path.join(PLUGIN_DIR, "locales")
 def _make_module(tmp_home: str):
     """Import the plugin in a controlled way with a temp HERMES_HOME."""
     os.environ["HERMES_HOME"] = tmp_home
+    # Keep cross-platform `hermes send` notifications disabled in tests so
+    # the grind/hook suites never spawn real subprocesses.
+    os.environ["ACHIEVEMENTS_NOTIFY_CROSS_PLATFORM"] = "0"
     os.makedirs(os.path.join(tmp_home, "plugins", "achievements"), exist_ok=True)
     shutil.copytree(LOCALES_DIR, os.path.join(tmp_home, "plugins", "achievements", "locales"),
                     dirs_exist_ok=True)  # allow multiple module instances per home (multi-process tests)
@@ -2892,6 +2895,110 @@ class TestStatePersistence(HookTestBase):
         threads_before = threading.active_count()
         self.mod._send_discord_notification(ach_def)
         self.assertLessEqual(threading.active_count(), threads_before + 1)
+
+    def test_unlock_spawns_cross_platform_notify(self):
+        # Unlock must enqueue a cross-platform notification (async). It is
+        # guarded by env so tests default to no-op; monkeypatch the async fn
+        # to confirm _unlock actually calls it with the unlocked def.
+        calls = {}
+        def fake_async(d):
+            calls["sent"] = d["id"]
+        old = self.mod._notify_cross_platform_async
+        self.mod._notify_cross_platform_async = fake_async
+        try:
+            self.mod._unlock("first_steps")
+        finally:
+            self.mod._notify_cross_platform_async = old
+        self.assertEqual(calls.get("sent"), "first_steps")
+
+    def test_notify_cross_platform_builds_and_sends(self):
+        # _notify_cross_platform builds the plain-text message and calls
+        # _hermes_send, which invokes `hermes send` per configured platform.
+        import subprocess as _sp
+        calls = []
+        class FakeP:
+            returncode = 0; stderr = ""; stdout = ""
+        real_run = _sp.run
+        def fake_run(cmd, **kw):
+            calls.append(cmd); return FakeP()
+        old_load = self.mod._load_env_var
+        old_env = os.environ.get("ACHIEVEMENTS_NOTIFY_PLATFORMS")
+        try:
+            _sp.run = fake_run
+            # Force one target so the configured-set path is deterministic.
+            os.environ["ACHIEVEMENTS_NOTIFY_PLATFORMS"] = "telegram"
+            self.mod._load_env_var = lambda k, fb="": os.environ.get(k, fb)
+            ok = self.mod._notify_cross_platform(
+                self.mod.ACHIEVEMENT_DEFS["first_steps"], "en")
+        finally:
+            _sp.run = real_run
+            self.mod._load_env_var = old_load
+            if old_env is None:
+                os.environ.pop("ACHIEVEMENTS_NOTIFY_PLATFORMS", None)
+            else:
+                os.environ["ACHIEVEMENTS_NOTIFY_PLATFORMS"] = old_env
+        self.assertTrue(ok)
+        self.assertTrue(calls)
+        last = calls[-1]
+        self.assertEqual(last[0], "hermes")
+        self.assertEqual(last[1], "send")
+        self.assertIn("--quiet", last)
+        self.assertEqual(last[last.index("--to") + 1], "telegram")
+
+    def test_notify_cross_platform_disabled_by_env(self):
+        # Short-circuit branch: _notify_cross_platform_async returns early when
+        # the env flag disables it (the default test module has it off).
+        old_flag = self.mod._NOTIFY_CROSS_PLATFORM
+        try:
+            self.mod._NOTIFY_CROSS_PLATFORM = False
+            self.mod._notify_cross_platform_async(
+                self.mod.ACHIEVEMENT_DEFS["first_steps"])
+        finally:
+            self.mod._NOTIFY_CROSS_PLATFORM = old_flag
+
+    def test_notify_cross_platform_async_thread_start(self):
+        # _notify_cross_platform_async spawns a daemon thread that delivers.
+        # Patch _hermes_send to capture (no subprocess) and confirm content.
+        captured = {}
+        old_send = self.mod._hermes_send
+        old_flag = self.mod._NOTIFY_CROSS_PLATFORM
+        def fake_send(text):
+            captured["text"] = text
+            return True
+        try:
+            self.mod._NOTIFY_CROSS_PLATFORM = True
+            self.mod._hermes_send = fake_send
+            self.mod._notify_cross_platform_async(
+                self.mod.ACHIEVEMENT_DEFS["first_steps"])
+            # Thread is daemon; join it.
+            import time
+            for _ in range(20):
+                if captured: break
+                time.sleep(0.02)
+        finally:
+            self.mod._hermes_send = old_send
+            self.mod._NOTIFY_CROSS_PLATFORM = old_flag
+        self.assertIn("Achievement unlocked", captured.get("text", ""))
+        self.assertIn("First Steps", captured.get("text", ""))
+
+    def test_notify_cross_platform_error_paths(self):
+        # subprocess failure and exception paths in _hermes_send must not raise.
+        import subprocess as _sp
+        old_load = self.mod._load_env_var
+        os.environ["ACHIEVEMENTS_NOTIFY_PLATFORMS"] = "telegram"
+        self.mod._load_env_var = lambda k, fb="": os.environ.get(k, fb)
+        real_run = _sp.run
+        class FailP:
+            returncode = 1; stderr = "boom"; stdout = ""
+        try:
+            _sp.run = lambda cmd, **kw: FailP()
+            self.assertFalse(self.mod._hermes_send("x"))
+            _sp.run = lambda cmd, **kw: (_ for _ in ()).throw(RuntimeError("err"))
+            self.assertFalse(self.mod._hermes_send("x"))
+        finally:
+            _sp.run = real_run
+            self.mod._load_env_var = old_load
+            os.environ.pop("ACHIEVEMENTS_NOTIFY_PLATFORMS", None)
 
     def test_notifications_batch_coalesce_in_debounce_window(self):
         # Rapid unlocks → one batched message with N embeds
