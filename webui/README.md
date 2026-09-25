@@ -111,7 +111,7 @@ Notes the UI relies on:
 - **Search**: filters by name, description, or id (debounced, case-insensitive).
 - **Sort**: default (definition order), unlocked-first, by rarity
   (common→legendary), or newest-first (by `unlocked_at`).
-- **Stat strip**: total unlocked / 160, per-rarity counts, total turns, total
+- **Stat strip**: total unlocked / 166, per-rarity counts, total turns, total
   tool calls, longest streak.
 - **Recently unlocked** ticker (marquee) fed by `newly_unlocked`.
 - **Tile states**: unlocked = emoji in a rarity-colored ring with glow;
@@ -150,7 +150,7 @@ for j in range(start, len(lines)):
 body = "\n".join(lines[start:end+1]).split('=',1)[1].strip().rstrip(',')
 d = ast.literal_eval(body)
 open('webui/defs.js','w').write(
-    "// Generated from ACHIEVEMENT_DEFS.\nconst ACHIEVEMENT_DEFS = "
+    "// Generated from ACHIEVEMENT_DEFS.\nwindow.ACHIEVEMENT_DEFS = "
     + json.dumps(d, ensure_ascii=False, indent=2) + ";\n")
 print("wrote", len(d), "defs")
 PY

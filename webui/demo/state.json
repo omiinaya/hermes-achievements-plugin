@@ -1,0 +1,253 @@
+{
+  "achievements": {
+    "first_steps": {
+      "unlocked": true,
+      "unlocked_at": "2026-08-01T09:14:00-04:00"
+    },
+    "config_tinkerer": {
+      "unlocked": true,
+      "unlocked_at": "2026-08-02T18:30:00-04:00"
+    },
+    "show_and_tell": {
+      "unlocked": true,
+      "unlocked_at": "2026-08-04T14:05:00-04:00"
+    },
+    "doctor_visit": {
+      "unlocked": true,
+      "unlocked_at": "2026-08-06T11:52:00-04:00"
+    },
+    "model_hopper": {
+      "unlocked": true,
+      "unlocked_at": "2026-08-09T22:11:00-04:00"
+    },
+    "chatty": {
+      "unlocked": true,
+      "unlocked_at": "2026-08-15T08:47:00-04:00"
+    },
+    "night_owl": {
+      "unlocked": true,
+      "unlocked_at": "2026-08-19T00:36:00-04:00"
+    },
+    "slash_commander": {
+      "unlocked": true,
+      "unlocked_at": "2026-08-20T16:20:00-04:00"
+    },
+    "persistent": {
+      "unlocked": false,
+      "progress": {
+        "current": 2,
+        "target": 3
+      }
+    },
+    "century": {
+      "unlocked": true,
+      "unlocked_at": "2026-09-01T13:09:00-04:00"
+    },
+    "talkative": {
+      "unlocked": false,
+      "progress": {
+        "current": 350,
+        "target": 500
+      }
+    },
+    "tool_fan": {
+      "unlocked": true,
+      "unlocked_at": "2026-09-05T10:24:00-04:00"
+    },
+    "tool_addict": {
+      "unlocked": true,
+      "unlocked_at": "2026-09-12T17:48:00-04:00"
+    },
+    "tool_obsessed": {
+      "unlocked": false,
+      "progress": {
+        "current": 640,
+        "target": 1000
+      }
+    },
+    "terminal_jockey": {
+      "unlocked": true,
+      "unlocked_at": "2026-09-08T15:33:00-04:00"
+    },
+    "shell_master": {
+      "unlocked": false,
+      "progress": {
+        "current": 78,
+        "target": 100
+      }
+    },
+    "code_wizard": {
+      "unlocked": true,
+      "unlocked_at": "2026-09-10T20:01:00-04:00"
+    },
+    "deep_diver": {
+      "unlocked": true,
+      "unlocked_at": "2026-09-14T09:17:00-04:00"
+    },
+    "memory_archivist": {
+      "unlocked": false,
+      "progress": {
+        "current": 11,
+        "target": 25
+      }
+    },
+    "file_whisperer": {
+      "unlocked": true,
+      "unlocked_at": "2026-09-18T12:40:00-04:00"
+    },
+    "file_artisan": {
+      "unlocked": false,
+      "progress": {
+        "current": 42,
+        "target": 100
+      }
+    },
+    "session_detective": {
+      "unlocked": true,
+      "unlocked_at": "2026-09-20T16:02:00-04:00"
+    },
+    "agent_swarm": {
+      "unlocked": true,
+      "unlocked_at": "2026-09-22T19:55:00-04:00"
+    },
+    "army_commander": {
+      "unlocked": false,
+      "progress": {
+        "current": 17,
+        "target": 25
+      }
+    },
+    "week_warrior": {
+      "unlocked": true,
+      "unlocked_at": "2026-09-23T08:14:00-04:00"
+    },
+    "tool_collector": {
+      "unlocked": true,
+      "unlocked_at": "2026-09-24T21:29:00-04:00"
+    },
+    "monthly_master": {
+      "unlocked": false,
+      "progress": {
+        "current": 22,
+        "target": 30
+      }
+    },
+    "early_bird": {
+      "unlocked": true,
+      "unlocked_at": "2026-09-24T06:58:00-04:00"
+    },
+    "speed_demon": {
+      "unlocked": true,
+      "unlocked_at": "2026-09-25T07:11:00-04:00"
+    },
+    "completionist": {
+      "unlocked": false
+    },
+    "release_discipline": {
+      "unlocked": true,
+      "unlocked_at": "2026-09-24T22:40:00Z"
+    },
+    "commit_craftsman": {
+      "unlocked": true,
+      "unlocked_at": "2026-09-24T23:10:00Z"
+    },
+    "ci_green_thumb": {
+      "unlocked": false,
+      "progress": {
+        "current": 3,
+        "target": 1
+      }
+    }
+  },
+  "stats": {
+    "total_turns": 1247,
+    "tools_used": {
+      "terminal": 89,
+      "web_search": 156,
+      "web_extract": 73,
+      "execute_code": 64,
+      "read_file": 210,
+      "write_file": 187,
+      "patch": 142,
+      "search_files": 98,
+      "session_search": 12,
+      "browser_exec": 41,
+      "memory": 27,
+      "web_scrape": 8
+    },
+    "platforms": [
+      "local",
+      "telegram",
+      "slack"
+    ],
+    "models_used": [
+      "big-pickle",
+      "claude-sonnet",
+      "gpt-4o"
+    ],
+    "providers_used": [
+      "custom",
+      "anthropic",
+      "openai"
+    ],
+    "slash_commands_used": [
+      "/help",
+      "/status",
+      "/doctor",
+      "/resume",
+      "/plan"
+    ],
+    "skills_installed": 14,
+    "skills_created": 3,
+    "plugins_enabled": 9,
+    "profiles_created": 2,
+    "cron_jobs_created": 5,
+    "mcp_servers_connected": 2,
+    "config_changes": 31,
+    "yolo_tasks": 11,
+    "session_resumes": 42,
+    "hooks_used": [
+      "on_message",
+      "on_tool_call"
+    ],
+    "users_seen": [
+      "omar",
+      "dev-bot"
+    ],
+    "subagents_spawned": 247,
+    "subagents_failed": 6,
+    "approvals_always": 3,
+    "approvals_denied": 8,
+    "approval_requests": 61,
+    "api_errors": 14,
+    "total_sessions": 87,
+    "conversations_started": 96,
+    "peak_tools_per_response": 9,
+    "max_concurrent_subagents": 4,
+    "longest_response_words": 1830,
+    "longest_subagent_ms": 284000,
+    "current_streak": 7,
+    "longest_streak": 31,
+    "last_active_date": "2026-09-25"
+  },
+  "newly_unlocked": [
+    "speed_demon",
+    "early_bird",
+    "monthly_master",
+    "tool_collector",
+    "week_warrior",
+    "army_commander",
+    "agent_swarm",
+    "session_detective",
+    "file_artisan",
+    "file_whisperer",
+    "memory_archivist",
+    "deep_diver",
+    "code_wizard",
+    "shell_master",
+    "terminal_jockey",
+    "tool_obsessed"
+  ],
+  "locale": "en",
+  "last_updated": "2026-09-25T07:15:00-04:00"
+}
