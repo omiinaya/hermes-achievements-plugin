@@ -25,6 +25,7 @@ Usage:
 Exit code 0 = healthy, 1 = problems found.
 """
 import argparse
+import ast
 import importlib.util
 import json
 import os
@@ -36,16 +37,34 @@ PLUGIN_FILE = os.path.join(ROOT, "__init__.py")
 PLUGIN_YAML = os.path.join(ROOT, "plugin.yaml")
 LOCALES_DIR = os.path.join(ROOT, "locales")
 
-# Files in the Hermes installation that dispatch plugin hooks.
+# Files in the Hermes installation that dispatch plugin hooks. The AST scan
+# below also falls back to a full-tree walk when a hook isn't found in this
+# hot list, so a dispatch site that moves to a new file is never silently
+# dropped (dispatch sites have migrated several times: post_llm_call now
+# fires from turn_finalizer.py, api hooks from turn_api_request.py /
+# turn_response_intake.py, session hooks from cli_session_mixin.py).
 GATEWAY_SOURCE_CANDIDATES = [
     "agent/conversation_loop.py",
+    "agent/turn_finalizer.py",
+    "agent/turn_api_request.py",
+    "agent/turn_response_intake.py",
+    "agent/turn_context.py",
+    "agent/inline_tool_executors.py",
+    "agent/agent_runtime_helpers.py",
+    "agent/api_request_hooks.py",
+    "agent/shell_hooks.py",
+    "agent/tool_executor.py",
     "gateway/run.py",
+    "gateway/slash_commands_session.py",
     "tools/approval.py",
     "tools/delegate_tool.py",
     "tools/terminal_tool.py",
     "model_tools.py",
-    "agent/tool_executor.py",
     "hermes_cli/plugins.py",
+    "hermes_cli/plugins_dispatch.py",
+    "hermes_cli/lifecycle.py",
+    "hermes_cli/cli_session_mixin.py",
+    "tui_gateway/session_lifecycle.py",
     "run_agent.py",  # api_request_error dispatches here (invoke_hook literal)
 ]
 HERMES_SOURCE_CANDIDATES = [
@@ -142,41 +161,142 @@ def _find_hermes_source():
     return None
 
 
-def gateway_kwargs_per_hook(hook, source_root):
-    """Scan Hermes source for kwargs passed to the hook's dispatch call.
+def _call_is_for_hook(call: ast.Call, hook: str) -> bool:
+    """True if *call* is a hook dispatch for *hook*.
 
-    For each site that references the hook name, walk back to the enclosing
-    invoke/emit call and collect `name=value` keyword assignments. Generous
-    on purpose: extra gateway kwargs are harmless; a missed real one would
-    only cause a false alarm, so we over-collect.
+    The hook name travels as a string constant in the call's args. It is
+    usually the FIRST positional arg (``invoke_hook("post_tool_call", ...)``),
+    but some sites pass a logger first (``invoke_hook_safely(logger,
+    "hook", ...)``) or forward the literal through a helper. To be robust we
+    check every POSITIONAL arg (never keywords): a keyword VALUE equal to the
+    hook name would be over-broad and could snag an unrelated call.
+    """
+    for arg in call.args:
+        if isinstance(arg, ast.Constant) and arg.value == hook:
+            return True
+    return False
+
+
+def _collect_spread_dict_keys(tree: ast.Module, call: ast.Call, found: set) -> None:
+    """Collect keys from a dict literal spread via ``**var`` in a dispatch.
+
+    Dispatch sites sometimes build ``hook_kwargs = dict(command=...,
+    pattern_keys=..., surface=...)`` in the same function and then call
+    ``invoke_hook("pre_approval_request", **hook_kwargs, ...)``. Those keys
+    ride inside a variable, invisible to a plain kwarg scan; resolve the
+    assignment within the enclosing function scope and add its literal dict
+    keys to *found*.
+    """
+    for kw in call.keywords:
+        if kw.arg is not None:
+            continue  # plainly-named kwarg already collected by the caller
+        # **<Name> — a variable holding a dict literal / dict(...) call
+        # **<expr>.method() — a dataclass-derived bag (e.g. _CallIds(...)
+        #   .hook_kwargs() returns one key per dataclass field)
+        value = kw.value
+        if isinstance(value, ast.Call) and isinstance(value.func, ast.Attribute):
+            cls = None
+            recv = value.func.value
+            if isinstance(recv, ast.Call) and isinstance(recv.func, ast.Name):
+                cls = recv.func.id
+            if cls:
+                # Collect the dataclass field names by finding `class <cls>`
+                # in this file and reading annotated assignments.
+                for node in ast.walk(tree):
+                    if isinstance(node, ast.ClassDef) and node.name == cls:
+                        for stmt in node.body:
+                            if isinstance(stmt, ast.AnnAssign) and isinstance(stmt.target, ast.Name):
+                                found.add(stmt.target.id)
+            continue
+        target = getattr(value, "id", None)
+        if not target:
+            continue
+        func = None
+        for node in ast.walk(tree):
+            if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                continue
+            # Does this function contain our dispatch call?
+            for inner in ast.walk(node):
+                if inner is call:
+                    func = node
+                    break
+            if func is not None:
+                break
+        if func is None:
+            continue
+        for stmt in ast.walk(func):
+            if (isinstance(stmt, ast.Assign)
+                    and any(isinstance(t, ast.Name) and t.id == target for t in stmt.targets)
+                    and isinstance(stmt.value, ast.Dict)):
+                for key in stmt.value.keys:
+                    if isinstance(key, ast.Constant) and isinstance(key.value, str):
+                        found.add(key.value)
+            # Same for `hook_kwargs = dict(key=..., ...)` constructors.
+            if (isinstance(stmt, ast.Assign)
+                    and any(isinstance(t, ast.Name) and t.id == target for t in stmt.targets)
+                    and isinstance(stmt.value, ast.Call)
+                    and isinstance(stmt.value.func, ast.Name)
+                    and stmt.value.func.id == "dict"):
+                for kw in stmt.value.keywords:
+                    if kw.arg:
+                        found.add(kw.arg)
+
+
+def gateway_kwargs_per_hook(hook, source_root):
+    """Collect the kwarg names passed to every dispatch of *hook*.
+
+    AST-based and robust against the two ways the old (regex) scanner
+    failed:
+      * inline kwargs — ``invoke_hook("post_tool_call", tool_name=...,
+        args=...)`` puts kwargs on the SAME line as the hook name; a
+        line-anchored regex missed them. We read the whole Call node, so
+        inline is fine.
+      * stale file list — dispatch sites keep migrating across files; if
+        the hot list finds nothing, a full-tree walk catches the moved site.
     """
     found = set()
+    seen = set()
+
+    def scan(path):
+        if path in seen:
+            return
+        seen.add(path)
+        try:
+            source_text = _read(path)
+        except OSError:
+            return
+        try:
+            tree = ast.parse(source_text, filename=path)
+        except SyntaxError:
+            return
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Call) and _call_is_for_hook(node, hook):
+                for kw in node.keywords:
+                    if kw.arg:
+                        found.add(kw.arg)
+                # Dispatch may spread a pre-built dict (**hook_kwargs /
+                # **payload). Those keys live in a dict literal assigned
+                # earlier in the same function — collect them so agr
+                # approval hooks (pattern_keys, surface, session_id) aren't
+                # reported missing just because they ride inside a variable.
+                _collect_spread_dict_keys(tree, node, found)
+
     for rel in GATEWAY_SOURCE_CANDIDATES:
-        path = os.path.join(source_root, rel)
-        if not os.path.exists(path):
-            continue
-        lines = _read(path).splitlines()
-        for i, ln in enumerate(lines):
-            if f'"{hook}"' not in ln:
-                continue
-            start = i
-            while start > 0 and start > i - 40:
-                s = lines[start]
-                if ("invoke_hook(" in s or "_fire_approval_hook(" in s
-                        or "_emit_post_tool_call_hook(" in s):
-                    break
-                start -= 1
-            j = start
-            buf = []
-            depth = 0
-            while j < len(lines) and j <= i + 30:
-                buf.append(lines[j])
-                depth += lines[j].count("(") - lines[j].count(")")
-                j += 1
-                if depth <= 0 and j > start + 1:
-                    break
-            text = "\n".join(buf)
-            found |= set(re.findall(r"^\s*([a-z_][a-z0-9_]*)\s*=", text, re.MULTILINE))
+        scan(os.path.join(source_root, rel))
+
+    # Dispatch site may have moved to a file not in the hot list. Walk the
+    # app source tree (NOT venv/tests/site-packages — those are huge and
+    # never dispatch plugin hooks) to be safe. Only run when the hot list
+    # found nothing, keeping the common path fast.
+    if not found:
+        for root, dirs, files in os.walk(source_root):
+            # Prune vendored/irrelevant subtrees so the fallback stays fast.
+            dirs[:] = [d for d in dirs if d not in (
+                "venv", ".venv", ".git", "node_modules", "tests", "site-packages",
+            )]
+            for fn in files:
+                if fn.endswith(".py"):
+                    scan(os.path.join(root, fn))
     return found
 
 
