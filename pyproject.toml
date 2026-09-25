@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta:__legacy__"
 
 [project]
 name = "hermes-achievements-plugin"
-version = "2.21.2"
+version = "2.22.0"
 description = "166 Steam-style achievement badges for Hermes Agent"
 readme = "README.md"
 license = { text = "MIT" }

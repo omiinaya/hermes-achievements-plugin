@@ -1,5 +1,51 @@
 # Changelog
 
+## [2.22.0] — 2026-09-24
+
+### Added: 6 engineering/devops achievements (160 → 166)
+
+Reflecting the self-hosting and CI/release discipline this codebase itself practices:
+
+- **Release Discipline** (epic, Milestones) — cut a tagged versioned release
+  (`git tag`, `release: vX.Y.Z`, `bump_version`)
+- **CI Green Thumb** (uncommon, Tools & Skills) — kept a test suite green
+  (`pytest`, `--cov`, `python -m unittest`)
+- **Docs Architect** (rare, Tools & Skills) — authored 5+ agent-facing doc files
+  (README/AGENTS/docs/`.md` writes)
+- **Mutant Slayer** (legendary, Expert) — ran mutation testing (`mutmut`)
+- **Self-Hosted Architect** (rare, Power User) — operated a self-hosted stack
+  (`systemctl`, `docker compose/up/stack`, `pct exec/create`)
+- **Commit Craftsman** (epic, Milestones) — landed commits with `git commit`
+
+All six are reachable through existing hooks, covered by the full-grind
+simulation (`TestEveryAchievementUnlockable`), and localized in EN/ES/FR/PT.
+
+### Fixed: `check_plugin.py --gateway` hook kwarg-contract scanner
+
+The old regex-based scanner only matched kwargs on a line whose leading
+whitespace preceded the key, so any inline kwargs (`invoke_hook(
+"post_tool_call", tool_name=..., ...)`) were silently missed — 15 hooks false-
+flagged even though the gateway delivered every key. Replaced with an AST
+scanner that reads the whole Call node and resolves spread dict literals
+(`**hook_kwargs`) and dataclass bags (`_CallIds(...).hook_kwargs()`). The
+contract check now passes clean (41 keys across 16 hooks), and the stale
+candidate-file list was refreshed with where dispatch sites actually live
+today. Previously-untestable inline-arg hooks (`post_tool_call`,
+`pre_tool_call`) are now real assertions. Also prunes venv/tests/site-packages
+from the fallback tree walk so the check stays fast.
+
+### Fixed: ruff lint
+
+- `scripts/bench_hooks.py` E402 (import after `sys.path`).
+- `__init__.py` I001 import-sort.
+- 8 `SIM115` / `UP032` in tests (legacy `open()`, `.format`).
+
+The pinned ruff range in CI (`>=0.15.14,<0.17`) now passes clean.
+
+### Chore
+
+- README achievement tables regenerated for 166 defs.
+
 ## [2.21.2] — 2026-08-05
 
 ### Fixed: concurrent-process state clobbering (duplicate unlocks + reset stats)
