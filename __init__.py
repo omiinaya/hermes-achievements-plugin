@@ -39,6 +39,7 @@ import threading
 import time
 import urllib.error
 import urllib.request
+
 try:
     import fcntl as _fcntl
 except ImportError:  # non-POSIX (Windows) — cross-process guard degrades gracefully

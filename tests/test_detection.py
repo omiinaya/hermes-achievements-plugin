@@ -5224,9 +5224,8 @@ class TestCrossProcessStateSafety(HookTestBase):
         self.assertFalse(proc_b._unlock("manual_override"))
         self.assertEqual(len(proc_b._NOTIF_QUEUE), 0)  # no duplicate embed
         # The unlock survived on disk
-        disk = json.load(
-            open(os.path.join(self._tmp, "achievements", "state.json"))
-        )
+        with open(os.path.join(self._tmp, "achievements", "state.json")) as _f:
+            disk = json.load(_f)
         self.assertTrue(disk["achievements"]["manual_override"]["unlocked"])
 
     def test_save_does_not_revert_other_process_progress(self):
@@ -5242,16 +5241,14 @@ class TestCrossProcessStateSafety(HookTestBase):
             self.turn()
         self.turn(platform="discord")
         self.mod._save_state(force=True)
-        disk = json.load(
-            open(os.path.join(self._tmp, "achievements", "state.json"))
-        )
+        with open(os.path.join(self._tmp, "achievements", "state.json")) as _f:
+            disk = json.load(_f)
         self.assertEqual(disk["stats"]["total_turns"], 51)
         # Process B (stale memory: total_turns=0) saves with NO new work —
         # its save must not revert A's 51 turns or platform set
         proc_b._save_state(force=True)
-        disk = json.load(
-            open(os.path.join(self._tmp, "achievements", "state.json"))
-        )
+        with open(os.path.join(self._tmp, "achievements", "state.json")) as _f:
+            disk = json.load(_f)
         self.assertEqual(disk["stats"]["total_turns"], 51)  # not reverted to 0
         self.assertIn("discord", disk["stats"]["platforms"])
         self.assertIn("cli", disk["stats"]["platforms"])
@@ -5265,9 +5262,8 @@ class TestCrossProcessStateSafety(HookTestBase):
         for _ in range(25):
             self.turn()
         self.mod._save_state(force=True)
-        a_baseline = json.load(
-            open(os.path.join(self._tmp, "achievements", "state.json"))
-        )["stats"]["total_turns"]
+        with open(os.path.join(self._tmp, "achievements", "state.json")) as _f:
+            a_baseline = json.load(_f)["stats"]["total_turns"]
         # Process B does distinctly new work on the matrix platform and saves
         for _ in range(5):
             proc_b._post_llm_call(
@@ -5276,9 +5272,8 @@ class TestCrossProcessStateSafety(HookTestBase):
                 model="m1", platform="matrix",
             )
         proc_b._save_state(force=True)
-        disk = json.load(
-            open(os.path.join(self._tmp, "achievements", "state.json"))
-        )
+        with open(os.path.join(self._tmp, "achievements", "state.json")) as _f:
+            disk = json.load(_f)
         # No loss: the cumulative counter never reverts below A's baseline
         self.assertGreaterEqual(disk["stats"]["total_turns"], a_baseline)
         # B's new platform is unioned in (not clobbered by A's save)
@@ -5293,9 +5288,8 @@ class TestCrossProcessStateSafety(HookTestBase):
         self.mod._save_state(force=True)
         # A fresh worker (default "en") saves — must not revert the choice
         proc_b._save_state(force=True)
-        disk = json.load(
-            open(os.path.join(self._tmp, "achievements", "state.json"))
-        )
+        with open(os.path.join(self._tmp, "achievements", "state.json")) as _f:
+            disk = json.load(_f)
         self.assertEqual(disk["locale"], "es")
 
     def test_two_real_processes_unlock_only_once(self):
@@ -5309,13 +5303,13 @@ class TestCrossProcessStateSafety(HookTestBase):
             "home = sys.argv[1]\n"
             'os.environ["HERMES_HOME"] = home\n'
             'os.makedirs(os.path.join(home, "plugins", "achievements"), exist_ok=True)\n'
-            "shutil.copytree({LOCALES!r}, os.path.join(home, 'plugins', 'achievements', 'locales'), dirs_exist_ok=True)\n"
-            "spec = importlib.util.spec_from_file_location('ach_race', {PLUGIN!r})\n"
+            f"shutil.copytree({LOCALES_DIR!r}, os.path.join(home, 'plugins', 'achievements', 'locales'), dirs_exist_ok=True)\n"
+            f"spec = importlib.util.spec_from_file_location('ach_race', {PLUGIN_FILE!r})\n"
             "mod = importlib.util.module_from_spec(spec)\n"
             'sys.modules["ach_race"] = mod\n'
             "spec.loader.exec_module(mod)\n"
             'print(1 if mod._unlock("manual_override") else 0, flush=True)\n'
-        ).format(LOCALES=LOCALES_DIR, PLUGIN=PLUGIN_FILE)
+        )
         results = []
         for _ in range(2):
             p = subprocess.Popen(
@@ -5329,9 +5323,8 @@ class TestCrossProcessStateSafety(HookTestBase):
             sorted(results), ["0", "1"],
             f"expected exactly one winner, got {results}",
         )
-        disk = json.load(
-            open(os.path.join(self._tmp, "achievements", "state.json"))
-        )
+        with open(os.path.join(self._tmp, "achievements", "state.json")) as _f:
+            disk = json.load(_f)
         self.assertTrue(disk["achievements"]["manual_override"]["unlocked"])
 
 
