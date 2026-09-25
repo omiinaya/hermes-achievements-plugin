@@ -644,6 +644,30 @@
     "yolo_mode": {
       "name": "YOLO Mode",
       "description": "Run with --yolo flag or disable approval prompts"
+    },
+    "release_discipline": {
+      "name": "Release Discipline",
+      "description": "Cut a tagged versioned release"
+    },
+    "ci_green_thumb": {
+      "name": "CI Green Thumb",
+      "description": "Run a test suite and keep it green"
+    },
+    "docs_architect": {
+      "name": "Docs Architect",
+      "description": "Author agent-facing docs (5+ doc files)"
+    },
+    "mutant_slayer": {
+      "name": "Mutant Slayer",
+      "description": "Run mutation testing to harden a test suite"
+    },
+    "self_hosted_architect": {
+      "name": "Self-Hosted Architect",
+      "description": "Operate a self-hosted service stack"
+    },
+    "commit_craftsman": {
+      "name": "Commit Craftsman",
+      "description": "Land 25 git commits across working trees"
     }
   },
   "group": {

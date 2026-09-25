@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hermes — Achievements</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="data:,">
+</head>
+<body>
+  <header class="banner" id="banner">
+    <div class="game-logo">Hermes</div>
+    <div class="game-tag">Achievement Showcase</div>
+  </header>
+
+  <div class="completionist hidden" id="completionist-banner">
+    <span class="e">🏆</span>
+    <span class="txt">100% — Completionist Unlocked!</span>
+    <span class="sub">Every achievement in the game</span>
+  </div>
+
+  <div class="stat-strip" id="stat-strip"></div>
+
+  <div class="recent hidden" id="recent">
+    <span class="recent-label">Recently unlocked</span>
+    <div class="ticker"><div class="ticker-inner" id="ticker-inner"></div></div>
+  </div>
+
+  <div class="layout">
+    <aside class="sidebar">
+      <h3>Groups</h3>
+      <div class="filters" id="group-filters"></div>
+      <div class="search-wrap">
+        <span class="mag">🔍</span>
+        <input type="text" id="search" placeholder="Search achievements…" autocomplete="off">
+      </div>
+      <h3>Sort</h3>
+      <div class="sort-row" id="sort-btns"></div>
+    </aside>
+    <main id="app"></main>
+  </div>
+
+  <script src="defs.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

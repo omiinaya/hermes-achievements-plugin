@@ -1494,6 +1494,39 @@ ACHIEVEMENT_DEFS = {
         "description": "View the Hermes configuration",
         "rarity": "common", "group": "Community",
     },
+    # ═══════════════════════════════════════════════════════════════════════
+    # 🏗️ ENGINEERING / DEVOPS  (6)
+    # ═══════════════════════════════════════════════════════════════════════
+    "release_discipline": {
+        "id": "release_discipline", "name": "Release Discipline", "emoji": "📦",
+        "description": "Cut a tagged versioned release",
+        "rarity": "epic", "group": "Milestones",
+    },
+    "ci_green_thumb": {
+        "id": "ci_green_thumb", "name": "CI Green Thumb", "emoji": "🌿",
+        "description": "Run a test suite and keep it green",
+        "rarity": "uncommon", "group": "Tools & Skills",
+    },
+    "docs_architect": {
+        "id": "docs_architect", "name": "Docs Architect", "emoji": "📚",
+        "description": "Author agent-facing docs (5+ doc files)",
+        "rarity": "rare", "group": "Tools & Skills",
+    },
+    "mutant_slayer": {
+        "id": "mutant_slayer", "name": "Mutant Slayer", "emoji": "🧬",
+        "description": "Run mutation testing to harden a test suite",
+        "rarity": "legendary", "group": "Expert",
+    },
+    "self_hosted_architect": {
+        "id": "self_hosted_architect", "name": "Self-Hosted Architect", "emoji": "🏗️",
+        "description": "Operate a self-hosted service stack",
+        "rarity": "rare", "group": "Power User",
+    },
+    "commit_craftsman": {
+        "id": "commit_craftsman", "name": "Commit Craftsman", "emoji": "🧱",
+        "description": "Land 25 git commits across working trees",
+        "rarity": "epic", "group": "Milestones",
+    },
     "complete_community": {
         "id": "complete_community", "name": "Community Complete", "emoji": "🤝",
         "description": "Unlock every Community achievement",
@@ -1821,6 +1854,15 @@ TERMINAL_PATTERNS = {
     "env_tuner": [re.compile(r"workdir=|env_file|EnvironmentFile|hermes\s+config\s+set\s+env", re.IGNORECASE)],
     "precision_scheduler": [re.compile(r"cron.*ISO|one.?shot", re.IGNORECASE)],
     "doc_diver": [re.compile(r"hermes.*docs?|hermes.*documentation|hermes-agent.*docs", re.IGNORECASE)],
+    "release_discipline": [re.compile(r"git\s+tag\b", re.IGNORECASE),
+                           re.compile(r"release:\s*v?[\d]+\.[\d]+\.[\d]+", re.IGNORECASE),
+                           re.compile(r"bump_version", re.IGNORECASE)],
+    "ci_green_thumb": [re.compile(r"pytest|--cov|python\s+-m\s+unittest", re.IGNORECASE)],
+    "mutant_slayer": [re.compile(r"mutmut|mutation\s+test", re.IGNORECASE)],
+    "self_hosted_architect": [re.compile(r"systemctl\s+\w", re.IGNORECASE),
+                              re.compile(r"docker\s+(compose|up|stack)", re.IGNORECASE),
+                              re.compile(r"pct\s+\S+\s+(exec|create)", re.IGNORECASE)],
+    "commit_craftsman": [re.compile(r"git\s+commit\b", re.IGNORECASE)],
 }
 
 
@@ -2204,6 +2246,21 @@ def _check_tool_args(tool_name, args, stats, now):
                 stats.setdefault("hooks_used", set()).update(hooks)
                 if len(stats["hooks_used"]) >= 3:
                     _unlock("hook_master", now)
+        # Docs Architect: authoring doc files (README / AGENTS / docs/ / .md).
+        # write_file only (patch edits existing files, not authoring).
+        if tool_name == "write_file":
+            base = path.split("/")[-1].lower()
+            is_doc = (
+                base in ("readme.md", "readme", "agents.md", "contributing.md",
+                         "changelog.md", "license", "hermes-agent-setup.md")
+                or "/docs/" in path or path.lower().endswith(".md")
+            )
+            if is_doc:
+                stats["docs_written"] = stats.get("docs_written", 0) + 1
+                if stats["docs_written"] >= 5:
+                    _unlock("docs_architect", now)
+                else:
+                    _set_progress("docs_architect", stats["docs_written"], 5)
 
     # Tool-argument counters feed the tiered counter achievements too
     # (e.g. cron_jobs_created → Cron Master / Cron Overlord)

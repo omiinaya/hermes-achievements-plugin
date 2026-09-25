@@ -6,7 +6,7 @@
 [![CI](https://github.com/omiinaya/hermes-achievements-plugin/actions/workflows/test.yml/badge.svg)](https://github.com/omiinaya/hermes-achievements-plugin/actions/workflows/test.yml)
 [![Coverage](https://img.shields.io/badge/coverage-100%25-brightgreen.svg)](https://github.com/omiinaya/hermes-achievements-plugin/actions/workflows/test.yml)
 
-**160 Steam-style achievement badges** for [Hermes Agent](https://hermes-agent.nousresearch.com). Unlock achievements as you use Hermes — run commands, search the web, schedule cron jobs, create skills, and explore the platform. Achievements are tracked silently and delivered to your Discord home channel the moment they unlock.
+**166 Steam-style achievement badges** for [Hermes Agent](https://hermes-agent.nousresearch.com). Unlock achievements as you use Hermes — run commands, search the web, schedule cron jobs, create skills, and explore the platform. Achievements are tracked silently and delivered to your Discord home channel the moment they unlock.
 
 ## Quick Start
 
@@ -76,10 +76,10 @@ Notifications are rarity-colored Discord embeds (gray → gold) posted asynchron
   ✅ **Web Walker** — Search the web using Hermes
 
 🚀 **Getting Started** (2/16) █░░░░░░░░░
-🛠️ **Tools & Skills** (2/28) ░░░░░░░░░░
-⚡ **Power User** (0/46) ░░░░░░░░░░
-👑 **Expert** (0/45) ░░░░░░░░░░
-🎯 **Milestones** (0/19) ░░░░░░░░░░
+🛠️ **Tools & Skills** (2/30) ░░░░░░░░░░
+⚡ **Power User** (0/47) ░░░░░░░░░░
+👑 **Expert** (0/46) ░░░░░░░░░░
+🎯 **Milestones** (0/21) ░░░░░░░░░░
 🤝 **Community** (0/6) ░░░░░░░░░░
 
 🔮 Closest to unlock: **Deep Diver** ██░░░░░░░░ 5/25 (20%)
@@ -189,7 +189,7 @@ third-party data sharing.
 | 🔥 | Serial Starter | Start 50 conversations | Epic |
 | 🗼 | Conversation Colossus | Start 100 conversations | Legendary |
 
-### 🛠️ Tools & Skills (28)
+### 🛠️ Tools & Skills (30)
 
 | Icon | Name | Description | Rarity |
 |------|------|-------------|--------|
@@ -204,6 +204,7 @@ third-party data sharing.
 | 🧠 | Skill Apprentice | Install 5 skills | Uncommon |
 | 📁 | File Whisperer | Read or write 25 files | Uncommon |
 | 🔍 | Session Detective | Search past sessions 10 times | Uncommon |
+| 🌿 | CI Green Thumb | Run a test suite and keep it green | Uncommon |
 | 🧪 | Code Wizard | Execute 10 code blocks with execute_code | Rare |
 | ✍️ | Skill Author | Create your own custom Hermes skill | Rare |
 | 🖥️ | Shell Master | Run 100 terminal commands | Rare |
@@ -215,6 +216,7 @@ third-party data sharing.
 | 🛠️ | Tool Hoarder | Use 10 different Hermes tool types cumulatively | Rare |
 | 📁 | File Artisan | Read or write 100 files | Rare |
 | 🔌 | MCP Networker | Connect 3 MCP servers | Rare |
+| 📚 | Docs Architect | Author agent-facing docs (5+ doc files) | Rare |
 | 💻 | Code Architect | Execute 100 code blocks | Epic |
 | ✍️ | Skill Virtuoso | Create 15 skills | Epic |
 | 📖📖📖 | Memory Librarian | Save 100 facts to memory | Epic |
@@ -222,7 +224,7 @@ third-party data sharing.
 | 🛠️🛠️ | Complete Toolset | Use every available Hermes tool type at least once | Epic |
 | 👥 | Army Commander | Spawn 25 subagents with delegate_task | Epic |
 
-### ⚡ Power User (46)
+### ⚡ Power User (47)
 
 | Icon | Name | Description | Rarity |
 |------|------|-------------|--------|
@@ -260,6 +262,7 @@ third-party data sharing.
 | 📜 | Novel Author | Receive a 5000+ word response from the model | Rare |
 | 🐢 | Slow Thinker | Run a subagent that takes 10+ minutes | Rare |
 | 🎚️ | Remixed Output | Receive a response that another plugin transformed before delivery | Rare |
+| 🏗️ | Self-Hosted Architect | Operate a self-hosted service stack | Rare |
 | 🔐 | YOLO Mode | Run with --yolo flag or disable approval prompts | Epic |
 | 🔐 | YOLO Champion | Complete 25 tasks without approval prompts | Epic |
 | 🌉 | Gateway Networker | Connect to 3 different messaging platforms | Epic |
@@ -273,7 +276,7 @@ third-party data sharing.
 | 🧩 | Plugin Developer | Create your own Hermes plugin | Legendary |
 | 🧰 | Tool Torrent | Emit 20 tool calls in a single response | Legendary |
 
-### 👑 Expert (45)
+### 👑 Expert (46)
 
 | Icon | Name | Description | Rarity |
 |------|------|-------------|--------|
@@ -322,8 +325,9 @@ third-party data sharing.
 | 🪝 | Hook Master | Create a plugin using 3+ different hook types | Legendary |
 | 📈 | CLI Champion | Execute 500 terminal commands | Legendary |
 | 💪 | Ultra Marathon | Reach 150 tool calls in a single session | Legendary |
+| 🧬 | Mutant Slayer | Run mutation testing to harden a test suite | Legendary |
 
-### 🎯 Milestones (19)
+### 🎯 Milestones (21)
 
 | Icon | Name | Description | Rarity |
 |------|------|-------------|--------|
@@ -339,6 +343,8 @@ third-party data sharing.
 | 🔧 | Tool Obsessed | Accumulate 1,000 total tool calls | Epic |
 | 🧙 | Token Wizard | Consume 1,000,000 tokens across all sessions | Epic |
 | 🚀 | Getting Started Complete | Unlock every Getting Started achievement | Epic |
+| 📦 | Release Discipline | Cut a tagged versioned release | Epic |
+| 🧱 | Commit Craftsman | Land 25 git commits across working trees | Epic |
 | 🏆 | Completionist | Unlock every other achievement | Legendary |
 | 💬💬 | Legendary Chatter | Send 1,000 messages total | Legendary |
 | 📅📅 | Monthly Master | Use Hermes 30 days in a row | Legendary |
@@ -413,7 +419,7 @@ State data is stored at `~/.hermes/achievements/state.json` (user-local, not par
 vim ~/.hermes/plugins/achievements/__init__.py
 
 # Run the test suite (static + functional) — includes the full-grind
-# simulation that proves all 160 achievements can unlock
+# simulation that proves all 166 achievements can unlock
 python3 -m pytest tests/ -q
 
 # Run the one-shot health check (defs, locales, manifest↔register hooks,

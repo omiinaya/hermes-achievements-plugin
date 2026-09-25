@@ -644,6 +644,30 @@
     "yolo_mode": {
       "name": "Modo YOLO",
       "description": "Ejecuta con la bandera --yolo o desactiva las solicitudes de aprobación"
+    },
+    "release_discipline": {
+      "name": "Disciplina de Release",
+      "description": "Publica una release con etiqueta de versión"
+    },
+    "ci_green_thumb": {
+      "name": "CI Verde",
+      "description": "Ejecuta la suite de pruebas y manténla en verde"
+    },
+    "docs_architect": {
+      "name": "Arquitecto de Docs",
+      "description": "Autor de documentación para agentes (5+ archivos)"
+    },
+    "mutant_slayer": {
+      "name": "Cazador de Mutantes",
+      "description": "Ejecuta pruebas de mutación para endurecer la suite"
+    },
+    "self_hosted_architect": {
+      "name": "Arquitecto Self-Hosted",
+      "description": "Opera una pila de servicios auto-alojados"
+    },
+    "commit_craftsman": {
+      "name": "Artesano de Commits",
+      "description": "Haz 25 commits de git en múltiples repos"
     }
   },
   "group": {

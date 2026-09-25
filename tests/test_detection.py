@@ -2095,7 +2095,7 @@ class TestBranchCoverageComplete(HookTestBase):
         self.mod._locales_cache = {}
         try:
             cache = self.mod._load_locales()
-            self.assertEqual(len(cache.get("en", {}).get("achievement", {})), 160)
+            self.assertEqual(len(cache.get("en", {}).get("achievement", {})), 166)
         finally:
             self.mod._LOCALES_DIR = old_dir
             self.mod._WHEEL_DATA_DIR = old_wheel
@@ -2848,7 +2848,7 @@ class TestStreakEdgeCases(HookTestBase):
         self.mod._locales_cache = {}
         try:
             cache = self.mod._load_locales()
-            self.assertEqual(len(cache.get("en", {}).get("achievement", {})), 160)
+            self.assertEqual(len(cache.get("en", {}).get("achievement", {})), 166)
         finally:
             self.mod._LOCALES_DIR = old_dir
             self.mod._WHEEL_DATA_DIR = old_wheel
@@ -4593,7 +4593,7 @@ class TestReadmeSync(unittest.TestCase):
         result = subprocess.run([_sys.executable, script], capture_output=True, text=True,
                                 cwd=PLUGIN_DIR, check=False)
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertIn("OK: 160 achievements", result.stdout)
+        self.assertIn("OK: 166 achievements", result.stdout)
         with open(os.path.join(PLUGIN_DIR, "README.md"), encoding="utf-8") as f:
             after = f.read()
         self.assertEqual(after, before,
@@ -4814,6 +4814,12 @@ class TestEveryAchievementUnlockable(HookTestBase):
                 "/new",
                 "hermes changelog release notes",
                 "hermes update --check",
+                "git tag v3.0.0",
+                "python -m pytest tests/ --cov",
+                "mutmut run",
+                "systemctl restart hermes",
+                "docker compose up -d",
+                "git commit -m 'fix: thing'",
             ]
             for i in range(1050):
                 cmd = commands[i % len(commands)]
@@ -4916,6 +4922,12 @@ class TestEveryAchievementUnlockable(HookTestBase):
                                 "register_hook('api_request_error')\n"
                                 "register_hook('on_session_start')"
                             ),
+                        }
+                    elif tool == "write_file" and i < 8:
+                        # Docs Architect: 5+ doc files (README/AGENTS/docs).
+                        args = {
+                            "path": f"/docs/agent-{i}.md",
+                            "content": "Agent-facing documentation.",
                         }
                     else:
                         args = {"command": "echo x"} if tool == "terminal" else {}
@@ -5159,7 +5171,7 @@ class TestEveryAchievementUnlockable(HookTestBase):
             )
             mod._check_completionist()
 
-    def test_all_160_achievements_can_unlock(self):
+    def test_all_166_achievements_can_unlock(self):
         """Every def in ACHIEVEMENT_DEFS must unlock through real hooks."""
         self._grind()
         state = self.mod._load_state()
@@ -5173,7 +5185,7 @@ class TestEveryAchievementUnlockable(HookTestBase):
             f"{locked}",
         )
 
-    def test_completionist_unlocks_as_160th(self):
+    def test_completionist_unlocks_as_166th(self):
         """Completionist requires every other achievement first."""
         self._grind()
         state = self.mod._load_state()
@@ -5183,7 +5195,7 @@ class TestEveryAchievementUnlockable(HookTestBase):
             1 for aid in self.mod.ACHIEVEMENT_DEFS
             if state["achievements"].get(aid, {}).get("unlocked")
         )
-        self.assertEqual(unlocked, 160)
+        self.assertEqual(unlocked, 166)
 
 
 class TestCrossProcessStateSafety(HookTestBase):

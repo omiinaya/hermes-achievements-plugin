@@ -111,9 +111,9 @@ class TestAchievementDefinitions(unittest.TestCase):
         self.groups, self.rarities = _parse_groups_and_rarities()
 
     def test_exact_count(self):
-        """There should be exactly 160 achievements."""
-        self.assertEqual(len(self.achievements), 160,
-                         f"Expected 160 achievements, got {len(self.achievements)}")
+        """There should be exactly 166 achievements."""
+        self.assertEqual(len(self.achievements), 166,
+                         f"Expected 166 achievements, got {len(self.achievements)}")
 
     def test_module_docstring_enumerates_all_registered_hooks(self):
         """The module docstring lists every hook register() wires up.
@@ -200,10 +200,10 @@ class TestAchievementDefinitions(unittest.TestCase):
         counts = Counter(a["group"] for a in self.achievements)
         expected = {
             "Getting Started": 16,
-            "Tools & Skills": 28,
-            "Power User": 46,
-            "Expert": 45,
-            "Milestones": 19,
+            "Tools & Skills": 30,
+            "Power User": 47,
+            "Expert": 46,
+            "Milestones": 21,
             "Community": 6,
         }
         for group, expected_count in expected.items():
