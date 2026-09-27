@@ -1,0 +1,41 @@
+# Coverage config for the "branch coverage gate" CI step.
+#
+# Usage (in .github/workflows/test.yml):
+#   python -m pytest tests/ --cov=. --cov-config=coverage-module-only.rc \
+#       --cov-report=term-missing --cov-fail-under=98 -q
+#
+# Named coverage-module-only.rc, NOT .coveragerc: coverage.py auto-discovers
+# a `.coveragerc` in the rootdir, which would then silently override the
+# full-tree gate's plain `--cov=.` run. A name that must be passed
+# explicitly cannot hijack another gate.
+#
+# The `--cov=.` is required: --cov-config only supplies configuration,
+# pytest-cov still needs --cov to know what to measure. Without it the run
+# produces NO coverage report and the gate passes vacuously.
+#
+# Why this file exists (fixed in 2.23.0):
+# The gate used to run `--cov=achievements`, which matched NO importable
+# module. The plugin is a top-level `__init__.py` loaded through
+# spec_from_file_location (see tests/_make_module), so it is never imported
+# as package `achievements` — that name only exists in the built wheel. The
+# gate therefore reported 0% and failed on every run while its comment
+# claimed a 100% branch requirement: a gate that measured nothing.
+#
+# `include` is a coverage.py PATH pattern (unlike --cov=<name>, which is an
+# import name), so it correctly matches the real plugin file. The full-tree
+# gate keeps using `--cov=.` and is unaffected by this file.
+[run]
+include = __init__.py
+branch = True
+omit =
+    tests/*
+    scripts/*
+    .venv/*
+    mutants/*
+    webui/*
+
+[report]
+# Missing-line detail is the whole point of this gate: a new defensive
+# branch must show up as a specific line so it can be covered.
+show_missing = True
+skip_covered = False

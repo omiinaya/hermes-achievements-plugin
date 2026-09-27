@@ -136,9 +136,18 @@ def _flush_notification_queue():
     try:
         _send_discord_notification_batch(batch)
     except Exception as exc:  # noqa: BLE001 — never let a notification thread crash
-        import logging
         logging.getLogger(__name__).warning(
             "Achievement notification batch failed: %s", exc
+        )
+    # Cross-platform home channels get the SAME coalesced batch — one
+    # message per platform for the whole burst, not one per unlock. Runs on
+    # this flush thread (already off the hook pipeline) so the `hermes send`
+    # subprocess can never stall a hook.
+    try:
+        _send_cross_platform_notification_batch(batch)
+    except Exception as exc:  # noqa: BLE001 — never crash the flush thread
+        logging.getLogger(__name__).warning(
+            "Cross-platform notification batch failed: %s", exc
         )
 
 
@@ -237,15 +246,103 @@ _CROSS_PLATFORM_RULE = re.compile(r"[A-Za-z][A-Za-z0-9_]+")
 # real `hermes send` subprocesses (slow, network I/O, non-hermetic).
 _NOTIFY_CROSS_PLATFORM = os.environ.get("ACHIEVEMENTS_NOTIFY_CROSS_PLATFORM", "1") != "0"
 
-def _hermes_send(text):
-    """Deliver via `hermes send` to the configured platform home channels.
 
-    Targets are read from ACHIEVEMENTS_NOTIFY_PLATFORMS (space/comma
-    separated, e.g. "matrix telegram simplex"), defaulting to every
-    platform that has a home channel configured in ~/.hermes/.env. Returns
-    True if at least one platform delivered.
+def _notify_cross_platform(ach_def, locale="en"):
+    """Send one unlock immediately, bypassing the debounce queue.
+
+    Only for out-of-band callers that need a single unlock delivered now
+    (scripts/tests). The normal unlock path goes through
+    ``_send_discord_notification`` → the shared debounced flush so bursts
+    coalesce into a single message.
     """
-    import subprocess
+    return _send_cross_platform_notification_batch(
+        [{"ach": ach_def}], locale_override=locale)
+
+
+# Cap the number of badges listed in ONE cross-platform message. Mirrors the
+# Discord path's 10-embed cap so a huge burst stays one readable message
+# instead of an unscrollable wall.
+_CP_MAX_LINES = 10
+
+# Dead-platform negative cache: platform -> monotonic time of its last
+# failure. A platform that fails (e.g. WhatsApp configured but never paired)
+# is SKIPPED for the cooldown instead of being retried — and re-logged — on
+# every single unlock. Coalescing the retry is the difference between one
+# warning per half hour and one per achievement.
+_CP_FAILED_AT: dict = {}
+_CP_RETRY_COOLDOWN_S = float(
+    os.environ.get("ACHIEVEMENTS_NOTIFY_RETRY_MIN", "30") or 30) * 60.0
+
+
+def _cp_platform_ready(platform):
+    """True unless this platform failed within the negative-cache cooldown."""
+    failed_at = _CP_FAILED_AT.get(platform)
+    if failed_at is None:
+        return True
+    if (time.monotonic() - failed_at) < _CP_RETRY_COOLDOWN_S:
+        return False
+    # Cooldown elapsed — let it retry and clear the cached failure.
+    _CP_FAILED_AT.pop(platform, None)
+    return True
+
+
+def _cp_mark_failed(platform):
+    _CP_FAILED_AT[platform] = time.monotonic()
+
+
+def _cp_mark_ok(platform):
+    _CP_FAILED_AT.pop(platform, None)
+
+
+def _cross_platform_text(batch, locale="en"):
+    """Render a batch of unlocks as ONE plain-text message.
+
+    A single unlock keeps the per-badge format; a burst gets a
+    "N achievements unlocked!" header plus one line per badge, truncated
+    at ``_CP_MAX_LINES`` with an explicit "+N more" tail — never a silent
+    drop, so the count always matches the header.
+    """
+    lines = []
+    for entry in batch:
+        # Queue entries are {"ach": def, "origin": ...}; a bare def is also a
+        # dict, so discriminate on the "ach" KEY, not on isinstance(dict).
+        ach_def = entry["ach"] if isinstance(entry, dict) and "ach" in entry \
+            else entry
+        emoji = RARITY_EMOJIS.get(ach_def.get("rarity", "common"), "⬜")
+        name = _t(f"achievement.{ach_def['id']}.name", locale)
+        desc = _t(f"achievement.{ach_def['id']}.description", locale)
+        group_key = ach_def["group"].lower().replace(" & ", "_").replace(" ", "_")
+        group = _t(f"group.{group_key}", locale)
+        rarity = _t(f"rarity.{ach_def['rarity']}", locale)
+        lines.append(
+            f"{emoji} {ach_def['emoji']} **{name}** — {desc}\n"
+            f"`{rarity} · {group}`"
+        )
+    if len(lines) == 1:
+        return lines[0]
+    shown = lines[:_CP_MAX_LINES]
+    rest = len(lines) - len(shown)
+    header = _t("ui.batch_unlocked", locale, count=len(lines))
+    body = "\n\n".join(shown)
+    if rest:
+        body += f"\n\n… +{rest} more"
+    return f"{header}\n\n{body}"
+
+
+def _send_cross_platform_notification_batch(batch, locale_override=None):
+    """Deliver one coalesced message to every ready cross-platform home channel.
+
+    Called from the shared notification flush, so a burst of unlocks inside
+    the debounce window becomes ONE message per platform — the same
+    anti-spam contract the Discord embed path already had. Returns True if
+    at least one platform accepted the send.
+    """
+    if not batch or not _NOTIFY_CROSS_PLATFORM:
+        return False
+    if locale_override is None:
+        state = _load_state() or {}
+        locale_override = state.get("locale", "en")
+    text = _cross_platform_text(batch, locale_override)
     home = "/root/.hermes/.env" if os.path.exists("/root/.hermes/.env") \
         else os.path.join(_HERMES_HOME, ".env")
     configured = set()
@@ -260,57 +357,41 @@ def _hermes_send(text):
     wanted = _load_env_var("ACHIEVEMENTS_NOTIFY_PLATFORMS")
     targets = [p.strip().lower() for p in re.split(r"[\s,]+", wanted) if p.strip()] \
         if wanted else sorted(configured)
+    # Explicit deny-list. The negative cache only suppresses the WARNING
+    # (the send is still attempted every 30 min), so a platform that is
+    # configured but structurally unpaired — e.g. WhatsApp with no linked
+    # device — belongs here instead, and costs zero subprocesses.
+    denied = _load_env_var("ACHIEVEMENTS_NOTIFY_SKIP_PLATFORMS")
+    if denied:
+        skip = {p.strip().lower() for p in re.split(r"[\s,]+", denied) if p.strip()}
+        targets = [p for p in targets if p not in skip]
+    targets = [p for p in targets
+               if _CROSS_PLATFORM_RULE.fullmatch(p or "") and _cp_platform_ready(p)]
+    if not targets:
+        return False
+    import subprocess
     sent_any = False
     for platform in targets:
-        if not _CROSS_PLATFORM_RULE.fullmatch(platform or ""):
-            continue
         try:
             p = subprocess.run(
                 ["hermes", "send", "--quiet", "--to", platform, text],
                 capture_output=True, text=True, timeout=30, check=False,
             )
             if p.returncode == 0:
+                _cp_mark_ok(platform)
                 sent_any = True
             else:
+                _cp_mark_failed(platform)
                 logging.getLogger(__name__).warning(
                     "achievement hermes send to %s failed (%s): %s",
                     platform, p.returncode, (p.stderr or p.stdout)[:200],
                 )
         except Exception as exc:  # noqa: BLE001 — never crash a hook
+            _cp_mark_failed(platform)
             logging.getLogger(__name__).warning(
                 "achievement hermes send to %s error: %s", platform, exc,
             )
     return sent_any
-
-
-def _notify_cross_platform(ach_def, locale="en"):
-    """Build and deliver the plain-text unlock notification."""
-    emoji = RARITY_EMOJIS.get(ach_def.get("rarity", "common"), "⬜")
-    name = _t(f"achievement.{ach_def['id']}.name", locale)
-    desc = _t(f"achievement.{ach_def['id']}.description", locale)
-    group_key = ach_def["group"].lower().replace(" & ", "_").replace(" ", "_")
-    group = _t(f"group.{group_key}", locale)
-    rarity = _t(f"rarity.{ach_def['rarity']}", locale)
-    text = (f"{emoji} {ach_def['emoji']} **Achievement unlocked**: {name}\n"
-            f"{desc}\n`{rarity} · {group}`")
-    return _hermes_send(text)
-
-
-def _notify_cross_platform_async(ach_def):
-    """Deliver the cross-platform notification on a daemon thread.
-
-    ``hermes send`` spawns a subprocess and can take up to ~30s on a
-    slow platform, far too long to run synchronously inside the hook
-    pipeline. The daemon thread is best-effort: a failure is logged by
-    ``_hermes_send`` and never propagates.
-    """
-    if not _NOTIFY_CROSS_PLATFORM:
-        return
-    state = _load_state() or {}
-    locale = state.get("locale", "en")
-    t = threading.Thread(target=_notify_cross_platform, args=(ach_def, locale),
-                         daemon=True)
-    t.start()
 
 
 # ── State management (thread-safe, cached in memory) ────────────────────
@@ -321,6 +402,11 @@ def _notify_cross_platform_async(ach_def):
 _state_lock = threading.RLock()
 _state = None  # loaded lazily
 _last_save_ts = 0.0  # debounce: don't write state.json more than once per 2s
+# Highest state_revision THIS PROCESS has observed/written. An external admin
+# tool bumps the on-disk value to signal "my edit is authoritative" — see
+# _external_revision / _adopt_disk_wholesale. Stays 0 for states written
+# before 2.23.0 (the key is absent), which is the correct baseline.
+_last_written_revision = 0
 
 
 @contextmanager
@@ -512,6 +598,59 @@ def _merge_disk_into_memory(disk, state):
     return state
 
 
+def _external_revision(disk):
+    """Disk's state_revision, or 0 when absent (pre-2.23 states).
+
+    An external admin tool (scripts/reset_achievement.py, a hand edit, a
+    state wipe) BUMPS this counter. A process that sees a revision higher
+    than the one it last wrote knows its in-memory view is stale by
+    definition and must adopt disk wholesale — which is the ONLY way an
+    achievement can ever be un-unlocked while a process is alive.
+    Without it, "unlocked record wins" makes the merge monotonic: an
+    external relock is silently reverted on the next save, and the badge
+    reappears. That is not a race, it is a design gap.
+    """
+    try:
+        return int(disk.get("state_revision") or 0)
+    except (TypeError, ValueError):
+        return 0
+
+
+def _adopt_disk_wholesale(disk):
+    """Replace the in-memory state with disk, preserving object identity.
+
+    Hooks hold references into ``_state`` AND into its nested containers
+    (``state["stats"]``, ``state["achievements"]``) across turns, so every
+    container is updated IN PLACE rather than rebound. A plain
+    ``live[key] = val`` would swap the ``stats`` dict for a new object and
+    silently orphan every reference a hook kept — the exact bug the merge
+    path documents when it refuses to replace the state object.
+
+    Only called when disk declares a newer revision than this process wrote.
+    """
+    global _state
+    with _state_lock:
+        live = _state if _state is not None else {}
+        for key in [k for k in live if k not in disk]:
+            del live[key]
+        _update_in_place(live, disk)
+        _state = live
+        _normalize_state()
+        _init_achievements()
+        return _state
+
+
+def _update_in_place(target, source):
+    """Recursively write source's contents into target, keeping identity."""
+    for key, val in source.items():
+        existing = target.get(key)
+        if isinstance(existing, dict) and isinstance(val, dict):
+            existing.clear()
+            _update_in_place(existing, val)
+        else:
+            target[key] = val
+
+
 def _save_state(force=False):
     """Persist state to disk, merging with any concurrent-process changes.
 
@@ -522,8 +661,13 @@ def _save_state(force=False):
     Under the cross-process flock the freshest on-disk state is re-read and
     merged with this process's in-memory state (max counters, union sets,
     unlocked-wins), so a save can never revert another process's progress.
+
+    Exception: if disk carries a HIGHER state_revision than this process has
+    written, an external admin tool deliberately rewrote the file. The
+    monotonic merge is then wrong (it would resurrect whatever the admin
+    just removed), so disk is adopted wholesale instead.
     """
-    global _last_save_ts
+    global _last_save_ts, _last_written_revision
     if _state is None:
         return  # nothing loaded yet (e.g. finalize before first hook)
     with _state_lock:
@@ -533,16 +677,27 @@ def _save_state(force=False):
         try:
             with _cross_process_lock():
                 disk = _read_state_raw()
-                if disk is not None:
-                    # Fold disk values INTO the live in-memory object — never
-                    # replace it: hooks hold references to _state/stats across
-                    # a save, and replacing would orphan them (lost counters).
-                    _merge_disk_into_memory(disk, _state)
-                    # Adopted disk may carry list-encoded sets and stale or
-                    # missing achievement records — normalize + prune/backfill
-                    # so the merged view matches what a fresh load would yield.
-                    _normalize_state()
-                    _init_achievements()
+                if disk is not None and _external_revision(disk) > _last_written_revision:
+                    # An external actor deliberately rewrote state (relock,
+                    # wipe, restore). Its revision outranks ours, so the
+                    # monotonic "unlocked wins" merge is WRONG here — it
+                    # would resurrect everything the admin just removed.
+                    # Adopt disk wholesale and carry its revision forward.
+                    _adopt_disk_wholesale(disk)
+                    _last_written_revision = _external_revision(disk)
+                else:
+                    if disk is not None:
+                        # Fold disk values INTO the live in-memory object — never
+                        # replace it: hooks hold references to _state/stats across
+                        # a save, and replacing would orphan them (lost counters).
+                        _merge_disk_into_memory(disk, _state)
+                        # Adopted disk may carry list-encoded sets and stale or
+                        # missing achievement records — normalize + prune/backfill
+                        # so the merged view matches what a fresh load would yield.
+                        _normalize_state()
+                        _init_achievements()
+                    _last_written_revision = max(
+                        _last_written_revision, _external_revision(disk or {}))
                 _write_state_atomic(_state)
             _last_save_ts = now
         except Exception as exc:  # noqa: BLE001 — state save must never crash hooks
@@ -574,12 +729,27 @@ def _load_state():
             _state = _new_state()
         _normalize_state()
         _init_achievements()
+        # Seed the revision baseline from whatever we just loaded, so a later
+        # external bump is detected as "newer than what I started from".
+        # Uses the raw disk read (no self-heal from .bak) on purpose: the
+        # revision must describe the file the process is about to own.
+        try:
+            global _last_written_revision
+            raw = _read_state_raw()
+            if raw is not None:
+                _last_written_revision = _external_revision(raw)
+        except Exception as exc:  # noqa: BLE001 — revision is advisory, never fatal
+            logging.getLogger(__name__).debug(
+                "state_revision seed skipped: %s", exc)
         return _state
 
 
 def _new_state():
     return {
         "achievements": {},
+        # Bumped by external admin tools (scripts/reset_achievement.py) to mark
+        # their edit authoritative. See _external_revision.
+        "state_revision": 0,
         "stats": {
             "total_turns": 0,
             "tools_used": {},
@@ -2000,17 +2170,10 @@ def _unlock(ach_id, now=None):
     # acquisition from the same process would self-deadlock.
     _save_state(force=True)
     if ach_def:
+        # One enqueue serves BOTH delivery paths: the debounced flush sends
+        # Discord embeds and the coalesced cross-platform message, so a burst
+        # of unlocks is one message per target instead of one per unlock.
         _send_discord_notification(ach_def)
-        # Cross-platform delivery (Matrix/Telegram/SimpleX/WhatsApp): the
-        # Discord embed path above is no-op without a Discord token, which
-        # is the norm on non-Discord deployments. Fire `hermes send` in a
-        # daemon thread so a slow platform never stalls the hook pipeline.
-        try:
-            _notify_cross_platform_async(ach_def)
-        except Exception as exc:  # noqa: BLE001 — notification must never crash
-            logging.getLogger(__name__).warning(
-                "cross-platform achievement notification error: %s", exc,
-            )
     return True
 
 

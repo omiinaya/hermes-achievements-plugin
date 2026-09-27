@@ -2896,109 +2896,239 @@ class TestStatePersistence(HookTestBase):
         self.mod._send_discord_notification(ach_def)
         self.assertLessEqual(threading.active_count(), threads_before + 1)
 
-    def test_unlock_spawns_cross_platform_notify(self):
-        # Unlock must enqueue a cross-platform notification (async). It is
-        # guarded by env so tests default to no-op; monkeypatch the async fn
-        # to confirm _unlock actually calls it with the unlocked def.
-        calls = {}
-        def fake_async(d):
-            calls["sent"] = d["id"]
-        old = self.mod._notify_cross_platform_async
-        self.mod._notify_cross_platform_async = fake_async
+    def test_unlock_enqueues_for_both_delivery_paths(self):
+        # One enqueue feeds BOTH Discord embeds and the coalesced
+        # cross-platform message — _unlock must not bypass the debounce
+        # queue, or a burst spams one message per unlock.
+        calls = []
+        old = self.mod._send_discord_notification
+        self.mod._send_discord_notification = calls.append
         try:
             self.mod._unlock("first_steps")
         finally:
-            self.mod._notify_cross_platform_async = old
-        self.assertEqual(calls.get("sent"), "first_steps")
+            self.mod._send_discord_notification = old
+        self.assertEqual([d["id"] for d in calls], ["first_steps"])
 
-    def test_notify_cross_platform_builds_and_sends(self):
-        # _notify_cross_platform builds the plain-text message and calls
-        # _hermes_send, which invokes `hermes send` per configured platform.
+    def test_flush_sends_cross_platform_batch(self):
+        # _flush_notification_queue must hand the WHOLE batch to the
+        # cross-platform sender, so N unlocks inside the debounce window
+        # become ONE message.
+        seen = []
+        old_cp = self.mod._send_cross_platform_notification_batch
+        old_load = self.mod._load_env_var
+        self.mod._send_cross_platform_notification_batch = seen.append
+        self.mod._load_env_var = lambda k, fb="": fb
+        try:
+            self.mod._send_discord_notification(
+                self.mod.ACHIEVEMENT_DEFS["first_steps"])
+            self.mod._send_discord_notification(
+                self.mod.ACHIEVEMENT_DEFS["ghost_in_shell"])
+            self.assertFalse(seen, "flush must wait for the debounce window")
+            self.mod._flush_notification_queue()
+        finally:
+            self.mod._send_cross_platform_notification_batch = old_cp
+            self.mod._load_env_var = old_load
+        self.assertEqual(len(seen), 1, "one cross-platform message per batch")
+        self.assertEqual(
+            [e["ach"]["id"] for e in seen[0]],
+            ["first_steps", "ghost_in_shell"])
+
+    def test_notify_cross_platform_single_sends_immediately(self):
+        # The out-of-band wrapper bypasses the debounce queue and sends
+        # exactly one unlock, returning the batch sender's success bool.
+        seen = []
+        old = self.mod._send_cross_platform_notification_batch
+        old_flag = self.mod._NOTIFY_CROSS_PLATFORM
+        self.mod._send_cross_platform_notification_batch = (
+            lambda batch, locale_override=None: seen.append((batch, locale_override)) or True)
+        self.mod._NOTIFY_CROSS_PLATFORM = True
+        try:
+            ok = self.mod._notify_cross_platform(
+                self.mod.ACHIEVEMENT_DEFS["first_steps"], "fr")
+        finally:
+            self.mod._send_cross_platform_notification_batch = old
+            self.mod._NOTIFY_CROSS_PLATFORM = old_flag
+        self.assertTrue(ok)
+        self.assertEqual(len(seen), 1)
+        self.assertEqual(seen[0][0][0]["ach"]["id"], "first_steps")
+        self.assertEqual(seen[0][1], "fr")
+
+    def test_flush_survives_delivery_exceptions(self):
+        # A raising delivery path must be logged, never propagate: the
+        # flush runs on a timer thread and an exception there would kill it.
+        class Boom(Exception):
+            pass
+        def boom(*a, **k):
+            raise Boom("delivery exploded")
+        old_discord = self.mod._send_discord_notification_batch
+        old_cp = self.mod._send_cross_platform_notification_batch
+        self.mod._send_discord_notification_batch = boom
+        self.mod._send_cross_platform_notification_batch = boom
+        try:
+            with self.mod._NOTIF_QUEUE_LOCK:
+                self.mod._NOTIF_QUEUE.append(
+                    {"ach": self.mod.ACHIEVEMENT_DEFS["first_steps"]})
+            with self.assertLogs(self.mod.__name__, level="WARNING") as cm:
+                self.mod._flush_notification_queue()
+        finally:
+            self.mod._send_discord_notification_batch = old_discord
+            self.mod._send_cross_platform_notification_batch = old_cp
+        self.assertTrue(any("delivery exploded" in m for m in cm.output))
+
+    def test_cross_platform_text_single_vs_burst(self):
+        # One unlock → per-badge format; a burst → counted header.
+        single = self.mod._cross_platform_text(
+            [self.mod.ACHIEVEMENT_DEFS["first_steps"]], "en")
+        self.assertIn("First Steps", single)
+        self.assertNotIn("achievements unlocked", single)
+        batch = [self.mod.ACHIEVEMENT_DEFS[k] for k in
+                 ("first_steps", "ghost_in_shell", "web_walker")]
+        burst = self.mod._cross_platform_text(batch, "en")
+        self.assertIn("3 achievements unlocked", burst)
+        for k in ("first_steps", "ghost_in_shell", "web_walker"):
+            self.assertIn(self.mod.ACHIEVEMENT_DEFS[k]["emoji"], burst)
+
+    def test_cross_platform_text_truncates_with_explicit_tail(self):
+        # A big burst caps the listed badges but the header count must
+        # still equal the true total, and the tail must be explicit.
+        ids = list(self.mod.ACHIEVEMENT_DEFS)[:12]
+        batch = [{"ach": self.mod.ACHIEVEMENT_DEFS[i]} for i in ids]
+        text = self.mod._cross_platform_text(batch, "en")
+        self.assertIn("12 achievements unlocked", text)
+        self.assertIn("+2 more", text)
+
+    def test_cross_platform_skip_list_excludes_platforms(self):
+        # ACHIEVEMENTS_NOTIFY_SKIP_PLATFORMS is the config-time deny-list:
+        # an excluded platform is never even attempted (zero subprocesses),
+        # unlike the negative cache which still retries after its cooldown.
         import subprocess as _sp
         calls = []
         class FakeP:
             returncode = 0; stderr = ""; stdout = ""
         real_run = _sp.run
-        def fake_run(cmd, **kw):
-            calls.append(cmd); return FakeP()
+        old_load = self.mod._load_env_var
+        old_env = os.environ.get("ACHIEVEMENTS_NOTIFY_PLATFORMS")
+        old_skip = os.environ.get("ACHIEVEMENTS_NOTIFY_SKIP_PLATFORMS")
+        try:
+            os.environ["ACHIEVEMENTS_NOTIFY_PLATFORMS"] = "matrix telegram whatsapp"
+            os.environ["ACHIEVEMENTS_NOTIFY_SKIP_PLATFORMS"] = "whatsapp"
+            self.mod._load_env_var = lambda k, fb="": os.environ.get(k, fb)
+            self.mod._CP_FAILED_AT.clear()
+            old_flag = self.mod._NOTIFY_CROSS_PLATFORM
+            self.mod._NOTIFY_CROSS_PLATFORM = True
+            _sp.run = lambda cmd, **kw: (calls.append(cmd), FakeP())[1]
+            self.mod._send_cross_platform_notification_batch(
+                [{"ach": self.mod.ACHIEVEMENT_DEFS["first_steps"]}])
+            sent_to = {c[c.index("--to") + 1] for c in calls}
+            self.assertEqual(sent_to, {"matrix", "telegram"})
+            self.assertNotIn("whatsapp", sent_to)
+        finally:
+            self.mod._NOTIFY_CROSS_PLATFORM = old_flag
+            _sp.run = real_run
+            self.mod._load_env_var = old_load
+            self.mod._CP_FAILED_AT.clear()
+            for k, v in (("ACHIEVEMENTS_NOTIFY_PLATFORMS", old_env),
+                         ("ACHIEVEMENTS_NOTIFY_SKIP_PLATFORMS", old_skip)):
+                if v is None:
+                    os.environ.pop(k, None)
+                else:
+                    os.environ[k] = v
+
+    def test_cross_platform_skips_dead_platform_within_cooldown(self):
+        # A platform that failed is skipped for the cooldown instead of
+        # being retried (and re-logged) on every unlock.
+        import subprocess as _sp
+        calls = []
+        class FailP:
+            returncode = 1; stderr = "not paired"; stdout = ""
+        real_run = _sp.run
         old_load = self.mod._load_env_var
         old_env = os.environ.get("ACHIEVEMENTS_NOTIFY_PLATFORMS")
         try:
-            _sp.run = fake_run
-            # Force one target so the configured-set path is deterministic.
-            os.environ["ACHIEVEMENTS_NOTIFY_PLATFORMS"] = "telegram"
+            os.environ["ACHIEVEMENTS_NOTIFY_PLATFORMS"] = "whatsapp"
             self.mod._load_env_var = lambda k, fb="": os.environ.get(k, fb)
-            ok = self.mod._notify_cross_platform(
-                self.mod.ACHIEVEMENT_DEFS["first_steps"], "en")
+            self.mod._CP_FAILED_AT.clear()
+            old_flag = self.mod._NOTIFY_CROSS_PLATFORM
+            self.mod._NOTIFY_CROSS_PLATFORM = True
+            _sp.run = lambda cmd, **kw: (calls.append(cmd), FailP())[1]
+            batch = [{"ach": self.mod.ACHIEVEMENT_DEFS["first_steps"]}]
+            self.mod._send_cross_platform_notification_batch(batch)
+            self.assertEqual(len(calls), 1, "first failure is attempted")
+            # Second burst inside the cooldown: no new attempt, no new warn.
+            self.mod._send_cross_platform_notification_batch(batch)
+            self.assertEqual(len(calls), 1, "dead platform skipped in cooldown")
         finally:
+            self.mod._NOTIFY_CROSS_PLATFORM = old_flag
             _sp.run = real_run
             self.mod._load_env_var = old_load
+            self.mod._CP_FAILED_AT.clear()
             if old_env is None:
                 os.environ.pop("ACHIEVEMENTS_NOTIFY_PLATFORMS", None)
             else:
                 os.environ["ACHIEVEMENTS_NOTIFY_PLATFORMS"] = old_env
-        self.assertTrue(ok)
-        self.assertTrue(calls)
-        last = calls[-1]
-        self.assertEqual(last[0], "hermes")
-        self.assertEqual(last[1], "send")
-        self.assertIn("--quiet", last)
-        self.assertEqual(last[last.index("--to") + 1], "telegram")
 
-    def test_notify_cross_platform_disabled_by_env(self):
-        # Short-circuit branch: _notify_cross_platform_async returns early when
-        # the env flag disables it (the default test module has it off).
+    def test_cross_platform_retries_after_cooldown_expires(self):
+        # Once the cooldown elapses the platform is retried and, on
+        # success, its cached failure is cleared.
+        old_now = self.mod.time.monotonic
+        try:
+            self.mod._CP_FAILED_AT.clear()
+            self.mod._CP_FAILED_AT["telegram"] = 1000.0
+            self.mod._CP_RETRY_COOLDOWN_S = 60.0
+            self.mod.time.monotonic = lambda: 1030.0
+            self.assertFalse(self.mod._cp_platform_ready("telegram"))
+            self.mod.time.monotonic = lambda: 1100.0
+            self.assertTrue(self.mod._cp_platform_ready("telegram"))
+            self.assertNotIn("telegram", self.mod._CP_FAILED_AT)
+        finally:
+            self.mod.time.monotonic = old_now
+            self.mod._CP_FAILED_AT.clear()
+            self.mod._CP_RETRY_COOLDOWN_S = 30 * 60.0
+
+    def test_cross_platform_error_paths_do_not_raise(self):
+        # Both subprocess failure and an exception must be swallowed.
+        import subprocess as _sp
+        real_run = _sp.run
+        old_load = self.mod._load_env_var
+        old_env = os.environ.get("ACHIEVEMENTS_NOTIFY_PLATFORMS")
+        batch = [{"ach": self.mod.ACHIEVEMENT_DEFS["first_steps"]}]
+        try:
+            os.environ["ACHIEVEMENTS_NOTIFY_PLATFORMS"] = "telegram"
+            self.mod._load_env_var = lambda k, fb="": os.environ.get(k, fb)
+            self.mod._CP_FAILED_AT.clear()
+            old_flag = self.mod._NOTIFY_CROSS_PLATFORM
+            self.mod._NOTIFY_CROSS_PLATFORM = True
+            class FailP:
+                returncode = 1; stderr = "boom"; stdout = ""
+            _sp.run = lambda cmd, **kw: FailP()
+            self.mod._send_cross_platform_notification_batch(batch)  # no raise
+            self.assertIn("telegram", self.mod._CP_FAILED_AT)
+            self.mod._CP_FAILED_AT.clear()
+            _sp.run = lambda cmd, **kw: (_ for _ in ()).throw(RuntimeError("err"))
+            self.mod._send_cross_platform_notification_batch(batch)  # no raise
+            self.assertIn("telegram", self.mod._CP_FAILED_AT)
+        finally:
+            self.mod._NOTIFY_CROSS_PLATFORM = old_flag
+            _sp.run = real_run
+            self.mod._load_env_var = old_load
+            self.mod._CP_FAILED_AT.clear()
+            if old_env is None:
+                os.environ.pop("ACHIEVEMENTS_NOTIFY_PLATFORMS", None)
+            else:
+                os.environ["ACHIEVEMENTS_NOTIFY_PLATFORMS"] = old_env
+
+    def test_cross_platform_disabled_by_env(self):
+        # The env kill-switch short-circuits the whole batch path.
         old_flag = self.mod._NOTIFY_CROSS_PLATFORM
         try:
             self.mod._NOTIFY_CROSS_PLATFORM = False
-            self.mod._notify_cross_platform_async(
-                self.mod.ACHIEVEMENT_DEFS["first_steps"])
+            self.assertFalse(self.mod._send_cross_platform_notification_batch(
+                [{"ach": self.mod.ACHIEVEMENT_DEFS["first_steps"]}]))
         finally:
             self.mod._NOTIFY_CROSS_PLATFORM = old_flag
 
-    def test_notify_cross_platform_async_thread_start(self):
-        # _notify_cross_platform_async spawns a daemon thread that delivers.
-        # Patch _hermes_send to capture (no subprocess) and confirm content.
-        captured = {}
-        old_send = self.mod._hermes_send
-        old_flag = self.mod._NOTIFY_CROSS_PLATFORM
-        def fake_send(text):
-            captured["text"] = text
-            return True
-        try:
-            self.mod._NOTIFY_CROSS_PLATFORM = True
-            self.mod._hermes_send = fake_send
-            self.mod._notify_cross_platform_async(
-                self.mod.ACHIEVEMENT_DEFS["first_steps"])
-            # Thread is daemon; join it.
-            import time
-            for _ in range(20):
-                if captured: break
-                time.sleep(0.02)
-        finally:
-            self.mod._hermes_send = old_send
-            self.mod._NOTIFY_CROSS_PLATFORM = old_flag
-        self.assertIn("Achievement unlocked", captured.get("text", ""))
-        self.assertIn("First Steps", captured.get("text", ""))
-
-    def test_notify_cross_platform_error_paths(self):
-        # subprocess failure and exception paths in _hermes_send must not raise.
-        import subprocess as _sp
-        old_load = self.mod._load_env_var
-        os.environ["ACHIEVEMENTS_NOTIFY_PLATFORMS"] = "telegram"
-        self.mod._load_env_var = lambda k, fb="": os.environ.get(k, fb)
-        real_run = _sp.run
-        class FailP:
-            returncode = 1; stderr = "boom"; stdout = ""
-        try:
-            _sp.run = lambda cmd, **kw: FailP()
-            self.assertFalse(self.mod._hermes_send("x"))
-            _sp.run = lambda cmd, **kw: (_ for _ in ()).throw(RuntimeError("err"))
-            self.assertFalse(self.mod._hermes_send("x"))
-        finally:
-            _sp.run = real_run
-            self.mod._load_env_var = old_load
-            os.environ.pop("ACHIEVEMENTS_NOTIFY_PLATFORMS", None)
+    def test_cross_platform_empty_batch_is_noop(self):
+        self.assertFalse(self.mod._send_cross_platform_notification_batch([]))
 
     def test_notifications_batch_coalesce_in_debounce_window(self):
         # Rapid unlocks → one batched message with N embeds
@@ -5346,6 +5476,105 @@ class TestCrossProcessStateSafety(HookTestBase):
         with open(os.path.join(self._tmp, "achievements", "state.json")) as _f:
             disk = json.load(_f)
         self.assertTrue(disk["achievements"]["manual_override"]["unlocked"])
+
+    def test_external_relock_survives_a_stale_process_save(self):
+        """An admin relock must NOT be reverted by a live process's save.
+
+        This is the 2026-09-25 bug: scripts/reset_achievement.py relocked a
+        badge on disk, and seconds later the running gateway rewrote it as
+        unlocked — because the merge is monotonic ("unlocked wins"). The
+        relock now bumps state_revision, and a process seeing a NEWER
+        revision adopts disk wholesale instead of merging.
+        """
+        proc_b = self._second_process()
+        proc_b._load_state()
+        # A unlocks; B stays in memory believing it is still locked
+        self.assertTrue(self.mod._unlock("manual_override"))
+        self.assertTrue(
+            proc_b._load_state()["achievements"]["manual_override"]["unlocked"]
+            is False)
+        # Admin relocks on disk AND bumps the revision (what the script does)
+        spath = os.path.join(self._tmp, "achievements", "state.json")
+        with open(spath) as _f:
+            disk = json.load(_f)
+        disk["achievements"]["manual_override"] = {"unlocked": False}
+        disk["newly_unlocked"] = [
+            a for a in disk.get("newly_unlocked", []) if a != "manual_override"]
+        disk["state_revision"] = int(disk.get("state_revision") or 0) + 1
+        with open(spath, "w") as _f:
+            json.dump(disk, _f, indent=2)
+        # B saves with NO new work — the pre-fix merge would resurrect it
+        proc_b._save_state(force=True)
+        with open(spath) as _f:
+            disk = json.load(_f)
+        self.assertFalse(
+            disk["achievements"]["manual_override"]["unlocked"],
+            "external relock must survive a stale process's save")
+        self.assertNotIn("manual_override", disk.get("newly_unlocked", []))
+
+    @staticmethod
+    def _jsonable(state):
+        """Deep copy with sets -> sorted lists, mirroring the plugin's own
+        on-disk encoding (_write_state_atomic's _convert)."""
+        def conv(v):
+            if isinstance(v, set):
+                return sorted(v)
+            if isinstance(v, dict):
+                return {k: conv(x) for k, x in v.items()}
+            if isinstance(v, list):
+                return [conv(x) for x in v]
+            return v
+        return conv(json.loads(json.dumps(conv(state))))
+
+    def test_adoption_preserves_state_object_identity(self):
+        """Hooks hold references into _state, so adopting disk must mutate
+        the SAME dict rather than rebinding _state to a new object."""
+        self.mod._load_state()
+        before = self.mod._load_state()
+        stats_ref = before["stats"]
+        disk = self._jsonable(before)
+        disk["state_revision"] = 99
+        adopted = self.mod._adopt_disk_wholesale(disk)
+        self.assertIs(adopted, before, "adoption must not rebind _state")
+        self.assertIs(adopted["stats"], stats_ref,
+                      "nested refs held by hooks must stay valid")
+        self.assertEqual(adopted["state_revision"], 99)
+
+    def test_adoption_drops_keys_absent_from_disk(self):
+        """A wholesale adopt is authoritative: keys the external writer
+        removed must not survive in memory."""
+        self.mod._load_state()
+        state = self.mod._load_state()
+        state["scratch_key"] = {"unlocked": True}
+        disk = self._jsonable(state)
+        disk.pop("scratch_key", None)
+        disk["state_revision"] = 7
+        self.mod._adopt_disk_wholesale(disk)
+        self.assertNotIn("scratch_key", self.mod._load_state())
+
+    def test_save_without_revision_change_still_merges(self):
+        """A plain save (no external bump) must keep the normal monotonic
+        merge — the adoption path must not hijack ordinary operation."""
+        proc_b = self._second_process()
+        proc_b._load_state()
+        for _ in range(5):
+            self.turn()
+        self.mod._save_state(force=True)
+        proc_b._save_state(force=True)
+        with open(os.path.join(self._tmp, "achievements", "state.json")) as _f:
+            disk = json.load(_f)
+        self.assertEqual(disk["stats"]["total_turns"], 5)
+        # The ordinary merge ran (counters preserved), and A's own first_steps
+        # unlock is intact — adoption must not have clobbered live progress.
+        self.assertTrue(disk["achievements"]["first_steps"]["unlocked"])
+
+    def test_external_revision_tolerates_bad_values(self):
+        """A hand-edited / corrupt state_revision must not crash a save."""
+        self.assertEqual(self.mod._external_revision({}), 0)
+        self.assertEqual(self.mod._external_revision({"state_revision": None}), 0)
+        self.assertEqual(self.mod._external_revision({"state_revision": "x"}), 0)
+        self.assertEqual(self.mod._external_revision({"state_revision": "5"}), 5)
+        self.assertEqual(self.mod._external_revision({"state_revision": 3}), 3)
 
     def test_save_does_not_revert_other_process_progress(self):
         """A stale process (loaded before any work existed) that saves with

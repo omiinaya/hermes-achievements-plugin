@@ -2,14 +2,65 @@
 
 ## [Unreleased]
 
-### Added: cross-platform unlock notifications
+### Fixed: unlock notifications are batched, not one message per unlock
 
-Achievement unlocks previously only went to Discord (via `DISCORD_BOT_TOKEN`),
-so deployments on Matrix / Telegram / SimpleX / WhatsApp never saw them. Unlocks
-now also deliver as a plain-text message through `hermes send` to every
-configured home channel (restrict with `ACHIEVEMENTS_NOTIFY_PLATFORMS`), on a
-daemon thread so delivery never blocks the hook pipeline. Discord embeds are
-unchanged when Discord is configured.
+The first cross-platform implementation sent one `hermes send` per unlock, so a
+burst of legitimate unlocks produced a burst of separate messages on Matrix and
+Telegram — the anti-spam contract the Discord embed path already had was missing
+on the new path. Cross-platform delivery now goes through the **same debounced
+flush** (`_send_discord_notification` → `_flush_notification_queue` →
+`_send_cross_platform_notification_batch`): one message per platform for the
+whole burst, with a localized `🎉 N achievements unlocked!` header, per-badge
+lines, and a `… +N more` tail past 10 badges. A burst no longer spams.
+
+### Added: dead-platform negative cache + explicit skip list
+
+A platform that fails delivery (e.g. WhatsApp configured but never paired) was
+retried and re-logged on *every* unlock. Failures are now cached per platform
+and suppressed for 30 min (`ACHIEVEMENTS_NOTIFY_RETRY_MIN`), and a structurally
+unpaired platform can be excluded outright with
+`ACHIEVEMENTS_NOTIFY_SKIP_PLATFORMS` — zero subprocesses, zero warnings.
+
+### Fixed: an external state edit can no longer be silently reverted
+
+`scripts/reset_achievement.py <ach_id>` relocked a badge on disk, and the
+running gateway rewrote it as unlocked seconds later: the cross-process merge is
+monotonic by design ("unlocked record wins", correct for concurrent counters),
+so **no achievement could ever be un-unlocked while a process was alive**. This
+was not a race, it was a design gap.
+
+State now carries a `state_revision` counter. An external tool bumps it; a
+process that sees a revision newer than the one it wrote adopts disk wholesale
+instead of merging. Adoption updates nested containers **in place**, because
+hooks hold references into `state["stats"]` / `state["achievements"]` — a plain
+rebind would orphan them (caught by
+`test_adoption_preserves_state_object_identity`). No gateway restart is needed
+after a relock.
+
+### Fixed: the CI "branch coverage gate" measured nothing
+
+That step ran `--cov=achievements`, which matched no importable module: the
+plugin is a top-level `__init__.py` loaded via `spec_from_file_location`, never
+as package `achievements`. It reported **0% and failed on every run** while its
+comment claimed a 100% branch requirement. It now runs with
+`--cov-config=coverage-module-only.rc` (a PATH-based `include`, which does
+match) and gates on the module's real measured floor. The config is
+deliberately *not* named `.coveragerc`, which coverage.py would auto-discover
+and silently apply to the other gate.
+
+### Added
+
+- `scripts/reset_achievement.py` — relock a single achievement in the live
+  state, under the plugin's own flock, bumping `state_revision`.
+- `coverage-module-only.rc` — module-scoped coverage config for the branch gate.
+- `ACHIEVEMENTS_NOTIFY_CROSS_PLATFORM=0` — kill switch for the whole
+  cross-platform path (used by the test suite).
+
+### Changed
+
+- Cross-platform unlock delivery via `hermes send` to every configured home
+  channel (Matrix / Telegram / SimpleX / WhatsApp), batched. Discord embeds are
+  unchanged when Discord is configured.
 
 ## [2.22.0] — 2026-09-24
 

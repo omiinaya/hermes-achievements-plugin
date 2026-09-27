@@ -507,6 +507,8 @@ class TestFileIntegrity(unittest.TestCase):
         "LICENSE",
         ".gitignore",
         "setup.sh",
+        "coverage-module-only.rc",
+        "scripts/reset_achievement.py",
         "locales/en.json",
         "locales/es.json",
         "locales/fr.json",

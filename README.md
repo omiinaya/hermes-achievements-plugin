@@ -49,6 +49,9 @@ needing a `~/.hermes/plugins/achievements` checkout.
 - Optional: `ACHIEVEMENTS_NOTIFY_PLATFORMS=matrix telegram …` in `~/.hermes/.env`
   to limit cross-platform notifications to a specific set of platforms
   (default: every configured home channel).
+- Optional: `ACHIEVEMENTS_NOTIFY_SKIP_PLATFORMS=whatsapp` to exclude platforms
+  that are configured but structurally unpaired — they are never attempted
+  at all, instead of being retried (and warned about) on a cooldown.
 
 No external Python dependencies — the plugin uses only the standard library.
 

@@ -183,8 +183,10 @@ Current unread kwargs and why that's correct:
 ## Testing
 
 ```bash
-python3 -m pytest tests/ -q    # 395 tests, no deps beyond pytest
-python3 -m pytest tests/ --cov=. --cov-fail-under=99 -q   # CI coverage gate
+python3 -m pytest tests/ -q    # 476 tests, no deps beyond pytest
+python3 -m pytest tests/ --cov=. --cov-fail-under=99 -q   # CI full-tree coverage gate
+python3 -m pytest tests/ --cov=. --cov-config=coverage-module-only.rc \
+    --cov-fail-under=98 -q     # CI module-only branch gate
 ruff check .                   # CI lint gate — must pass before push
 ```
 
