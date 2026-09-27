@@ -8,7 +8,9 @@ using Hermes. Pure Python stdlib, no external dependencies.
 ## Repo layout
 
 - `__init__.py` — everything: achievement definitions, detection hooks,
-  slash command handlers, state persistence, Discord notifications
+  slash command handlers, state persistence, unlock notifications
+  (Discord embeds when configured, plus batched cross-platform delivery
+  via `hermes send` to every home channel)
 - `plugin.yaml` — plugin manifest (name, version, declared hooks)
 - `locales/` — en/es/fr/pt JSON translations
 - `tests/test_plugin.py` — static validation (defs, locales, file integrity)
@@ -26,6 +28,14 @@ using Hermes. Pure Python stdlib, no external dependencies.
   backfills missing translations (WARN + English fallback)
 - `scripts/bump_version.py` — updates the version in all 4 places that
   carry it (pyproject.toml, plugin.yaml, setup.sh ×2) in one shot
+- `scripts/reset_achievement.py` — relock one achievement in the LIVE
+  state (flock, bumps `state_revision`, so a running gateway adopts it
+  without a restart). The only supported way to undo a false-positive
+  or test-artifact unlock.
+- `coverage-module-only.rc` — module-scoped coverage config for the
+  branch gate. PATH-based `include` (not an import name) because the
+  plugin is never imported as package `achievements`. Must be paired
+  with `--cov=.` and must NOT be renamed to `.coveragerc`.
 - **Wheel packaging (pyproject.toml)** — the wheel ships the plugin as the
   `achievements` package (repo root mapped via `package-dir`), NOT a bare
   top-level `__init__` module (that name collides with Python package
@@ -220,8 +230,19 @@ ruff check .                   # CI lint gate — must pass before push
   Never do this for a tag whose workflow run is merely RED — only for
   runs that never STARTED (zero steps).
 
-- **Coverage is 100% line AND 100% branch on `__init__.py`** (99% full
-  tree — the only misses are inside test files themselves).
+- **Coverage: 99% full tree (Gate A), 99% line+branch on `__init__.py`
+  (Gate B)** — full tree is 99.16%, module-only 99.09%; the residual
+  misses are defensive branches (Windows/non-POSIX, malformed payloads).
+  Do NOT claim 100%: the gates now measure what they claim to. Gate B
+  must be invoked as
+  `--cov=. --cov-config=coverage-module-only.rc` — `--cov-config` alone
+  measures nothing, and `--cov=achievements` matches nothing at all
+  (the plugin is a top-level `__init__.py` loaded via
+  `spec_from_file_location`, never as package `achievements`; that
+  mistake shipped a gate that reported 0% and failed every run).
+  `coverage-module-only.rc` is deliberately NOT named `.coveragerc` —
+  coverage.py auto-discovers a dot-named config and would silently
+  hijack Gate A.
   `tests/test_detection.py::TestCoverageEdges` +
   `TestBranchCoverageComplete` exist purely to close defensive/normalization
   branches the feature suites never reach (list→set state migration, base_url
@@ -229,8 +250,7 @@ ruff check .                   # CI lint gate — must pass before push
   the lock double-check, empty-group skip, corrupt-state-without-backup
   recovery, stale achievement ids, legacy list-typed stats, unknown
   models/providers, non-dict usage). If you add a branch, add its edge test —
-  the CI gate fails below 99% and branch coverage is now tracked locally
-  with `--cov-branch`.
+  the CI gates fail below 99% (full tree) / 98% (module-only).
 
 - `tests/test_detection.py::TestEveryAchievementUnlockable` — full-grind
   simulation: drives every hook with escalating synthetic gateway data and
@@ -242,6 +262,22 @@ ruff check .                   # CI lint gate — must pass before push
 
 ## Committing
 
-- Author AND committer must be `omiinaya <omiinaya@gmail.com>`.
+- Author AND committer must be `omiinaya`. Two emails appear in history
+  (`omiinaya@gmail.com` and `omar@mrxlab.net`); recent work uses
+  `omar@mrxlab.net` — match whatever the most recent commit on the
+  branch used rather than hardcoding one.
 - Tests must pass before push. Push immediately — unpushed commits are
   incomplete.
+
+## Admin corrections (relocking an achievement)
+
+`scripts/reset_achievement.py <ach_id>` relocks a badge in the live
+state, under the plugin's own flock. It works on a **running** gateway
+because of `state_revision`: the cross-process merge is monotonic
+("unlocked record wins" — correct for concurrent counters), so without
+a revision bump a relock would be rewritten as unlocked within seconds.
+The external bump makes the process adopt disk wholesale instead. That
+adoption must mutate nested containers in place, because hooks hold
+references into `state["stats"]` and `state["achievements"]`.
+Never reintroduce a plain rebind; the test
+`test_adoption_preserves_state_object_identity` guards it.
