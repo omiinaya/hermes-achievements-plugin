@@ -39,3 +39,6 @@ tmp*/
 # uv (ad-hoc matrix runs only — project is pure stdlib)
 uv.lock
 uv.toml
+
+# graphify knowledge graph (generated, ~MB, rebuildable)
+graphify-out/
