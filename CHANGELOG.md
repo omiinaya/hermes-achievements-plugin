@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [2.22.2]
 
 ### Fixed: unlock notifications are batched, not one message per unlock
 
